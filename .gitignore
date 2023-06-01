@@ -1,0 +1,5 @@
+*.swp
+/.ssh/
+/.mitogen/
+/inv/*.yml
+!/inv/example.yml

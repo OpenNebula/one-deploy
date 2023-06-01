@@ -1,0 +1,5 @@
+---
+- name: Restart OpenNebula
+  ansible.builtin.service:
+    name: opennebula
+    state: restarted

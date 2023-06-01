@@ -1,0 +1,21 @@
+---
+- name: Create local .ssh directory tree
+  ansible.builtin.file:
+    path: "{{ item }}/"
+    state: directory
+    mode: u+rwx,g=rx,o=
+  loop:
+    - "{{ playbook_dir }}/.ssh"
+    - "{{ playbook_dir }}/.ssh/config.d"
+
+- name: Generate bastion SSH main config
+  ansible.builtin.template:
+    dest: "{{ playbook_dir }}/.ssh/config"
+    src: sshconfig.j2
+    mode: u=rw,g=r,o=
+
+- name: Generate bastion SSH env config
+  ansible.builtin.template:
+    dest: "{{ playbook_dir }}/.ssh/config.d/{{ env_name }}"
+    src: config.d/sshconfig.j2
+    mode: u=rw,g=r,o=

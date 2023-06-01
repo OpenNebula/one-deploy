@@ -1,0 +1,24 @@
+---
+all:
+  vars:
+    env_name: example
+    ansible_user: example
+    ansible_python_interpreter: /usr/bin/python3
+    one_token: example:example
+    one_version: '6.6'
+    one_vip: 10.11.12.69
+    one_vip_cidr: 24
+    one_vip_if: br0
+
+bastion:
+  hosts:
+    b1: { ansible_host: 10.11.12.10 }
+
+frontend:
+  hosts:
+    f1: { ansible_host: 10.11.12.10 }
+    f2: { ansible_host: 10.11.12.20 }
+    f3: { ansible_host: 10.11.12.30 }
+
+node:
+  hosts: {}

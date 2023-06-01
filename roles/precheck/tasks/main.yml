@@ -1,0 +1,20 @@
+---
+- name: Check if distro family is supported
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family in {{ _supported }}
+  vars:
+    _supported:
+      - Debian
+      - RedHat
+
+- name: Check if distro is supported
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution in {{ _supported }}
+  vars:
+    _supported:
+      - AlmaLinux
+      - Debian
+      - RedHat
+      - Ubuntu

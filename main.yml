@@ -1,0 +1,3 @@
+---
+- ansible.builtin.import_playbook: "{{ playbook_dir }}/pre.yml"
+- ansible.builtin.import_playbook: "{{ playbook_dir }}/site.yml"

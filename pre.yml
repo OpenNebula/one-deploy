@@ -1,0 +1,18 @@
+---
+- hosts: bastion
+  roles:
+    - role: bastion
+      delegate_to: localhost
+      become: false
+      tags: [bastion]
+
+- hosts: frontend:node
+  strategy: linear
+  roles:
+    - role: python3
+
+- hosts: frontend:node
+  gather_facts: true
+  gather_subset: [min]
+  roles:
+    - role: precheck

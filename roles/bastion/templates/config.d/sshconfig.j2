@@ -1,0 +1,18 @@
+Host {{ groups.bastion[0] }}
+  Hostname {{ hostvars[groups.bastion[0]].ansible_host | default(groups.bastion[0]) }}
+  User {{ hostvars[groups.bastion[0]].ansible_user }}
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+  ForwardAgent yes
+
+{% for host in (groups.frontend + groups.node) | unique -%}
+
+Host {{ hostvars[host].ansible_host | default(hostvars[host].inventory_hostname) }}
+  Hostname {{ hostvars[host].ansible_host | default(hostvars[host].inventory_hostname) }}
+  User {{ hostvars[host].ansible_user }}
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+  ForwardAgent yes
+  ProxyJump {{ groups.bastion[0] }}
+
+{% endfor %}

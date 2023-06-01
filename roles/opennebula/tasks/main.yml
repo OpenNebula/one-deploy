@@ -1,0 +1,139 @@
+---
+- name: Install OpenNebula base packages
+  ansible.builtin.package:
+    name: "{{ _name[ansible_os_family] }}"
+  vars:
+    _name:
+      Debian: [opennebula]
+      RedHat: [opennebula]
+
+- name: Configure oned (DB)
+  ansible.builtin.replace:
+    path: /etc/one/oned.conf
+    # NOTE: \s     <- matches also newlines
+    #       .      <- does *not* match newlines
+    #       [\S\s] <- matches anything (including newlines)
+    after: '\nDB *= *\[' # find the start
+    regexp: '^[\S\s]*$'  # match anything in between
+    before: '\] *\n'     # find the end
+    replace: "\n{{ _replace }} "
+  vars:
+    _backend:
+      MariaDB: mysql
+      PostgreSQL: postgresql
+    _replace: |2-
+        BACKEND = "{{ _backend[db_backend] }}",
+        SERVER  = "localhost",
+        PORT    = 0,
+        USER    = "{{ db_owner }}",
+        PASSWD  = "{{ db_password }}",
+        DB_NAME = "{{ db_name }}"
+  notify:
+    - Restart OpenNebula
+
+- name: Configure oned (RAFT_LEADER_HOOK)
+  ansible.builtin.replace:
+    path: /etc/one/oned.conf
+    after: "{{ item.after | default(omit) }}"
+    regexp: "{{ item.regexp | default(omit) }}"
+    before: "{{ item.before | default(omit) }}"
+    replace: "{{ item.replace | default(omit) }}"
+  loop:
+    # Uncomment existing line.
+    - regexp: '^# *(RAFT_LEADER_HOOK *=.*)$'
+      replace: '\g<1>'
+    # NOTE: \s     <- matches also newlines
+    #       .      <- does *not* match newlines
+    #       [\S\s] <- matches anything (including newlines)
+    - after: '\nRAFT_LEADER_HOOK *= *\[' # find the start
+      regexp: '^[\S\s]*$'                # match anything in between
+      before: '\] *\n'                   # find the end
+      replace: "\n{{ _replace }} "
+  vars:
+    _replace: |2-
+        COMMAND   = "raft/vip.sh",
+        ARGUMENTS = "leader {{ one_vip_if }} {{ one_vip }}/{{ one_vip_cidr }}"
+  notify:
+    - Restart OpenNebula
+
+- name: Configure oned (RAFT_FOLLOWER_HOOK)
+  ansible.builtin.replace:
+    path: /etc/one/oned.conf
+    after: "{{ item.after | default(omit) }}"
+    regexp: "{{ item.regexp | default(omit) }}"
+    before: "{{ item.before | default(omit) }}"
+    replace: "{{ item.replace | default(omit) }}"
+  loop:
+    # Uncomment existing line.
+    - regexp: '^# *(RAFT_FOLLOWER_HOOK *=.*)$'
+      replace: '\g<1>'
+    # NOTE: \s     <- matches also newlines
+    #       .      <- does *not* match newlines
+    #       [\S\s] <- matches anything (including newlines)
+    - after: '\nRAFT_FOLLOWER_HOOK *= *\[' # find the start
+      regexp: '^[\S\s]*$'                  # match anything in between
+      before: '\] *\n'                     # find the end
+      replace: "\n{{ _replace }} "
+  vars:
+    _replace: |2-
+        COMMAND   = "raft/vip.sh",
+        ARGUMENTS = "follower {{ one_vip_if }} {{ one_vip }}/{{ one_vip_cidr }}"
+  notify:
+    - Restart OpenNebula
+
+- name: Configure monitord (MONITOR_ADDRESS)
+  ansible.builtin.replace:
+    path: /etc/one/monitord.conf
+    after: '\nNETWORK *= *\['                  # find the start
+    regexp: 'MONITOR_ADDRESS( *)= *.*([,\s])$' # match the option
+    before: '\] *\n'                           # find the end
+    replace: >-
+      MONITOR_ADDRESS\g<1>= "{{ one_vip }}"\g<2>
+  notify:
+    - Restart OpenNebula
+
+- name: Get Zone 0
+  ansible.builtin.shell:
+    cmd: onezone show 0 --json
+    executable: /bin/bash
+  register: shell
+  changed_when: false
+  ignore_errors: true
+
+- name: Detect or select a Leader
+  run_once: true
+  ansible.builtin.set_fact:
+    leader: >-
+      {{ groups.frontend[0] if _running | length == 0 else _leader }}
+  vars:
+    _results: >-
+      {{ groups.frontend | map('extract', hostvars, ['shell']) | list }}
+    _running: >-
+      {{ _results | selectattr('failed', 'false') | list }}
+    _documents: >-
+      {{ _running | map(attribute='stdout') | map('from_json') | list }}
+    _server_pools: >-
+      {{ _documents | map(attribute='ZONE.SERVER_POOL') | select | list }}
+    _leader: >-
+      {{ ([_server_pools[0].SERVER] | flatten
+                                    | selectattr('STATE', '==', '3')
+                                    | first).NAME }}
+
+- ansible.builtin.include_tasks: "{{ role_path }}/tasks/join.yml"
+  when: inventory_hostname == leader
+
+- ansible.builtin.include_tasks: "{{ role_path }}/tasks/sync.yml"
+  when: inventory_hostname != leader
+
+# NOTE: We emulate here `serial: 1` using `loop:` + `delegate_to:` as HA Frontends
+# *MUST* be joined strictly sequentially.
+- ansible.builtin.include_tasks: "{{ role_path }}/tasks/join.yml"
+  args:
+    apply:
+      delegate_to: "{{ follower }}"
+  loop: "{{ _followers }}"
+  loop_control: { loop_var: follower }
+  vars:
+    _followers: >-
+      {{ groups.frontend | difference([leader]) }}
+  when: inventory_hostname == leader

@@ -1,0 +1,70 @@
+---
+- name: Check if DB backend is supported
+  ansible.builtin.assert:
+    that: db_backend in db_supported_backends
+
+- name: Install DB packages
+  ansible.builtin.package:
+    name: "{{ _name[ansible_os_family][db_backend] }}"
+  vars:
+    _name:
+      Debian:
+        MariaDB: [mariadb-server]
+        PostgreSQL: [postgresql]
+      RedHat:
+        MariaDB: [mariadb-server]
+        PostgreSQL: [postgresql-server]
+  register: package
+
+- when: package is changed and (ansible_os_family == 'RedHat' and db_backend == 'PostgreSQL')
+  block:
+    - name: Check if PostgreSQL has been initialized
+      ansible.builtin.stat:
+        path: /var/lib/pgsql/data/postgresql.conf
+      register: stat
+
+    - name: Init PostgreSQL
+      ansible.builtin.shell:
+        cmd: /usr/bin/postgresql-setup --initdb
+        executable: /bin/bash
+        creates: /var/lib/pgsql/data/postgresql.conf
+      when: not stat.stat.exists
+
+- name: Enable and start DB service
+  ansible.builtin.service:
+    name: "{{ _name[ansible_os_family][db_backend] }}"
+    enabled: true
+    state: started
+  vars:
+    _name:
+      Debian:
+        MariaDB: mariadb
+        PostgreSQL: postgresql
+      RedHat:
+        MariaDB: mariadb
+        PostgreSQL: postgresql
+
+- name: Create DB instance for OpenNebula
+  ansible.builtin.shell:
+    cmd: "{{ _shell[db_backend].cmd }}"
+    stdin: "{{ _shell[db_backend].stdin }}"
+    executable: /bin/bash
+  become_user: "{{ _become_user[db_backend] }}"
+  vars:
+    _shell:
+      MariaDB:
+        cmd: mysql
+        stdin: |
+          CREATE DATABASE IF NOT EXISTS {{ db_name }} CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+          GRANT ALL PRIVILEGES ON *.* TO '{{ db_owner }}'@'%' IDENTIFIED BY '{{ db_password }}';
+          GRANT ALL PRIVILEGES ON *.* TO '{{ db_owner }}'@'localhost' IDENTIFIED BY '{{ db_password }}';
+          SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;
+      PostgreSQL:
+        cmd: psql
+        stdin: |
+          SELECT 'CREATE ROLE {{ db_owner }} LOGIN PASSWORD ''{{ db_password }}''' WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{{ db_owner }}')\gexec
+          SELECT 'CREATE DATABASE {{ db_name }} OWNER {{ db_owner }}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{{ db_name }}')\gexec
+    _become_user:
+      MariaDB: root
+      PostgreSQL: postgres
+  changed_when: false
