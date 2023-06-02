@@ -3,4 +3,4 @@
   ansible.builtin.service:
     name: opennebula
     state: restarted
-  when: inventory_hostname not in no_restart
+  when: inventory_hostname not in (no_restart | default([]))

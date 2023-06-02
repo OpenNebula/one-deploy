@@ -15,3 +15,15 @@
       Debian: libvirtd
       RedHat: libvirtd
   when: lineinfile is changed
+
+- name: Delete Libvirt's default network (optional)
+  ansible.builtin.shell:
+    cmd: |
+      set -o errexit
+      if virsh net-dumpxml default; then
+        virsh net-destroy default
+        virsh net-undefine default
+      fi
+    executable: /bin/bash
+  changed_when: false
+  when: not keep_default_net

@@ -8,13 +8,9 @@
       RedHat: [opennebula-node-kvm]
   tags: [preinstall]
 
-- import_tasks: "{{ role_path }}/tasks/libvirt.yml"
+- ansible.builtin.import_tasks: "{{ role_path }}/tasks/libvirt.yml"
 
-- name: Use VIP to reach the Leader
-  ansible.builtin.set_fact:
-    leader: >-
-      {{ one_vip | default(groups.frontend | random) }}
-  run_once: true
+- ansible.builtin.include_tasks: "{{ role_path }}/tasks/leader.yml"
 
 - name: Slurp oneadmin's pubkey
   ansible.builtin.slurp:

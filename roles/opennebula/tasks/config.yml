@@ -1,0 +1,84 @@
+---
+- name: Configure oned (DB)
+  ansible.builtin.replace:
+    path: /etc/one/oned.conf
+    # NOTE: \s     <- matches also newlines
+    #       .      <- does *not* match newlines
+    #       [\S\s] <- matches anything (including newlines)
+    after: '\nDB *= *\[' # find the start
+    regexp: '^[\S\s]*$'  # match anything in between
+    before: '\] *\n'     # find the end
+    replace: "\n{{ _replace }} "
+  vars:
+    _replace: |2-
+        BACKEND = "{{ db_backend_types[db_backend] }}",
+        SERVER  = "localhost",
+        PORT    = 0,
+        USER    = "{{ db_owner }}",
+        PASSWD  = "{{ db_password }}",
+        DB_NAME = "{{ db_name }}"
+  notify:
+    - Restart OpenNebula
+
+- when: use_ha is true
+  block:
+    - name: Configure oned (RAFT_LEADER_HOOK)
+      ansible.builtin.replace:
+        path: /etc/one/oned.conf
+        after: "{{ item.after | default(omit) }}"
+        regexp: "{{ item.regexp | default(omit) }}"
+        before: "{{ item.before | default(omit) }}"
+        replace: "{{ item.replace | default(omit) }}"
+      loop:
+        # Uncomment existing line.
+        - regexp: '^# *(RAFT_LEADER_HOOK *=.*)$'
+          replace: '\g<1>'
+        # NOTE: \s     <- matches also newlines
+        #       .      <- does *not* match newlines
+        #       [\S\s] <- matches anything (including newlines)
+        - after: '\nRAFT_LEADER_HOOK *= *\[' # find the start
+          regexp: '^[\S\s]*$'                # match anything in between
+          before: '\] *\n'                   # find the end
+          replace: "\n{{ _replace }} "
+      vars:
+        _replace: |2-
+            COMMAND   = "raft/vip.sh",
+            ARGUMENTS = "leader {{ one_vip_if }} {{ one_vip }}/{{ one_vip_cidr }}"
+      notify:
+        - Restart OpenNebula
+
+    - name: Configure oned (RAFT_FOLLOWER_HOOK)
+      ansible.builtin.replace:
+        path: /etc/one/oned.conf
+        after: "{{ item.after | default(omit) }}"
+        regexp: "{{ item.regexp | default(omit) }}"
+        before: "{{ item.before | default(omit) }}"
+        replace: "{{ item.replace | default(omit) }}"
+      loop:
+        # Uncomment existing line.
+        - regexp: '^# *(RAFT_FOLLOWER_HOOK *=.*)$'
+          replace: '\g<1>'
+        # NOTE: \s     <- matches also newlines
+        #       .      <- does *not* match newlines
+        #       [\S\s] <- matches anything (including newlines)
+        - after: '\nRAFT_FOLLOWER_HOOK *= *\[' # find the start
+          regexp: '^[\S\s]*$'                  # match anything in between
+          before: '\] *\n'                     # find the end
+          replace: "\n{{ _replace }} "
+      vars:
+        _replace: |2-
+            COMMAND   = "raft/vip.sh",
+            ARGUMENTS = "follower {{ one_vip_if }} {{ one_vip }}/{{ one_vip_cidr }}"
+      notify:
+        - Restart OpenNebula
+
+    - name: Configure monitord (MONITOR_ADDRESS)
+      ansible.builtin.replace:
+        path: /etc/one/monitord.conf
+        after: '\nNETWORK *= *\['                  # find the start
+        regexp: 'MONITOR_ADDRESS( *)= *.*([,\s])$' # match the option
+        before: '\] *\n'                           # find the end
+        replace: >-
+          MONITOR_ADDRESS\g<1>= "{{ one_vip }}"\g<2>
+      notify:
+        - Restart OpenNebula
