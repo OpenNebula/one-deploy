@@ -14,7 +14,7 @@
   changed_when: false
   delegate_to: "{{ leader }}"
 
-- name: Add this Frontend to Zone 0 (if missing)
+- name: Add this Frontend to Zone 0
   ansible.builtin.shell:
     cmd: onezone server-add 0 --name '{{ _this }}' --rpc 'http://{{ _this }}:2633/RPC2'
     executable: /bin/bash
@@ -28,7 +28,6 @@
       {{ [_server_pool.SERVER] | flatten | map(attribute='NAME') | list }}
     _this: >-
       {{ follower | default(inventory_hostname) }}
-  changed_when: false
   delegate_to: "{{ leader }}"
 
 - *Get_Zone_0

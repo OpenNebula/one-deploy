@@ -21,4 +21,6 @@ frontend:
     f3: { ansible_host: 10.11.12.30 }
 
 node:
-  hosts: {}
+  hosts:
+    n1: { ansible_host: 10.11.12.40 }
+    n2: { ansible_host: 10.11.12.50 }

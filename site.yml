@@ -2,7 +2,18 @@
 - hosts: frontend
   gather_facts: true
   gather_subset: [min]
+  tags: [frontend]
   roles:
     - role: repository
+      tags: [preinstall]
     - role: database
     - role: opennebula
+
+- hosts: node
+  gather_facts: true
+  gather_subset: [min]
+  tags: [node]
+  roles:
+    - role: repository
+      tags: [preinstall]
+    - role: kvm

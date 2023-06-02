@@ -47,7 +47,8 @@
   ansible.builtin.shell:
     cmd: |
       onedb version -t '{{ db_backend_types[db_backend] }}' \
-                    -u '{{ db_owner }}' -p '{{ db_password }}' \
+                    -u '{{ db_owner }}' \
+                    -p '{{ db_password }}' \
                     -d '{{ db_name }}'
     executable: /bin/bash
   register: shell
@@ -57,7 +58,7 @@
 - name: Detect if DB has been replicated
   ansible.builtin.set_fact:
     db_ok: >-
-      {{ shell.failed is false }}
+      {{ shell is success }}
 
 - name: Combine all results
   ansible.builtin.set_fact:
@@ -109,7 +110,8 @@
       ansible.builtin.shell:
         cmd: |
           onedb backup -f -t '{{ db_backend_types[db_backend] }}' \
-                          -u '{{ db_owner }}' -p '{{ db_password }}' \
+                          -u '{{ db_owner }}' \
+                          -p '{{ db_password }}' \
                           -d '{{ db_name }}' /var/tmp/db.sql
         executable: /bin/bash
 
@@ -135,7 +137,8 @@
         cmd: |
           set -o errexit -o pipefail
           zcat '{{ _db_sql_gz }}' | onedb restore -t '{{ db_backend_types[db_backend] }}' \
-                                                  -u '{{ db_owner }}' -p '{{ db_password }}' \
+                                                  -u '{{ db_owner }}' \
+                                                  -p '{{ db_password }}' \
                                                   -d '{{ db_name }}' /dev/fd/0
         executable: /bin/bash
       vars:

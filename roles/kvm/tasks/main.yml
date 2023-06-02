@@ -1,0 +1,54 @@
+---
+- name: Install OpenNebula KVM packages
+  ansible.builtin.package:
+    name: "{{ _name[ansible_os_family] }}"
+  vars:
+    _name:
+      Debian: [opennebula-node-kvm]
+      RedHat: [opennebula-node-kvm]
+  tags: [preinstall]
+
+- import_tasks: "{{ role_path }}/tasks/libvirt.yml"
+
+- name: Use VIP to reach the Leader
+  ansible.builtin.set_fact:
+    leader: >-
+      {{ one_vip | default(groups.frontend | random) }}
+  run_once: true
+
+- name: Slurp oneadmin's pubkey
+  ansible.builtin.slurp:
+    path: /var/lib/one/.ssh/id_rsa.pub
+  register: slurp
+  run_once: true
+  delegate_to: "{{ leader }}"
+
+- name: Add oneadmin's pubkey to authorized keys
+  ansible.posix.authorized_key:
+    user: oneadmin
+    key: "{{ slurp.content | b64decode }}"
+
+- delegate_to: "{{ leader }}"
+  block:
+    - name: Get Nodes
+      ansible.builtin.shell:
+        cmd: onehost list --json
+        executable: /bin/bash
+      register: shell
+      changed_when: false
+      run_once: true
+
+    - name: Add this KVM Node to OpenNebula
+      ansible.builtin.shell:
+        cmd: onehost create '{{ _this }}' -i kvm -v kvm
+        executable: /bin/bash
+      when: _host_pool is falsy or _this not in _node_names
+      vars:
+        _document: >-
+          {{ shell.stdout | from_json }}
+        _host_pool: >-
+          {{ _document.HOST_POOL }}
+        _node_names: >-
+          {{ [_host_pool.HOST] | flatten | map(attribute='NAME') | list }}
+        _this: >-
+          {{ inventory_hostname }}

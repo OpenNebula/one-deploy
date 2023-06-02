@@ -15,6 +15,7 @@
         MariaDB: [mariadb-server]
         PostgreSQL: [postgresql-server]
   register: package
+  tags: [preinstall]
 
 - when: package is changed and (ansible_os_family == 'RedHat' and db_backend == 'PostgreSQL')
   block:

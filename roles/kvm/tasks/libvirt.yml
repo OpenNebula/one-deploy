@@ -1,0 +1,17 @@
+---
+- name: Ensure each libvirtd uses distinct UUID
+  ansible.builtin.lineinfile:
+    path: /etc/libvirt/libvirtd.conf
+    regexp: '^[#\s]*host_uuid\s*=.*$'
+    line: 'host_uuid = "{{ inventory_hostname | to_uuid }}"'
+  register: lineinfile
+
+- name: Restart libvirtd (NOW)
+  ansible.builtin.service:
+    name: "{{ _name[ansible_os_family] }}"
+    state: restarted
+  vars:
+    _name:
+      Debian: libvirtd
+      RedHat: libvirtd
+  when: lineinfile is changed
