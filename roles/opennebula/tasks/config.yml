@@ -20,6 +20,15 @@
   notify:
     - Restart OpenNebula
 
+- name: Workaround potential Libvirt's NFS detection issues
+  ansible.builtin.lineinfile:
+    path: /var/lib/one/remotes/etc/vmm/kvm/kvmrc
+    regexp: '^[#\s]*MIGRATE_OPTIONS\s*=.*$'
+    line: 'MIGRATE_OPTIONS=--unsafe'
+  notify:
+    - Sync Nodes
+  when: unsafe_migrations is truthy
+
 - when: use_ha is true
   block:
     - name: Configure oned (RAFT_LEADER_HOOK)

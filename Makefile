@@ -7,6 +7,9 @@ INVENTORY ?= $(I)
 T    ?=
 TAGS ?= $(T)
 
+S         ?=
+SKIP_TAGS ?= $(S)
+
 V       ?= vv
 VERBOSE ?= $(V)
 
@@ -23,8 +26,11 @@ all: main
 
 .PHONY: pre site main
 
+pre site main: _TAGS      := $(if $(TAGS),-t $(TAGS),)
+pre site main: _SKIP_TAGS := $(if $(SKIP_TAGS),--skip-tags $(SKIP_TAGS),)
+pre site main: _VERBOSE   := $(if $(VERBOSE),-$(VERBOSE),)
 pre site main:
-	cd $(SELF)/ && ansible-playbook $(if $(VERBOSE),-$(VERBOSE),) -i $(INVENTORY) $(if $(TAGS),-t $(TAGS),) $@.yml
+	cd $(SELF)/ && ansible-playbook $(_VERBOSE) -i $(INVENTORY) $(_TAGS) $(_SKIP_TAGS) $@.yml
 
 .PHONY: mitogen
 

@@ -30,10 +30,10 @@
           {{ shell.stdout | from_json }}
         _server_pool: >-
           {{ _document.ZONE.SERVER_POOL }}
-        _servers: >-
+        _peers: >-
           {{ [_server_pool.SERVER] | flatten | list }}
         _leader: >-
-          {{ _servers | selectattr('STATE', '==', '3') | list }}
+          {{ _peers | selectattr('STATE', '==', '3') | list }}
   rescue:
     - name: Abort after timeout
       ansible.builtin.fail:

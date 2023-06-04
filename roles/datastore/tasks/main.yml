@@ -1,0 +1,115 @@
+---
+- name: Compute helper facts
+  ansible.builtin.set_fact:
+    ds_dict: >-
+      {{ _items | items2dict }}
+    ds_names: >-
+      {{ _items | map(attribute='key') | list }}
+  vars:
+    _ds: >-
+      {{ ds_defaults | combine(ds, recursive=true) }}
+    _items: >-
+      {{ _ds | dict2items
+             | map(attribute='value')
+             | map('dict2items')
+             | flatten
+             | selectattr('value.managed', 'true')
+             | list }}
+  run_once: true
+
+- name: Ensure /var/lib/one/datastores/ exists
+  ansible.builtin.file:
+    path: /var/lib/one/datastores/
+    state: directory
+    owner: oneadmin
+    group: oneadmin
+    mode: u=rwx,go=rx
+
+- name: Setup datastore symlinks
+  ansible.builtin.file:
+    src: "{{ _src }}/"
+    dest: "{{ _dest }}"
+    state: link
+    owner: oneadmin
+    group: oneadmin
+    mode: u=rwx,go=rx
+  when: inventory_hostname in _hosts and _src != '/var/lib/one/datastores'
+  vars:
+    _src: >-
+      {{ ds_dict[item].symlink.src | realpath }}
+    _dest: >-
+      /var/lib/one/datastores/{{ ds_dict[item].id }}
+    _hosts: >-
+      {{ ds_dict[item].symlink.groups | map('extract', groups)
+                                      | flatten
+                                      | unique
+                                      | list }}
+  loop: "{{ ds_names }}"
+
+- when: inventory_hostname in groups.frontend
+  block:
+    - ansible.builtin.include_role:
+        name: opennebula
+        tasks_from: leader
+      when: leader is undefined
+
+    - delegate_to: "{{ leader }}"
+      run_once: true
+      block:
+        - name: Get Datastores
+          ansible.builtin.shell:
+            cmd: onedatastore list --json
+            executable: /bin/bash
+          register: shell
+          changed_when: false
+
+        - name: Update Datastores
+          ansible.builtin.shell:
+            cmd: |
+              set -o errexit
+              {% if ds_dict[item].enabled is defined %}
+              onedatastore {{ 'enable' if ds_dict[item].enabled else 'disable' }} '{{ ds_dict[item].id }}'
+              {% endif %}
+              set +o errexit
+              TEMPLATE="$(mktemp)"
+              tee "$TEMPLATE"
+              onedatastore update '{{ ds_dict[item].id }}' -a "$TEMPLATE"; RC="$?"
+              rm -f "$TEMPLATE"
+              exit "$RC"
+            stdin: |
+              {{ ds_dict[item].template | to_one }}
+            executable: /bin/bash
+          loop: "{{ _existing }}"
+          vars:
+            _document: >-
+              {{ shell.stdout | from_json }}
+            _datastores: >-
+              {{ [_document.DATASTORE_POOL.DATASTORE] | flatten | list }}
+            _names: >-
+              {{ _datastores | map(attribute='NAME') | list }}
+            _existing: >-
+              {{ ds_names | intersect(_names) | list }}
+          changed_when: true # FIXME!
+
+        - name: Create Datastores
+          ansible.builtin.shell:
+            cmd: |
+              set +o errexit
+              TEMPLATE="$(mktemp)"
+              tee "$TEMPLATE"
+              onedatastore create "$TEMPLATE"; RC="$?"
+              rm -f "$TEMPLATE"
+              exit "$RC"
+            stdin: |
+              {{ ds_dict[item].template | combine({"NAME": item}) | to_one }}
+            executable: /bin/bash
+          loop: "{{ _missing }}"
+          vars:
+            _document: >-
+              {{ shell.stdout | from_json }}
+            _datastores: >-
+              {{ [_document.DATASTORE_POOL.DATASTORE] | flatten | list }}
+            _names: >-
+              {{ _datastores | map(attribute='NAME') | list }}
+            _missing: >-
+              {{ ds_names | difference(_names) | list }}

@@ -15,12 +15,7 @@
     no_restart: >-
       {{ groups.frontend
          if _running is falsy else
-         groups.frontend | difference(
-            [_server_pools[0].SERVER] | flatten
-                                      | map(attribute='NAME')
-                                      | list
-         )
-      }}
+         groups.frontend | difference(_peer_names) }}
   vars:
     _results: >-
       {{ groups.frontend | map('extract', hostvars, ['shell']) | list }}
@@ -30,10 +25,12 @@
       {{ _running | map(attribute='stdout') | map('from_json') | list }}
     _server_pools: >-
       {{ _documents | map(attribute='ZONE.SERVER_POOL') | select | list }}
+    _peers: >-
+      {{ [_server_pools[0].SERVER] | flatten | list }}
+    _peer_names: >-
+      {{ _peers | map(attribute='NAME') | list }}
     _leader: >-
-      {{ ([_server_pools[0].SERVER] | flatten
-                                    | selectattr('STATE', '==', '3')
-                                    | first).NAME }}
+      {{ (_peers | selectattr('STATE', '==', '3') | first).NAME }}
 
 - ansible.builtin.include_tasks: "{{ role_path }}/tasks/join.yml"
   when: inventory_hostname == leader

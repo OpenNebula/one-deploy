@@ -9,8 +9,12 @@
   tags: [preinstall]
 
 - ansible.builtin.import_tasks: "{{ role_path }}/tasks/libvirt.yml"
+  tags: [libvirt]
 
-- ansible.builtin.include_tasks: "{{ role_path }}/tasks/leader.yml"
+- ansible.builtin.include_role:
+    name: opennebula
+    tasks_from: leader
+  when: leader is undefined
 
 - name: Slurp oneadmin's pubkey
   ansible.builtin.slurp:

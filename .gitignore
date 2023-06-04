@@ -1,5 +1,7 @@
 *.swp
+__pycache__/
 /.ssh/
 /.mitogen/
 /inv/*.yml
 !/inv/example.yml
+!/inv/shared.yml

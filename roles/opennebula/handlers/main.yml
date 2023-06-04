@@ -4,3 +4,10 @@
     name: opennebula
     state: restarted
   when: inventory_hostname not in (no_restart | default([]))
+
+- name: Sync Nodes
+  ansible.builtin.shell:
+    cmd: onehost sync -f
+    executable: /bin/bash
+  become_user: oneadmin
+  run_once: true

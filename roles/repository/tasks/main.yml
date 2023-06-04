@@ -46,14 +46,14 @@
       RedHat: /etc/yum.repos.d/opennebula.repo
     _content:
       Debian: |
-        {% if one_token is defined and one_token | length > 0 %}
+        {% if one_token is defined and one_token is truthy %}
         deb https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }} stable opennebula
         {% else %}
         deb https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }} stable opennebula
         {% endif %}
       RedHat: |
         [opennebula]
-        {% if one_token is defined and one_token | length > 0 %}
+        {% if one_token is defined and one_token is truthy %}
         name=OpenNebula Enterprise Edition
         baseurl=https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/$releasever/$basearch
         {% else %}

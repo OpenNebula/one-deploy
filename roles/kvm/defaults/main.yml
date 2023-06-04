@@ -1,2 +1,3 @@
 ---
-keep_default_net: false
+disable_default_net: true
+libvirtd_args: ""

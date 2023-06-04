@@ -1,2 +1,3 @@
 ---
 force_ha: false
+unsafe_migrations: true

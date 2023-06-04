@@ -8,6 +8,8 @@
       tags: [preinstall]
     - role: database
     - role: opennebula
+    - role: datastore
+      tags: [datastore]
 
 - hosts: node
   gather_facts: true
@@ -16,4 +18,6 @@
   roles:
     - role: repository
       tags: [preinstall]
+    - role: datastore
+      tags: [datastore]
     - role: kvm
