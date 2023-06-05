@@ -1,5 +1,5 @@
 ---
-- name: Enable and start OpenNebula (NOW)
+- name: Enable and Start OpenNebula (NOW)
   ansible.builtin.service:
     name: opennebula
     enabled: true

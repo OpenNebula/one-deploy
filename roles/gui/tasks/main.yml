@@ -1,0 +1,45 @@
+---
+- name: Install FireEdge, Sunstone and dependencies
+  ansible.builtin.package:
+    name: "{{ _name[ansible_os_family] }}"
+  vars:
+    _name:
+      Debian: [opennebula-fireedge, opennebula-sunstone]
+      RedHat: [opennebula-fireedge, opennebula-sunstone]
+  tags: [preinstall]
+
+- ansible.builtin.include_role:
+    name: opennebula
+    tasks_from: leader
+
+- ansible.builtin.import_tasks: "{{ role_path }}/tasks/config.yml"
+
+- name: Enable FireEdge Server (NOW)
+  ansible.builtin.service:
+    name: opennebula-fireedge
+    enabled: true
+
+- name: Start FireEdge Server (NOW)
+  ansible.builtin.service:
+    name: opennebula-fireedge
+    state: started
+  register: service_fireedge
+
+- name: Enable Sunstone Server (NOW)
+  ansible.builtin.service:
+    name: opennebula-sunstone
+    enabled: true
+
+- name: Start Sunstone Server (NOW)
+  ansible.builtin.service:
+    name: opennebula-sunstone
+    state: started
+  register: service_sunstone
+
+- name: Make sure FireEdge and Sunstone Servers are not restarted twice
+  ansible.builtin.set_fact:
+    gui_no_restart: >-
+      {{ service_fireedge is changed and service_sunstone is changed }}
+
+- name: Flush handlers
+  meta: flush_handlers

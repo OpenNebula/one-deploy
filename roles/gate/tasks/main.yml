@@ -1,0 +1,39 @@
+---
+- when: inventory_hostname in groups.frontend
+  block:
+    - name: Install OneGate Server and dependencies
+      ansible.builtin.package:
+        name: "{{ _name[ansible_os_family] }}"
+      vars:
+        _name:
+          Debian: [opennebula-gate]
+          RedHat: [opennebula-gate]
+      tags: [preinstall]
+
+    - ansible.builtin.include_role:
+        name: opennebula
+        tasks_from: leader
+
+    - ansible.builtin.import_tasks: "{{ role_path }}/tasks/config.yml"
+
+    - name: Enable OneGate Server (NOW)
+      ansible.builtin.service:
+        name: opennebula-gate
+        enabled: true
+
+    - delegate_to: "{{ leader }}"
+      run_once: true
+      block:
+        - name: Start OneGate Server (NOW)
+          ansible.builtin.service:
+            name: opennebula-gate
+            state: started
+          register: service
+
+        - name: Make sure OneGate Server is not restarted twice
+          ansible.builtin.set_fact:
+            gate_no_restart: >-
+              {{ service is changed }}
+
+    - name: Flush handlers
+      meta: flush_handlers

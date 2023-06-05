@@ -1,0 +1,16 @@
+---
+- name: Configure OneGate Server (:host)
+  ansible.builtin.lineinfile:
+    path: /etc/one/onegate-server.conf
+    regexp: '^:host:.*$'
+    line: ':host: "{{ gate_listen_addr }}"'
+  notify:
+    - Restart OneGate Server
+
+- name: Configure oned (ONEGATE_ENDPOINT)
+  ansible.builtin.lineinfile:
+    path: /etc/one/oned.conf
+    regexp: '^[#\s]*ONEGATE_ENDPOINT\s*=.*$'
+    line: 'ONEGATE_ENDPOINT = "http://{{ gate_endpoint }}:5030"'
+  notify:
+    - Restart OpenNebula (gate)

@@ -6,10 +6,22 @@
   roles:
     - role: repository
       tags: [preinstall]
+
     - role: database
     - role: opennebula
+
+    - role: gate
+      tags: [gate]
+
+    - role: flow
+      tags: [flow]
+
+    - role: gui
+      tags: [gui]
+
     - role: datastore
       tags: [datastore]
+
     - role: network
       tags: [network]
 
@@ -20,6 +32,8 @@
   roles:
     - role: repository
       tags: [preinstall]
+
     - role: datastore
       tags: [datastore]
+
     - role: kvm

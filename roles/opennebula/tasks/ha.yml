@@ -12,7 +12,7 @@
   ansible.builtin.set_fact:
     leader: >-
       {{ groups.frontend[0] if _running is falsy else _leader }}
-    no_restart: >-
+    oned_no_restart: >-
       {{ groups.frontend
          if _running is falsy else
          groups.frontend | difference(_peer_names) }}

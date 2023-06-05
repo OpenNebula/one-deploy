@@ -1,0 +1,2 @@
+---
+public_fireedge_endpoint: "http://{{ one_fqdn | default(one_vip | default(leader)) }}:2616"

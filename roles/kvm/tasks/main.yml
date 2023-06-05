@@ -14,7 +14,6 @@
 - ansible.builtin.include_role:
     name: opennebula
     tasks_from: leader
-  when: leader is undefined
 
 - name: Slurp oneadmin's pubkey
   ansible.builtin.slurp:

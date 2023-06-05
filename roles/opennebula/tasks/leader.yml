@@ -23,8 +23,14 @@
       changed_when: false
 
     - name: Detect if the Leader is there
-      ansible.builtin.fail:
-      when: _server_pool is truthy and _leader is falsy
+      ansible.builtin.set_fact:
+        # Make sure the Leader isn't specifically the VIP, but
+        # rather use its inventory_hostname (or the "SERVER[x].NAME").
+        # This helps later when dealing with OneGate and OneFlow
+        # services.
+        leader: >-
+          {{ _leader[0].NAME }}
+      failed_when: _server_pool is truthy and _leader is falsy
       vars:
         _document: >-
           {{ shell.stdout | from_json }}

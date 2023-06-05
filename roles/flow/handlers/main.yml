@@ -1,0 +1,8 @@
+---
+- name: Restart OneFlow Server
+  ansible.builtin.service:
+    name: opennebula-flow
+    state: restarted
+  when:
+    - inventory_hostname == leader
+    - flow_no_restart is false

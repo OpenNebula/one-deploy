@@ -1,4 +1,15 @@
 ---
+- name: Set oneadmin's password if provided
+  ansible.builtin.copy:
+    dest: /var/lib/one/.one/one_auth
+    owner: oneadmin
+    group: oneadmin
+    mode: u=rw,g=r,o=
+    content: |
+      oneadmin:{{ one_pass }}
+    backup: true
+  when: one_pass is defined and one_pass is truthy
+
 - name: Configure oned (DB)
   ansible.builtin.replace:
     path: /etc/one/oned.conf
@@ -26,7 +37,7 @@
     regexp: '^[#\s]*MIGRATE_OPTIONS\s*=.*$'
     line: 'MIGRATE_OPTIONS=--unsafe'
   notify:
-    - Sync Nodes
+    - Sync Remotes
   when: unsafe_migrations is truthy
 
 - when: use_ha is true

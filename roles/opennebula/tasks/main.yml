@@ -20,3 +20,6 @@
 
 - ansible.builtin.include_tasks: "{{ role_path }}/tasks/solo.yml"
   when: use_ha is false
+
+- name: Flush handlers
+  meta: flush_handlers

@@ -20,7 +20,6 @@
     - ansible.builtin.include_role:
         name: opennebula
         tasks_from: leader
-      when: leader is undefined
 
     - delegate_to: "{{ leader }}"
       run_once: true
@@ -44,6 +43,9 @@
             stdin: |
               {{ vn_dict[item].template | to_one }}
             executable: /bin/bash
+          when: _name_to_template[item] | combine(vn_dict[item].template, recursive=true) | to_one
+                !=
+                _name_to_template[item] | to_one
           loop: "{{ _existing }}"
           vars:
             _document: >-
@@ -56,9 +58,14 @@
               {{ _vnets | map(attribute='NAME') | list
                  if _vnet_pool is truthy else
                  [] }}
+            _templates: >-
+              {{ _vnets | map(attribute='TEMPLATE') | list
+                 if _vnet_pool is truthy else
+                 [] }}
+            _name_to_template: >-
+              {{ dict(_names | zip(_templates)) }}
             _existing: >-
               {{ vn_names | intersect(_names) | list }}
-          changed_when: true # FIXME!
 
         - name: Create VNETs
           ansible.builtin.shell:

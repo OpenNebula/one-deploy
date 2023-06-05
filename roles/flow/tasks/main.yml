@@ -1,0 +1,37 @@
+---
+- name: Install OneFlow Server and dependencies
+  ansible.builtin.package:
+    name: "{{ _name[ansible_os_family] }}"
+  vars:
+    _name:
+      Debian: [opennebula-flow]
+      RedHat: [opennebula-flow]
+  tags: [preinstall]
+
+- ansible.builtin.import_tasks: "{{ role_path }}/tasks/config.yml"
+
+- ansible.builtin.include_role:
+    name: opennebula
+    tasks_from: leader
+
+- name: Enable OneFlow Server (NOW)
+  ansible.builtin.service:
+    name: opennebula-flow
+    enabled: true
+
+- delegate_to: "{{ leader }}"
+  run_once: true
+  block:
+    - name: Start OneFlow Server (NOW)
+      ansible.builtin.service:
+        name: opennebula-flow
+        state: started
+      register: service
+
+    - name: Make sure OneFlow Server is not restarted twice
+      ansible.builtin.set_fact:
+        flow_no_restart: >-
+          {{ service is changed }}
+
+- name: Flush handlers
+  meta: flush_handlers

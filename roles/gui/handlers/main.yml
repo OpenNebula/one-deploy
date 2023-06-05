@@ -1,0 +1,12 @@
+---
+- name: Restart FireEdge Server
+  ansible.builtin.service:
+    name: opennebula-fireedge
+    state: restarted
+  when: gui_no_restart is false
+
+- name: Restart Sunstone Server
+  ansible.builtin.service:
+    name: opennebula-sunstone
+    state: restarted
+  when: gui_no_restart is false
