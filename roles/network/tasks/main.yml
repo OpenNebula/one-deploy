@@ -1,0 +1,88 @@
+---
+- name: Compute helper facts
+  ansible.builtin.set_fact:
+    vn_dict: >-
+      {{ _items | items2dict }}
+    vn_names: >-
+      {{ _items | map(attribute='key') | list }}
+  vars:
+    _items: >-
+      {{ vn | dict2items
+            | map(attribute='value')
+            | map('dict2items')
+            | flatten
+            | selectattr('value.managed', 'true')
+            | list }}
+  run_once: true
+
+- when: inventory_hostname in groups.frontend
+  block:
+    - ansible.builtin.include_role:
+        name: opennebula
+        tasks_from: leader
+      when: leader is undefined
+
+    - delegate_to: "{{ leader }}"
+      run_once: true
+      block:
+        - name: Get VNETs
+          ansible.builtin.shell:
+            cmd: onevnet list --json
+            executable: /bin/bash
+          register: shell
+          changed_when: false
+
+        - name: Update VNETs
+          ansible.builtin.shell:
+            cmd: |
+              set +o errexit
+              TEMPLATE="$(mktemp)"
+              tee "$TEMPLATE"
+              onevnet update '{{ item }}' -a "$TEMPLATE"; RC="$?"
+              rm -f "$TEMPLATE"
+              exit "$RC"
+            stdin: |
+              {{ vn_dict[item].template | to_one }}
+            executable: /bin/bash
+          loop: "{{ _existing }}"
+          vars:
+            _document: >-
+              {{ shell.stdout | from_json }}
+            _vnet_pool: >-
+              {{ _document.VNET_POOL }}
+            _vnets: >-
+              {{ [_vnet_pool.VNET] | flatten | list }}
+            _names: >-
+              {{ _vnets | map(attribute='NAME') | list
+                 if _vnet_pool is truthy else
+                 [] }}
+            _existing: >-
+              {{ vn_names | intersect(_names) | list }}
+          changed_when: true # FIXME!
+
+        - name: Create VNETs
+          ansible.builtin.shell:
+            cmd: |
+              set +o errexit
+              TEMPLATE="$(mktemp)"
+              tee "$TEMPLATE"
+              onevnet create "$TEMPLATE"; RC="$?"
+              rm -f "$TEMPLATE"
+              exit "$RC"
+            stdin: |
+              {{ vn_dict[item].template | combine({"NAME": item}) | to_one }}
+            executable: /bin/bash
+          loop: "{{ _missing }}"
+          vars:
+            _document: >-
+              {{ shell.stdout | from_json }}
+            _vnet_pool: >-
+              {{ _document.VNET_POOL }}
+            _vnets: >-
+              {{ [_vnet_pool.VNET] | flatten | list }}
+            _names: >-
+              {{ _vnets | map(attribute='NAME') | list
+                 if _vnet_pool is truthy else
+                 [] }}
+            _missing: >-
+              {{ vn_names | difference(_names) | list }}

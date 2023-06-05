@@ -6,9 +6,25 @@ all:
     ansible_python_interpreter: /usr/bin/python3
     one_token: example:example
     one_version: '6.6'
-    one_vip: 10.11.12.69
-    one_vip_cidr: 24
+    svc_subnet: 10.11.12.0/24
+    one_vip: "{{ svc_subnet | ansible.utils.nthhost(69) }}"
+    one_vip_cidr: "{{ svc_subnet | ansible.utils.ipaddr('prefix') }}"
     one_vip_if: br0
+    vn:
+      bridge:
+        service:
+          managed: true
+          template:
+            VN_MAD: bridge
+            BRIDGE: br0
+            AR:
+              TYPE: IP4
+              IP: "{{ svc_subnet | ansible.utils.nthhost(200) }}"
+              SIZE: 48
+            NETWORK_ADDRESS: "{{ svc_subnet | ansible.utils.ipaddr('network') }}"
+            NETWORK_MASK: "{{ svc_subnet | ansible.utils.ipaddr('netmask') }}"
+            GATEWAY: "{{ svc_subnet | ansible.utils.nthhost(1) }}"
+            DNS: 1.1.1.1
 
 bastion:
   hosts:

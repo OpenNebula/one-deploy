@@ -83,10 +83,14 @@
           vars:
             _document: >-
               {{ shell.stdout | from_json }}
+            _datastore_pool: >-
+              {{ _document.DATASTORE_POOL }}
             _datastores: >-
-              {{ [_document.DATASTORE_POOL.DATASTORE] | flatten | list }}
+              {{ [_datastore_pool.DATASTORE] | flatten | list }}
             _names: >-
-              {{ _datastores | map(attribute='NAME') | list }}
+              {{ _datastores | map(attribute='NAME') | list
+                 if _datastore_pool is truthy else
+                 [] }}
             _existing: >-
               {{ ds_names | intersect(_names) | list }}
           changed_when: true # FIXME!
@@ -107,9 +111,13 @@
           vars:
             _document: >-
               {{ shell.stdout | from_json }}
+            _datastore_pool: >-
+              {{ _document.DATASTORE_POOL }}
             _datastores: >-
-              {{ [_document.DATASTORE_POOL.DATASTORE] | flatten | list }}
+              {{ [_datastore_pool.DATASTORE] | flatten | list }}
             _names: >-
-              {{ _datastores | map(attribute='NAME') | list }}
+              {{ _datastores | map(attribute='NAME') | list
+                 if _datastore_pool is truthy else
+                 [] }}
             _missing: >-
               {{ ds_names | difference(_names) | list }}

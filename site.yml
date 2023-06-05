@@ -10,6 +10,8 @@
     - role: opennebula
     - role: datastore
       tags: [datastore]
+    - role: network
+      tags: [network]
 
 - hosts: node
   gather_facts: true
