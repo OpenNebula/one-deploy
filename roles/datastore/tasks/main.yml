@@ -1,10 +1,10 @@
 ---
 - name: Compute helper facts
   ansible.builtin.set_fact:
-    ds_dict: >-
-      {{ _items | items2dict }}
     ds_names: >-
       {{ _items | map(attribute='key') | list }}
+    ds_dict: >-
+      {{ _items | items2dict }}
   vars:
     _ds: >-
       {{ ds_defaults | combine(ds, recursive=true) }}
@@ -62,6 +62,19 @@
           register: shell
           changed_when: false
 
+        - name: Parse Datastores
+          ansible.builtin.set_fact:
+            ds_names_parsed: >-
+              {{ _names }}
+            ds_dict_parsed: >-
+              {{ dict(_names | zip(_datastores)) }}
+          vars:
+            _document: >-
+              {{ shell.stdout | from_json }}
+            _datastores: >-
+              {{ [_document.DATASTORE_POOL.DATASTORE | default([])] | flatten | list }}
+            _names: >-
+              {{ _datastores | map(attribute='NAME') | default([]) | list }}
         - name: Update Datastores
           ansible.builtin.shell:
             cmd: |
@@ -72,35 +85,21 @@
               set +o errexit
               TEMPLATE="$(mktemp)"
               tee "$TEMPLATE"
-              onedatastore update '{{ ds_dict[item].id }}' -a "$TEMPLATE"; RC="$?"
+              onedatastore update '{{ ds_dict[item].id }}' "$TEMPLATE"; RC="$?"
               rm -f "$TEMPLATE"
               exit "$RC"
             stdin: |
-              {{ ds_dict[item].template | to_one }}
+              {{ _combined | to_one }}
             executable: /bin/bash
-          when: _name_to_template[item] | combine(ds_dict[item].template, recursive=true) | to_one
-                !=
-                _name_to_template[item] | to_one
+          when: (_combined | to_one != ds_dict_parsed[item].TEMPLATE | to_one)
+                or
+                (ds_dict[item].enabled is defined and (ds_dict[item].enabled != (ds_dict_parsed[item].STATE | int == 0)))
           loop: "{{ _existing }}"
           vars:
-            _document: >-
-              {{ shell.stdout | from_json }}
-            _datastore_pool: >-
-              {{ _document.DATASTORE_POOL }}
-            _datastores: >-
-              {{ [_datastore_pool.DATASTORE] | flatten | list }}
-            _names: >-
-              {{ _datastores | map(attribute='NAME') | list
-                 if _datastore_pool is truthy else
-                 [] }}
-            _templates: >-
-              {{ _datastores | map(attribute='TEMPLATE') | list
-                 if _datastore_pool is truthy else
-                 [] }}
-            _name_to_template: >-
-              {{ dict(_names | zip(_templates)) }}
             _existing: >-
-              {{ ds_names | intersect(_names) | list }}
+              {{ ds_names | intersect(ds_names_parsed) | list }}
+            _combined: >-
+              {{ ds_dict_parsed[item].TEMPLATE | combine(ds_dict[item].template, recursive=true) }}
 
         - name: Create Datastores
           ansible.builtin.shell:
@@ -116,15 +115,5 @@
             executable: /bin/bash
           loop: "{{ _missing }}"
           vars:
-            _document: >-
-              {{ shell.stdout | from_json }}
-            _datastore_pool: >-
-              {{ _document.DATASTORE_POOL }}
-            _datastores: >-
-              {{ [_datastore_pool.DATASTORE] | flatten | list }}
-            _names: >-
-              {{ _datastores | map(attribute='NAME') | list
-                 if _datastore_pool is truthy else
-                 [] }}
             _missing: >-
-              {{ ds_names | difference(_names) | list }}
+              {{ ds_names | difference(ds_names_parsed) | list }}
