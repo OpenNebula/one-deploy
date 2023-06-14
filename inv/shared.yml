@@ -63,3 +63,7 @@ node:
   hosts:
     n1: { ansible_host: 10.11.12.40 }
     n2: { ansible_host: 10.11.12.50 }
+
+grafana:
+  hosts:
+    f1: { ansible_host: 10.11.12.10 }

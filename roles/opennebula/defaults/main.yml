@@ -2,3 +2,4 @@
 one_pass: null
 force_ha: false
 unsafe_migrations: true
+gate_endpoint: "{{ one_vip }}"

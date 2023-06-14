@@ -5,6 +5,17 @@ Host {{ groups.bastion[0] }}
   UserKnownHostsFile /dev/null
   ForwardAgent yes
 
+{% if one_vip is defined %}
+# one_vip
+Host {{ one_vip }}
+  Hostname {{ one_vip }}
+  User {{ hostvars[groups.frontend[0]].ansible_user }}
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+  ForwardAgent yes
+  ProxyJump {{ groups.bastion[0] }}
+{% endif %}
+
 {% for host in (groups.frontend + groups.node) | unique -%}
 
 Host {{ hostvars[host].ansible_host | default(hostvars[host].inventory_hostname) }}

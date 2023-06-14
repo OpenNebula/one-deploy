@@ -12,7 +12,8 @@
     - role: python3
 
 - hosts: frontend:node
-  gather_facts: true
-  gather_subset: [min]
   roles:
+    - role: facts
+      tags: [always]
+
     - role: precheck

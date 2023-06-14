@@ -5,9 +5,9 @@
 
 - name: Install DB packages
   ansible.builtin.package:
-    name: "{{ _name[ansible_os_family][db_backend] }}"
+    name: "{{ _specific[ansible_os_family][db_backend] }}"
   vars:
-    _name:
+    _specific:
       Debian:
         MariaDB: [mariadb-server]
         PostgreSQL: [postgresql]

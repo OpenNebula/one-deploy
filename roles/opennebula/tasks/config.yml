@@ -31,6 +31,17 @@
   notify:
     - Restart OpenNebula
 
+# Initial deployment optimization (to reduce number of Leader restarts),
+# later this step is repeated in the "gate" role.
+- name: Configure oned (ONEGATE_ENDPOINT)
+  ansible.builtin.lineinfile:
+    path: /etc/one/oned.conf
+    regexp: '^[#\s]*ONEGATE_ENDPOINT\s*=.*$'
+    line: 'ONEGATE_ENDPOINT = "http://{{ gate_endpoint }}:5030"'
+  notify:
+    - Restart OpenNebula
+  when: gate_endpoint is defined and gate_endpoint is truthy
+
 - name: Workaround potential Libvirt's NFS detection issues
   ansible.builtin.lineinfile:
     path: /var/lib/one/remotes/etc/vmm/kvm/kvmrc

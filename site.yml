@@ -1,9 +1,10 @@
 ---
 - hosts: frontend
-  gather_facts: true
-  gather_subset: [min]
   tags: [frontend]
   roles:
+    - role: facts
+      tags: [always]
+
     - role: repository
       tags: [preinstall]
 
@@ -19,17 +20,12 @@
     - role: gui
       tags: [gui]
 
-    - role: datastore
-      tags: [datastore]
-
-    - role: network
-      tags: [network]
-
 - hosts: node
-  gather_facts: true
-  gather_subset: [min]
   tags: [node]
   roles:
+    - role: facts
+      tags: [always]
+
     - role: repository
       tags: [preinstall]
 
@@ -37,3 +33,43 @@
       tags: [datastore]
 
     - role: kvm
+
+    - role: prometheus
+      tags: [prometheus]
+      vars: { node_role: exporter }
+      when:
+        - ee.prometheus is undefined or ee.prometheus is truthy
+        - one_token is defined and one_token is truthy
+
+- hosts: frontend
+  tags: [frontend]
+  roles:
+    - role: facts
+      tags: [always]
+
+    - role: datastore
+      tags: [datastore]
+
+    - role: network
+      tags: [network]
+
+    - role: prometheus
+      tags: [prometheus]
+      vars: { node_role: frontend }
+      when:
+        - ee.prometheus is undefined or ee.prometheus is truthy
+        - one_token is defined and one_token is truthy
+
+- hosts: grafana
+  tags: [grafana]
+  roles:
+    - role: facts
+      tags: [always]
+
+    - role: repository
+      tags: [preinstall]
+
+    - role: grafana
+      when:
+        - ee.prometheus is undefined or ee.prometheus is truthy
+        - one_token is defined and one_token is truthy

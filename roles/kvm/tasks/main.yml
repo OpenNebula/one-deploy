@@ -1,11 +1,12 @@
 ---
 - name: Install OpenNebula KVM packages
   ansible.builtin.package:
-    name: "{{ _name[ansible_os_family] }}"
+    name: "{{ _common + _specific[ansible_os_family] }}"
   vars:
-    _name:
-      Debian: [opennebula-node-kvm]
-      RedHat: [opennebula-node-kvm]
+    _common: [opennebula-node-kvm]
+    _specific:
+      Debian: []
+      RedHat: []
   tags: [preinstall]
 
 - ansible.builtin.import_tasks: "{{ role_path }}/tasks/libvirt.yml"
