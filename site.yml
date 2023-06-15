@@ -6,7 +6,7 @@
       tags: [always]
 
     - role: repository
-      tags: [preinstall]
+      tags: [preinstall, prometheus]
 
     - role: database
     - role: opennebula
@@ -27,10 +27,13 @@
       tags: [always]
 
     - role: repository
-      tags: [preinstall]
+      tags: [preinstall, prometheus]
 
     - role: datastore
       tags: [datastore]
+
+    - role: network
+      tags: [network]
 
     - role: kvm
 
@@ -39,7 +42,7 @@
       vars: { node_role: exporter }
       when:
         - ee.prometheus is undefined or ee.prometheus is truthy
-        - one_token is defined and one_token is truthy
+        - ee.token is defined and ee.token is truthy
 
 - hosts: frontend
   tags: [frontend]
@@ -58,18 +61,18 @@
       vars: { node_role: frontend }
       when:
         - ee.prometheus is undefined or ee.prometheus is truthy
-        - one_token is defined and one_token is truthy
+        - ee.token is defined and ee.token is truthy
 
 - hosts: grafana
-  tags: [grafana]
   roles:
     - role: facts
       tags: [always]
 
     - role: repository
-      tags: [preinstall]
+      tags: [preinstall, grafana]
 
     - role: grafana
+      tags: [grafana]
       when:
         - ee.prometheus is undefined or ee.prometheus is truthy
-        - one_token is defined and one_token is truthy
+        - ee.token is defined and ee.token is truthy

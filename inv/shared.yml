@@ -4,11 +4,12 @@ all:
     env_name: shared
     ansible_user: example
     ansible_python_interpreter: /usr/bin/python3
-    one_token: example:example
     one_version: '6.6'
     one_vip: 10.11.12.69
     one_vip_cidr: 24
-    one_vip_if: br0
+    one_vip_if: eth0
+    ee:
+      token: example:example
     ds:
       SYSTEM_DS:
         system:

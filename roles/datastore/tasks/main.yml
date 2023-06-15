@@ -75,6 +75,7 @@
               {{ [_document.DATASTORE_POOL.DATASTORE | default([])] | flatten | list }}
             _names: >-
               {{ _datastores | map(attribute='NAME') | default([]) | list }}
+
         - name: Update Datastores
           ansible.builtin.shell:
             cmd: |

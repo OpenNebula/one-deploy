@@ -1,2 +1,2 @@
 ---
-facts_subset: [min]
+facts_subset: [min, network]

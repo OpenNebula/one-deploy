@@ -3,4 +3,4 @@
   ansible.builtin.setup:
     gather_subset: "{{ facts_subset }}"
   register: setup
-  when: setup is undefined
+  when: setup is undefined or (_force is defined and _force is true)

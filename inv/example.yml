@@ -4,20 +4,21 @@ all:
     env_name: example
     ansible_user: example
     ansible_python_interpreter: /usr/bin/python3
-    one_token: example:example
     one_version: '6.6'
+    ee:
+      token: example:example
+      prometheus: false
     svc_subnet: 10.11.12.0/24
     one_vip: "{{ svc_subnet | ansible.utils.nthhost(69) }}"
     one_vip_cidr: "{{ svc_subnet | ansible.utils.ipaddr('prefix') }}"
-    one_vip_if: br0
-    ee:
-      prometheus: false
+    one_vip_if: eth0
     vn:
       bridge:
         service:
           managed: true
           template:
             VN_MAD: bridge
+            PHYDEV: eth0
             BRIDGE: br0
             AR:
               TYPE: IP4
@@ -27,6 +28,17 @@ all:
             NETWORK_MASK: "{{ svc_subnet | ansible.utils.ipaddr('netmask') }}"
             GATEWAY: "{{ svc_subnet | ansible.utils.nthhost(1) }}"
             DNS: 1.1.1.1
+        vm:
+          managed: true
+          template:
+            VN_MAD: bridge
+            PHYDEV: eth1
+            AR:
+              TYPE: IP4
+              IP: 192.168.150.200
+              SIZE: 48
+            NETWORK_ADDRESS: 192.168.150.0
+            NETWORK_MASK: 255.255.255.0
 
 bastion:
   hosts:

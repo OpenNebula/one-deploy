@@ -14,11 +14,7 @@
       {%- set output = [] -%}
       {%- for item in _ar_dict | dict2items -%}
         {%- for key in item.value.keys() -%}
-          {{
-              output.append([
-                item.key, key
-              ])
-          }}
+          {{- output.append([item.key, key]) -}}
         {%- endfor -%}
       {%- endfor -%}
       {{- output -}}
@@ -36,13 +32,13 @@
       {%- set output = [] -%}
       {%- for item in _items -%}
         {%- set address_ranges = [item.value.template.AR | default([])] | flatten | list -%}
-        {{
+        {{-
             output.append({
               "key": item.key,
               "value": range(address_ranges | length) | zip(address_ranges)
                                                       | items2dict(key_name=0, value_name=1)
             })
-        }}
+        -}}
       {%- endfor -%}
       {{- output | items2dict -}}
   run_once: true
@@ -73,11 +69,7 @@
               {%- set output = [] -%}
               {%- for item in _ar_dict_parsed | dict2items -%}
                 {%- for key in item.value.keys() -%}
-                  {{
-                      output.append([
-                        item.key, key
-                      ])
-                  }}
+                  {{- output.append([item.key, key]) -}}
                 {%- endfor -%}
               {%- endfor -%}
               {{- output -}}
@@ -92,13 +84,13 @@
               {%- set output = [] -%}
               {%- for item in _vnets -%}
                 {%- set address_ranges = [item.AR_POOL.AR | default([])] | flatten | list -%}
-                {{
+                {{-
                     output.append({
                       "key": item.NAME,
                       "value": range(address_ranges | length) | zip(address_ranges)
                                                               | items2dict(key_name=0, value_name=1)
                     })
-                }}
+                -}}
               {%- endfor -%}
               {{- output | items2dict -}}
 
@@ -181,3 +173,20 @@
           vars:
             _missing: >-
               {{ ar_keys | difference(ar_keys_parsed) | list }}
+
+- when: inventory_hostname in groups.node
+  block:
+    - ansible.builtin.include_tasks: "{{ role_path }}/tasks/{{ _item.1 }}.yml"
+      loop: "{{ vn_names | product(_managers[ansible_os_family]) }}"
+      loop_control: { loop_var: _item }
+      vars:
+        _managers:
+          Debian: [netplan]
+          RedHat: [networkmanager]
+        _phydev: "{{ vn_dict[_item.0].template.PHYDEV }}"
+        _bridge: "{{ vn_dict[_item.0].template.BRIDGE }}"
+      when:
+        - _phydev is defined
+        - _bridge is defined
+        - _phydev in ansible_interfaces
+        - _bridge not in ansible_interfaces

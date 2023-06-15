@@ -27,7 +27,7 @@
       vars:
         _peers: >-
           {{ groups.frontend | difference([inventory_hostname])
-                             | map('regex_replace', '^(.*)$', ' --cluster.peer=\1:9094 ')
+                             | map('regex_replace', '^(.*)$', ' --cluster.peer=\g<1>:9094 ')
                              | join }}
       register: copy_override_conf
 
