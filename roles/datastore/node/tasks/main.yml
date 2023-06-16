@@ -1,0 +1,3 @@
+---
+- ansible.builtin.import_role:
+    name: datastore/common

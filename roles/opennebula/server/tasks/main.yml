@@ -1,0 +1,26 @@
+---
+- ansible.builtin.import_role:
+    name: opennebula/common
+
+- name: Install OpenNebula base packages
+  ansible.builtin.package:
+    name: "{{ _common + _specific[ansible_os_family] }}"
+  vars:
+    _common: [opennebula]
+    _specific:
+      Debian: []
+      RedHat: []
+  tags: [preinstall]
+
+- name: Decide if Frontend should be HA
+  ansible.builtin.set_fact:
+    use_ha: >-
+      {{ force_ha is truthy or ansible_play_hosts_all | length > 1 }}
+
+- ansible.builtin.import_tasks: "{{ role_path }}/tasks/config.yml"
+
+- ansible.builtin.include_tasks: "{{ role_path }}/tasks/ha.yml"
+  when: use_ha is true
+
+- ansible.builtin.include_tasks: "{{ role_path }}/tasks/solo.yml"
+  when: use_ha is false

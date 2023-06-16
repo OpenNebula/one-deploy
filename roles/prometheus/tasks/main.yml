@@ -1,5 +1,0 @@
----
-- ansible.builtin.import_tasks: "{{ role_path }}/tasks/frontend/main.yml"
-  when: node_role == "frontend"
-- ansible.builtin.import_tasks: "{{ role_path }}/tasks/exporter/main.yml"
-  when: node_role == "exporter"

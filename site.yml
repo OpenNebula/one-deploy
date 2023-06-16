@@ -9,10 +9,16 @@
       tags: [preinstall, prometheus]
 
     - role: database
-    - role: opennebula
+    - role: opennebula/server
 
-    - role: gate
+    - role: flush
+    - role: opennebula/leader
+
+    - role: gate/server
       tags: [gate]
+
+    - role: flush
+    - role: opennebula/leader
 
     - role: flow
       tags: [flow]
@@ -29,17 +35,22 @@
     - role: repository
       tags: [preinstall, prometheus]
 
-    - role: datastore
+    - role: datastore/node
       tags: [datastore]
 
-    - role: network
+    - role: network/node
       tags: [network]
 
     - role: kvm
 
-    - role: prometheus
+    - role: gate/proxy
+      tags: [gate]
+      when:
+        - ee.gateproxy is undefined or ee.gateproxy is truthy
+        - ee.token is defined and ee.token is truthy
+
+    - role: prometheus/exporter
       tags: [prometheus]
-      vars: { node_role: exporter }
       when:
         - ee.prometheus is undefined or ee.prometheus is truthy
         - ee.token is defined and ee.token is truthy
@@ -50,15 +61,14 @@
     - role: facts
       tags: [always]
 
-    - role: datastore
+    - role: datastore/frontend
       tags: [datastore]
 
-    - role: network
+    - role: network/frontend
       tags: [network]
 
-    - role: prometheus
+    - role: prometheus/server
       tags: [prometheus]
-      vars: { node_role: frontend }
       when:
         - ee.prometheus is undefined or ee.prometheus is truthy
         - ee.token is defined and ee.token is truthy
@@ -71,7 +81,7 @@
     - role: repository
       tags: [preinstall, grafana]
 
-    - role: grafana
+    - role: prometheus/grafana
       tags: [grafana]
       when:
         - ee.prometheus is undefined or ee.prometheus is truthy

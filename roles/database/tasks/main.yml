@@ -31,7 +31,7 @@
         creates: /var/lib/pgsql/data/postgresql.conf
       when: not stat.stat.exists
 
-- name: Enable and start DB service
+- name: Enable / Start DB service (NOW)
   ansible.builtin.service:
     name: "{{ _name[ansible_os_family][db_backend] }}"
     enabled: true

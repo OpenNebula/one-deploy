@@ -13,8 +13,8 @@
   tags: [libvirt]
 
 - ansible.builtin.include_role:
-    name: opennebula
-    tasks_from: leader
+    name: opennebula/leader
+  when: leader is undefined
 
 - name: Slurp oneadmin's pubkey
   ansible.builtin.slurp:

@@ -10,8 +10,8 @@
   tags: [preinstall]
 
 - ansible.builtin.include_role:
-    name: opennebula
-    tasks_from: leader
+    name: opennebula/leader
+  when: leader is undefined
 
 - ansible.builtin.import_tasks: "{{ role_path }}/tasks/config.yml"
 
@@ -41,6 +41,3 @@
   ansible.builtin.set_fact:
     gui_no_restart: >-
       {{ service_fireedge is changed and service_sunstone is changed }}
-
-- name: Flush handlers
-  meta: flush_handlers

@@ -8,6 +8,7 @@ all:
     ee:
       token: example:example
       prometheus: false
+      gateproxy: false
     svc_subnet: 10.11.12.0/24
     one_vip: "{{ svc_subnet | ansible.utils.nthhost(69) }}"
     one_vip_cidr: "{{ svc_subnet | ansible.utils.ipaddr('prefix') }}"

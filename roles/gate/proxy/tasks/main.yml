@@ -1,0 +1,19 @@
+---
+- ansible.builtin.import_role:
+    name: gate/common
+
+- name: Install OneGate Proxy and dependencies
+  ansible.builtin.package:
+    name: "{{ _common + _specific[ansible_os_family] }}"
+  vars:
+    _common: [opennebula-rubygems, opennebula-node-kvm]
+    _specific:
+      Debian: []
+      RedHat: []
+  tags: [preinstall]
+
+- name: Enable / Start OneGate Proxy (NOW)
+  ansible.builtin.service:
+    name: opennebula-gate-proxy
+    enabled: true
+    state: started
