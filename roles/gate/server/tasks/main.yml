@@ -1,7 +1,4 @@
 ---
-- ansible.builtin.import_role:
-    name: gate/common
-
 - ansible.builtin.include_role:
     name: opennebula/leader
   when: leader is undefined

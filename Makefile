@@ -1,7 +1,7 @@
 SHELL := $(shell which bash)
 SELF  := $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 
-I         ?= $(SELF)/inv/n1.yml
+I         ?= $(SELF)/inventory/example.yml
 INVENTORY ?= $(I)
 
 T    ?=
@@ -25,4 +25,15 @@ pre site main: _TAGS      := $(if $(TAGS),-t $(TAGS),)
 pre site main: _SKIP_TAGS := $(if $(SKIP_TAGS),--skip-tags $(SKIP_TAGS),)
 pre site main: _VERBOSE   := $(if $(VERBOSE),-$(VERBOSE),)
 pre site main:
-	cd $(SELF)/ && ansible-playbook $(_VERBOSE) -i $(INVENTORY) $(_TAGS) $(_SKIP_TAGS) $@.yml
+	cd $(SELF)/ && ansible-playbook $(_VERBOSE) -i $(INVENTORY) $(_TAGS) $(_SKIP_TAGS) opennebula.deploy.$@
+
+.PHONY: build publish
+
+build:
+	ansible-galaxy collection build --force --verbose
+
+publish: build
+	shopt -qs failglob && \
+	ansible-galaxy collection publish \
+	"$$(ls -1 $(SELF)/opennebula-deploy-[0-9].[0-9].[0-9].tar.gz | sort --version-sort | tail -n1)" \
+	--api-key="$$(cat $(SELF)/.galaxy-key)"

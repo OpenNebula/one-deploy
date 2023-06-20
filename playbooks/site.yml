@@ -1,6 +1,8 @@
 ---
-- hosts: frontend
+- hosts: "{{ frontend_group | d('frontend') }}"
   tags: [frontend]
+  collections:
+    - opennebula.deploy
   roles:
     - role: facts
       tags: [always]
@@ -26,8 +28,10 @@
     - role: gui
       tags: [gui]
 
-- hosts: node
+- hosts: "{{ node_group | d('node') }}"
   tags: [node]
+  collections:
+    - opennebula.deploy
   roles:
     - role: facts
       tags: [always]
@@ -55,8 +59,10 @@
         - ee.prometheus is undefined or ee.prometheus is truthy
         - ee.token is defined and ee.token is truthy
 
-- hosts: frontend
+- hosts: "{{ frontend_group | d('frontend') }}"
   tags: [frontend]
+  collections:
+    - opennebula.deploy
   roles:
     - role: facts
       tags: [always]
@@ -73,7 +79,9 @@
         - ee.prometheus is undefined or ee.prometheus is truthy
         - ee.token is defined and ee.token is truthy
 
-- hosts: grafana
+- hosts: "{{ grafana_group | d('grafana') }}"
+  collections:
+    - opennebula.deploy
   roles:
     - role: facts
       tags: [always]

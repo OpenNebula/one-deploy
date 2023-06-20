@@ -1,7 +1,4 @@
 ---
-- ansible.builtin.import_role:
-    name: opennebula/common
-
 - name: Install OpenNebula base packages
   ansible.builtin.package:
     name: "{{ _common + _specific[ansible_os_family] }}"

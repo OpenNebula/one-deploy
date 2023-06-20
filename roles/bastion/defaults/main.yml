@@ -1,0 +1,4 @@
+---
+bastion_group: bastion
+frontend_group: frontend
+node_group: node

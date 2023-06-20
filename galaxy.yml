@@ -1,0 +1,26 @@
+---
+namespace: opennebula
+name: deploy
+version: 0.0.1
+
+readme: README.md
+
+authors:
+- http://opennebula.io <contact@opennebula.io>
+description: HA DEPLOYMENT FOR OPENNEBULA (ANSIBLE)
+
+license: []
+license_file: LICENSE
+
+tags: []
+dependencies: {}
+
+repository: https://github.com/OpenNebula/one-deploy
+documentation: https://github.com/OpenNebula/one-deploy
+homepage: https://github.com/OpenNebula/one-deploy
+issues: https://github.com/OpenNebula/one-deploy/issues
+
+build_ignore:
+- .galaxy-key
+- inventory
+- ansible_collections

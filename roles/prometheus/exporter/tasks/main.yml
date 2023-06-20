@@ -1,7 +1,4 @@
 ---
-- ansible.builtin.import_role:
-    name: prometheus/common
-
 - name: Install Prometheus and dependencies
   ansible.builtin.package:
     name: "{{ _common + _specific[ansible_os_family] }}"

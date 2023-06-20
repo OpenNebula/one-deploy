@@ -1,7 +1,6 @@
 *.swp
 __pycache__/
-/.ssh/
-/.mitogen/
-/inv/*.yml
-!/inv/example.yml
-!/inv/shared.yml
+/inventory/.one-deploy/
+/inventory/*.yml
+!/inventory/example.yml
+!/inventory/shared.yml

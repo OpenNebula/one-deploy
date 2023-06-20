@@ -1,7 +1,4 @@
 ---
-- ansible.builtin.import_role:
-    name: prometheus/common
-
 - tags: [preinstall]
   block:
     - name: Install Grafana dependencies
@@ -94,7 +91,7 @@
       - name: prometheus
         type: prometheus
         access: proxy
-        url: http://{{ one_vip | default(leader) }}:9090
+        url: "http://{{ one_vip | default(leader) }}:9090"
         isDefault: true
         editable: false
   register: copy_datasources

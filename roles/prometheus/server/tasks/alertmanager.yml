@@ -26,9 +26,9 @@
                     --storage.path=/var/lib/alertmanager/data/ {{ _peers }}
       vars:
         _peers: >-
-          {{ groups.frontend | difference([inventory_hostname])
-                             | map('regex_replace', '^(.*)$', ' --cluster.peer=\g<1>:9094 ')
-                             | join }}
+          {{ ansible_play_hosts_all | difference([inventory_hostname])
+                                    | map('regex_replace', '^(.*)$', ' --cluster.peer=\g<1>:9094 ')
+                                    | join }}
       register: copy_override_conf
 
 - name: Enable / Start / Restart Alertmanager service (NOW)

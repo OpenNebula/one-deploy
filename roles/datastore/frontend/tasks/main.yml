@@ -1,7 +1,4 @@
 ---
-- ansible.builtin.import_role:
-    name: datastore/common
-
 - ansible.builtin.include_role:
     name: opennebula/leader
   when: leader is undefined
@@ -44,9 +41,9 @@
           rm -f "$TEMPLATE"
           exit "$RC"
         stdin: |
-          {{ _combined | to_one }}
+          {{ _combined | opennebula.deploy.to_one }}
         executable: /bin/bash
-      when: (_combined | to_one != ds_dict_parsed[item].TEMPLATE | to_one)
+      when: (_combined | opennebula.deploy.to_one != ds_dict_parsed[item].TEMPLATE | opennebula.deploy.to_one)
             or
             (ds_dict[item].enabled is defined and (ds_dict[item].enabled != (ds_dict_parsed[item].STATE | int == 0)))
       loop: "{{ _existing }}"
@@ -66,7 +63,7 @@
           rm -f "$TEMPLATE"
           exit "$RC"
         stdin: |
-          {{ ds_dict[item].template | combine({"NAME": item}) | to_one }}
+          {{ ds_dict[item].template | combine({"NAME": item}) | opennebula.deploy.to_one }}
         executable: /bin/bash
       loop: "{{ _missing }}"
       vars:

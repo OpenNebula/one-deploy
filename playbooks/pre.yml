@@ -1,5 +1,7 @@
 ---
 - hosts: bastion
+  collections:
+    - opennebula.deploy
   roles:
     - role: bastion
       delegate_to: localhost
@@ -8,10 +10,14 @@
 
 - hosts: frontend:node
   strategy: linear
+  collections:
+    - opennebula.deploy
   roles:
     - role: python3
 
 - hosts: frontend:node
+  collections:
+    - opennebula.deploy
   roles:
     - role: facts
       tags: [always]
