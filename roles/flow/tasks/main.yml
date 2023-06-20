@@ -13,7 +13,8 @@
   delay: 5
   tags: [preinstall]
 
-- ansible.builtin.import_tasks: "{{ role_path }}/tasks/config.yml"
+- ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/config.yml"
 
 - ansible.builtin.include_role:
     name: opennebula/leader

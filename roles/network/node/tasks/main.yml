@@ -1,5 +1,6 @@
 ---
-- ansible.builtin.include_tasks: "{{ role_path }}/tasks/{{ _item.1 }}.yml"
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/{{ _item.1 }}.yml"
   loop: "{{ vn_names | product(_managers[ansible_os_family]) }}"
   loop_control: { loop_var: _item }
   vars:

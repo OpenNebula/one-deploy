@@ -3,7 +3,7 @@
   ansible.builtin.lineinfile:
     path: /etc/one/onegate-server.conf
     regexp: '^:host:.*$'
-    line: ':host: "{{ gate_listen_addr }}"'
+    line: ':host: "{{ gate_bind_addr }}"'
   notify:
     - Restart OneGate Server
 

@@ -59,4 +59,5 @@
         seconds: 10
 
     - name: Continue the retry loop
-      ansible.builtin.include_tasks: "{{ role_path }}/tasks/main.yml"
+      ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/main.yml"

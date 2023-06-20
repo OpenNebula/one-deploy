@@ -1,6 +1,3 @@
 ---
 collections:
   - opennebula.deploy
-
-dependencies:
-  - role: datastore/common

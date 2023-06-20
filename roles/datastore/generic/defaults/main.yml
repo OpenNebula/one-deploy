@@ -1,17 +1,7 @@
 ---
-#ds_matrix:
-#  SYSTEM_DS:
-#    DS_MAD: []
-#    TM_MAD: [ssh, shared, qcow2]
-#  IMAGE_DS:
-#    DS_MAD: [fs]
-#    TM_MAD: [ssh, shared, qcow2]
-#  FILE_DS:
-#    DS_MAD: [fs]
-#    TM_MAD: [ssh]
-#  BACKUP_DS:
-#    DS_MAD: [rsync, restic]
-#    TM_MAD: []
+ds:
+  mode: generic
+  config: {}
 
 ds_defaults:
   SYSTEM_DS:
@@ -47,6 +37,3 @@ ds_defaults:
         TYPE: FILE_DS
         DS_MAD: fs
         TM_MAD: ssh
-  BACKUP_DS: {}
-
-ds: {}

@@ -32,16 +32,18 @@
     _leader: >-
       {{ (_peers | selectattr('STATE', '==', '3') | first).NAME }}
 
-- ansible.builtin.include_tasks: "{{ role_path }}/tasks/join.yml"
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/join.yml"
   when: inventory_hostname == leader
 
-- ansible.builtin.include_tasks: "{{ role_path }}/tasks/sync.yml"
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/sync.yml"
   when: inventory_hostname != leader
 
 # NOTE: We emulate here `serial: 1` using `loop:` + `delegate_to:` as HA Frontends
 # *MUST* be joined strictly sequentially.
-- ansible.builtin.include_tasks: "{{ role_path }}/tasks/join.yml"
-  args:
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/join.yml"
     apply:
       delegate_to: "{{ follower }}"
   loop: "{{ _followers }}"

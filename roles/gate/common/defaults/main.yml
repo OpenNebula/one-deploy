@@ -1,2 +1,2 @@
 ---
-gate_listen_addr: '0.0.0.0'
+gate_bind_addr: '0.0.0.0'

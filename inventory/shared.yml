@@ -10,44 +10,15 @@ all:
     one_vip_cidr: 24
     one_vip_if: eth0
     ds:
-      SYSTEM_DS:
-        system:
-          enabled: false
-        system1:
-          id: 100
-          managed: true
-          enabled: true
-          symlink:
-            groups: [node]
-            src: /opt/nfs1/100/
-          template: &template
-            TYPE: SYSTEM_DS
-            TM_MAD: qcow2
-            BRIDGE_LIST: "{{ groups.node | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
-        system2:
-          id: 101
-          managed: true
-          enabled: true
-          symlink:
-            groups: [node]
-            src: /opt/nfs2/101/
-          template: *template
-        system3:
-          id: 102
-          managed: true
-          enabled: true
-          symlink:
-            groups: [node]
-            src: /opt/nfs3/102/
-          template: *template
-      IMAGE_DS:
-        default:
-          symlink: { src: /opt/nfs0/1/ }
-          template:
-            TM_MAD: qcow2
-      FILE_DS:
-        files:
-          symlink: { src: /opt/nfs0/2/ }
+      mode: qcow2
+      config:
+        mounts:
+          - type: system
+            path: /opt/nfs0/0/
+          - type: image
+            path: /opt/nfs0/1/
+          - type: file
+            path: /opt/nfs0/2/
 
 bastion:
   hosts:

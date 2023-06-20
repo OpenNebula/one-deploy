@@ -17,7 +17,8 @@
   delay: 5
   tags: [preinstall]
 
-- ansible.builtin.import_tasks: "{{ role_path }}/tasks/config.yml"
+- ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/config.yml"
 
 - name: Enable OneGate Server (NOW)
   ansible.builtin.service:

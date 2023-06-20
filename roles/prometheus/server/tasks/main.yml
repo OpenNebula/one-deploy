@@ -16,5 +16,8 @@
   delay: 5
   tags: [preinstall]
 
-- ansible.builtin.import_tasks: "{{ role_path }}/tasks/prometheus.yml"
-- ansible.builtin.import_tasks: "{{ role_path }}/tasks/alertmanager.yml"
+- ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/prometheus.yml"
+
+- ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/alertmanager.yml"

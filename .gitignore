@@ -4,3 +4,4 @@ __pycache__/
 /inventory/*.yml
 !/inventory/example.yml
 !/inventory/shared.yml
+!/inventory/shared-generic.yml

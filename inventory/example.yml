@@ -39,6 +39,14 @@ all:
               SIZE: 48
             NETWORK_ADDRESS: 192.168.150.0
             NETWORK_MASK: 255.255.255.0
+    ds:
+      mode: ssh
+      config:
+        mounts:
+          - type: image
+            path: /opt/nfs0/1/
+          - type: file
+            path: /opt/nfs0/2/
 
 bastion:
   hosts:

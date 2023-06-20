@@ -1,0 +1,142 @@
+---
+- ansible.builtin.include_role:
+    name: opennebula/leader
+  when: leader is undefined
+
+- run_once: true
+  block:
+    - name: Get Datastores
+      ansible.builtin.shell:
+        cmd: onedatastore list --json
+        executable: /bin/bash
+      register: shell
+      changed_when: false
+      delegate_to: "{{ leader }}"
+
+    - name: Parse Datastores
+      ansible.builtin.set_fact:
+        ds_mounts: >-
+          {{ _mounts }}
+        ds_parsed: >-
+          {{ _datastores }}
+        ds_items:
+          image: >-
+            {{ _mounts.image | zip(_grouped.image) }}
+          system: >-
+            {{ _mounts.system | zip(_grouped.system) }}
+          file: >-
+            {{ _mounts.file | zip(_grouped.file) }}
+      vars:
+        _document: >-
+          {{ shell.stdout | from_json }}
+        _datastores: >-
+          {{ [_document.DATASTORE_POOL.DATASTORE | default([])] | flatten | list }}
+        _mounts:
+          image: >-
+            {{ ds.config.mounts | selectattr('type', '==', 'image') }}
+          system: >-
+            {{ ds.config.mounts | selectattr('type', '==', 'system') }}
+          file: >-
+            {{ ds.config.mounts | selectattr('type', '==', 'file') }}
+        _grouped:
+          image: >-
+            {{ _datastores | selectattr('TYPE', '==', '0') | sort(attribute='ID') }}
+          system: >-
+            {{ _datastores | selectattr('TYPE', '==', '1') | sort(attribute='ID') }}
+          file: >-
+            {{ _datastores | selectattr('TYPE', '==', '2') | sort(attribute='ID') }}
+
+- name: Ensure /var/lib/one/datastores/ exists
+  ansible.builtin.file:
+    path: /var/lib/one/datastores/
+    state: directory
+    owner: oneadmin
+    group: oneadmin
+    mode: u=rwx,g=rx,o=
+
+- when: _target_group == (frontend_group | d('frontend'))
+        or
+        (_target_group == (node_group | d('node')) and ds.mode != 'ssh')
+  block:
+    - name: Setup datastore symlinks (image)
+      ansible.builtin.shell: &shell
+        cmd: |
+          set -o errexit
+
+          if [[ -L '{{ _base_path }}' ]]; then exit 0; fi
+
+          if [[ -d '{{ _base_path }}/' ]] && ! rmdir '{{ _base_path }}/'; then exit 1; fi
+
+          if ! ln -s '{{ _mount_path }}/' '{{ _base_path }}'; then exit 1; fi
+
+          exit 78
+        executable: /bin/bash
+      loop: "{{ range(ds_items.image | length) }}"
+      vars:
+        _mount_path: >-
+          {{ ds_items.image[item].0.path | realpath }}
+        _base_path: >-
+          {{ ds_items.image[item].1.BASE_PATH | realpath }}
+      register: shell
+      changed_when:
+        - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
+      failed_when:
+        - shell.rc != 0 and shell.rc != 78
+
+- when: _target_group == (node_group | d('node'))
+  block:
+    - name: Setup datastore symlinks (system)
+      ansible.builtin.shell: *shell
+      loop: "{{ range(ds_items.system | length) }}"
+      vars:
+        _mount_path: >-
+          {{ ds_items.system[item].0.path | realpath }}
+        _base_path: >-
+          {{ ds_items.system[item].1.BASE_PATH | realpath }}
+      register: shell
+      changed_when:
+        - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
+      failed_when:
+        - shell.rc != 0 and shell.rc != 78
+
+- when: _target_group == (frontend_group | d('frontend'))
+  block:
+    - name: Setup datastore symlinks (file)
+      ansible.builtin.shell: *shell
+      loop: "{{ range(ds_items.file | length) }}"
+      vars:
+        _mount_path: >-
+          {{ ds_items.file[item].0.path | realpath }}
+        _base_path: >-
+          {{ ds_items.file[item].1.BASE_PATH | realpath }}
+      register: shell
+      changed_when:
+        - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
+      failed_when:
+        - shell.rc != 0 and shell.rc != 78
+
+- name: Update Datastores
+  ansible.builtin.shell:
+    cmd: |
+      set +o errexit
+      TEMPLATE="$(mktemp)"
+      tee "$TEMPLATE"
+      onedatastore update '{{ _id }}' "$TEMPLATE"; RC="$?"
+      rm -f "$TEMPLATE"
+      exit "$RC"
+    stdin: |
+      {{ _combined | opennebula.deploy.to_one }}
+    executable: /bin/bash
+  when: _combined | opennebula.deploy.to_one != _template | opennebula.deploy.to_one
+  loop: "{{ range(ds_parsed | length) }}"
+  vars:
+    _id: >-
+      {{ ds_parsed[item].ID }}
+    _template: >-
+      {{ ds_parsed[item].TEMPLATE }}
+    _type: >-
+      {{ _template.TYPE }}
+    _combined: >-
+      {{ _template | combine(ds_defaults[ds.mode][_type].template, recursive=true) }}
+  run_once: true
+  delegate_to: "{{ leader }}"
