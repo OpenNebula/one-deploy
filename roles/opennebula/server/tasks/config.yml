@@ -40,7 +40,7 @@
     line: 'ONEGATE_ENDPOINT = "{{ gate_endpoint }}"'
   notify:
     - Restart OpenNebula
-  when: gate_endpoint is defined and gate_endpoint is truthy
+  when: gate_endpoint is defined
 
 - name: Update dynamic config for OneGate Proxy
   ansible.builtin.lineinfile:
@@ -49,7 +49,7 @@
     line: ":onegate_addr: '{{ one_vip | default(leader) }}'"
   notify:
     - Sync Remotes
-  when: ee.gateproxy is defined and ee.gateproxy is truthy
+  when: features.gateproxy | bool is true
 
 - name: Workaround potential Libvirt's NFS detection issues
   ansible.builtin.lineinfile:
@@ -58,13 +58,13 @@
     line: 'MIGRATE_OPTIONS=--unsafe'
   notify:
     - Sync Remotes
-  when: unsafe_migrations is truthy
+  when: unsafe_migrations | bool is true
 
 - name: Handle the keep_empty_bridge VNM setting
   ansible.builtin.lineinfile:
     path: /var/lib/one/remotes/etc/vnm/OpenNebulaNetwork.conf
     regexp: '^:keep_empty_bridge:.*$'
-    line: ':keep_empty_bridge: {{ "true" if keep_empty_bridge is truthy else "false" }}'
+    line: ':keep_empty_bridge: {{ "true" if keep_empty_bridge | bool is true else "false" }}'
   notify:
     - Sync Remotes
 

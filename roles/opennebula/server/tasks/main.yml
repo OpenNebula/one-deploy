@@ -7,12 +7,16 @@
     _specific:
       Debian: []
       RedHat: []
+  register: package
+  until: package is success
+  retries: 12
+  delay: 5
   tags: [preinstall]
 
 - name: Decide if Frontend should be HA
   ansible.builtin.set_fact:
     use_ha: >-
-      {{ force_ha is truthy or ansible_play_hosts_all | length > 1 }}
+      {{ (force_ha | bool is true) or (ansible_play_hosts_all | length > 1) }}
 
 - ansible.builtin.import_tasks: "{{ role_path }}/tasks/config.yml"
 

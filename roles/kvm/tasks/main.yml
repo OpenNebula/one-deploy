@@ -7,6 +7,10 @@
     _specific:
       Debian: []
       RedHat: []
+  register: package
+  until: package is success
+  retries: 12
+  delay: 5
   tags: [preinstall]
 
 - ansible.builtin.import_tasks: "{{ role_path }}/tasks/libvirt.yml"

@@ -3,4 +3,3 @@ one_pass: null
 force_ha: false
 unsafe_migrations: true
 keep_empty_bridge: true
-gate_endpoint: "http://{{ one_vip }}:5030"

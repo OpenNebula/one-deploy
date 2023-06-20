@@ -1,5 +1,5 @@
 ---
-- hosts: bastion
+- hosts: "{{ bastion_group | d('bastion') }}"
   collections:
     - opennebula.deploy
   roles:
@@ -8,14 +8,14 @@
       become: false
       tags: [bastion]
 
-- hosts: frontend:node
+- hosts: "{{ frontend_group | d('frontend') }}:{{ node_group | d('node') }}"
   strategy: linear
   collections:
     - opennebula.deploy
   roles:
     - role: python3
 
-- hosts: frontend:node
+- hosts: "{{ frontend_group | d('frontend') }}:{{ node_group | d('node') }}"
   collections:
     - opennebula.deploy
   roles:

@@ -10,13 +10,18 @@
       {{ groups[frontend_group | d('frontend')] }}
   run_once: true
 
-- delegate_to: "{{ leader }}"
-  run_once: true
+- run_once: true
   block:
     - name: Decrement the retry counter
       ansible.builtin.set_fact:
         retry_no: >-
           {{ retry_no | default(6, true) | int - 1 }}
+
+    - name: Ping the Leader
+      ansible.builtin.wait_for:
+        host: "{{ leader }}"
+        port: "{{ ping_port | int }}"
+        timeout: 10
 
     - name: Get Zone 0
       ansible.builtin.shell:
@@ -24,6 +29,7 @@
         executable: /bin/bash
       register: shell
       changed_when: false
+      delegate_to: "{{ leader }}"
 
     - name: Detect if the Leader is there
       ansible.builtin.set_fact:

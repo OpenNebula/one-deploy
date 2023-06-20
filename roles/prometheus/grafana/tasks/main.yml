@@ -9,6 +9,10 @@
         _specific:
           Debian: [apt-transport-https, software-properties-common]
           RedHat: []
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
 
     - name: Check if Grafana GPG key is installed
       ansible.builtin.stat:
@@ -76,6 +80,10 @@
         _specific:
           Debian: []
           RedHat: []
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
 
 - ansible.builtin.include_role:
     name: opennebula/leader

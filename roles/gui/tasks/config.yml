@@ -11,7 +11,7 @@
   ansible.builtin.lineinfile:
     path: /etc/one/sunstone-server.conf
     regexp: '^[#\s]*:token_remote_support:.*$'
-    line: ':token_remote_support: "{{ ee.token }}"'
+    line: ':token_remote_support: "{{ one_token }}"'
   notify:
     - Restart Sunstone Server
-  when: ee.token is defined and ee.token is truthy
+  when: one_token is defined and one_token is truthy

@@ -50,14 +50,13 @@
     - role: gate/proxy
       tags: [gate]
       when:
-        - ee.gateproxy is undefined or ee.gateproxy is truthy
-        - ee.token is defined and ee.token is truthy
+        - features.gateproxy | bool is true
 
     - role: prometheus/exporter
       tags: [prometheus]
-      when:
-        - ee.prometheus is undefined or ee.prometheus is truthy
-        - ee.token is defined and ee.token is truthy
+      when: &prometheus
+        - features.prometheus | bool is true
+        - one_token is defined and one_token is truthy
 
 - hosts: "{{ frontend_group | d('frontend') }}"
   tags: [frontend]
@@ -75,9 +74,7 @@
 
     - role: prometheus/server
       tags: [prometheus]
-      when:
-        - ee.prometheus is undefined or ee.prometheus is truthy
-        - ee.token is defined and ee.token is truthy
+      when: *prometheus
 
 - hosts: "{{ grafana_group | d('grafana') }}"
   collections:
@@ -91,6 +88,4 @@
 
     - role: prometheus/grafana
       tags: [grafana]
-      when:
-        - ee.prometheus is undefined or ee.prometheus is truthy
-        - ee.token is defined and ee.token is truthy
+      when: *prometheus

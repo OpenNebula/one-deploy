@@ -1,3 +1,2 @@
 ---
 gate_listen_addr: '0.0.0.0'
-gate_endpoint: "http://{{ one_vip | default(leader) }}:5030"

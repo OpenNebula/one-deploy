@@ -15,6 +15,9 @@
         MariaDB: [mariadb-server]
         PostgreSQL: [postgresql-server]
   register: package
+  until: package is success
+  retries: 12
+  delay: 5
   tags: [preinstall]
 
 - when: package is changed and (ansible_os_family == 'RedHat' and db_backend == 'PostgreSQL')

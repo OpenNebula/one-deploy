@@ -5,13 +5,12 @@ all:
     ansible_user: example
     ansible_python_interpreter: /usr/bin/python3
     one_version: '6.6'
-    ee:
-      token: example:example
+    one_token: example:example
+    features:
       prometheus: false
       gateproxy: false
-    svc_subnet: 10.11.12.0/24
-    one_vip: "{{ svc_subnet | ansible.utils.nthhost(69) }}"
-    one_vip_cidr: "{{ svc_subnet | ansible.utils.ipaddr('prefix') }}"
+    one_vip: 10.11.12.69
+    one_vip_cidr: 24
     one_vip_if: eth0
     vn:
       bridge:
@@ -23,11 +22,11 @@ all:
             BRIDGE: br0
             AR:
               TYPE: IP4
-              IP: "{{ svc_subnet | ansible.utils.nthhost(200) }}"
+              IP: 10.11.12.200
               SIZE: 48
-            NETWORK_ADDRESS: "{{ svc_subnet | ansible.utils.ipaddr('network') }}"
-            NETWORK_MASK: "{{ svc_subnet | ansible.utils.ipaddr('netmask') }}"
-            GATEWAY: "{{ svc_subnet | ansible.utils.nthhost(1) }}"
+            NETWORK_ADDRESS: 10.11.12.0
+            NETWORK_MASK: 255.255.255.0
+            GATEWAY: 10.11.12.1
             DNS: 1.1.1.1
         vm:
           managed: true

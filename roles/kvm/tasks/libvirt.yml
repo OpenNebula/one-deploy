@@ -26,7 +26,7 @@
       fi
     executable: /bin/bash
   changed_when: false
-  when: disable_default_net is truthy
+  when: disable_default_net | bool is true
 
 - name: Populate service facts
   ansible.builtin.service_facts:
