@@ -25,14 +25,3 @@ ds_defaults:
     FILE_DS:
       template:
         TM_MAD: ssh
-  qcow2:
-    SYSTEM_DS:
-      template:
-        TM_MAD: qcow2
-        BRIDGE_LIST: "{{ groups[node_group | d('node')] | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
-    IMAGE_DS:
-      template:
-        TM_MAD: qcow2
-    FILE_DS:
-      template:
-        TM_MAD: ssh

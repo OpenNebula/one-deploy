@@ -24,7 +24,7 @@ all:
               src: /opt/nfs1/100/
             template: &template
               TYPE: SYSTEM_DS
-              TM_MAD: qcow2
+              TM_MAD: shared
               BRIDGE_LIST: "{{ groups.node | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
           system2:
             id: 101
@@ -46,7 +46,7 @@ all:
           default:
             symlink: { src: /opt/nfs0/1/ }
             template:
-              TM_MAD: qcow2
+              TM_MAD: shared
         FILE_DS:
           files:
             symlink: { src: /opt/nfs0/2/ }
