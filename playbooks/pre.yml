@@ -19,7 +19,10 @@
   collections:
     - opennebula.deploy
   roles:
-    - role: facts
+    - role: helper/facts
       tags: [always]
 
     - role: precheck
+
+    - role: helper/keys
+      tags: [keys]

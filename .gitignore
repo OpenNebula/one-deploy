@@ -1,5 +1,8 @@
 *.swp
+*.tar.gz
 __pycache__/
+/ansible_collections/*
+!/ansible_collections/opennebula/deploy
 /inventory/.one-deploy/
 /inventory/*.yml
 !/inventory/example.yml

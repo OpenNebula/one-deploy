@@ -4,7 +4,7 @@
   collections:
     - opennebula.deploy
   roles:
-    - role: facts
+    - role: helper/facts
       tags: [always]
 
     - role: repository
@@ -13,13 +13,13 @@
     - role: database
     - role: opennebula/server
 
-    - role: flush
+    - role: helper/flush
     - role: opennebula/leader
 
     - role: gate/server
       tags: [gate]
 
-    - role: flush
+    - role: helper/flush
     - role: opennebula/leader
 
     - role: flow
@@ -33,7 +33,7 @@
   collections:
     - opennebula.deploy
   roles:
-    - role: facts
+    - role: helper/facts
       tags: [always]
 
     - role: repository
@@ -63,7 +63,7 @@
   collections:
     - opennebula.deploy
   roles:
-    - role: facts
+    - role: helper/facts
       tags: [always]
 
     - role: datastore/frontend
@@ -80,7 +80,7 @@
   collections:
     - opennebula.deploy
   roles:
-    - role: facts
+    - role: helper/facts
       tags: [always]
 
     - role: repository

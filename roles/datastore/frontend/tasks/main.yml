@@ -1,7 +1,7 @@
 ---
-- name: &name "datastore/{{ _mode_to_role[ds.mode] }}"
+- name: Provision Datastores (frontend)
   ansible.builtin.include_role:
-    name: *name
+    name: "datastore/{{ _mode_to_role[ds.mode] }}"
   vars:
     _target_group: >-
       {{ frontend_group | d('frontend') }}
@@ -10,3 +10,5 @@
       qcow2: simple
       shared: simple
       generic: generic
+  when:
+    - ds.mode is defined

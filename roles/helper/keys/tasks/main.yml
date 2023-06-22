@@ -1,0 +1,33 @@
+---
+- when: ensure_keys_for is sequence and ensure_keys_for | length > 0
+  block:
+    - name: Create id_rsa/.pub keypairs
+      community.crypto.openssh_keypair:
+        path: "~{{ item.1 }}/.ssh/id_rsa"
+        type: rsa
+        size: "{{ rsa_key_size }}"
+        owner: "{{ item.1 }}"
+        mode: u=rw,go=
+        regenerate: never
+        force: false
+      loop: >-
+        {{ [inventory_hostname] | product(ensure_keys_for) }}
+      when:
+        - inventory_hostname not in groups[node_group | d('node')]
+      register: keypair
+
+    - name: Add authorized keys
+      ansible.posix.authorized_key:
+        user: "{{ item.item.1 }}"
+        key: "{{ item.public_key }}"
+      loop: "{{ _items }}"
+      vars:
+        _hosts: >-
+          {{ ansible_play_hosts | difference(groups[node_group | d('node')]) }}
+        _results: >-
+          {{ _hosts | map('extract', hostvars, ['keypair', 'results']) | flatten }}
+        _items: >-
+          {{ _results | map('dict2items')
+                      | map('selectattr', 'key', 'in', ['item', 'public_key'])
+                      | map('items2dict')
+                      | rejectattr('item.0', '==', inventory_hostname) }}

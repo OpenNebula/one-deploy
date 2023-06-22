@@ -27,7 +27,10 @@ pre site main: _VERBOSE   := $(if $(VERBOSE),-$(VERBOSE),)
 pre site main:
 	cd $(SELF)/ && ansible-playbook $(_VERBOSE) -i $(INVENTORY) $(_TAGS) $(_SKIP_TAGS) opennebula.deploy.$@
 
-.PHONY: build publish
+.PHONY: requirements build publish
+
+requirements: $(SELF)/requirements.yml
+	ansible-galaxy collection install --requirements-file $<
 
 build:
 	ansible-galaxy collection build --force --verbose

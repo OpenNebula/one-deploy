@@ -33,11 +33,11 @@
           {{ [_document.DATASTORE_POOL.DATASTORE | default([])] | flatten | list }}
         _mounts:
           image: >-
-            {{ ds.config.mounts | selectattr('type', '==', 'image') }}
+            {{ ds.config.mounts | default([]) | selectattr('type', '==', 'image') }}
           system: >-
-            {{ ds.config.mounts | selectattr('type', '==', 'system') }}
+            {{ ds.config.mounts | default([]) | selectattr('type', '==', 'system') }}
           file: >-
-            {{ ds.config.mounts | selectattr('type', '==', 'file') }}
+            {{ ds.config.mounts | default([]) | selectattr('type', '==', 'file') }}
         _grouped:
           image: >-
             {{ _datastores | selectattr('TYPE', '==', '0') | sort(attribute='ID') }}

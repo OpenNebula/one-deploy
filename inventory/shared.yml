@@ -2,8 +2,9 @@
 all:
   vars:
     env_name: shared
-    ansible_user: example
     ansible_python_interpreter: /usr/bin/python3
+    ansible_user: example
+    ensure_keys_for: [example, root]
     one_version: '6.6'
     one_token: example:example
     one_vip: 10.11.12.69

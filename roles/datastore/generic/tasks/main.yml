@@ -7,7 +7,7 @@
       {{ _items | items2dict }}
   vars:
     _ds: >-
-      {{ ds_defaults | combine(ds.config, recursive=true) }}
+      {{ ds_defaults | combine(ds.config | default({}), recursive=true) }}
     _items: >-
       {{ _ds | dict2items
              | map(attribute='value')

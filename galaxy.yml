@@ -21,6 +21,7 @@ homepage: https://github.com/OpenNebula/one-deploy
 issues: https://github.com/OpenNebula/one-deploy/issues
 
 build_ignore:
+- .gitignore
 - .galaxy-key
 - inventory
 - ansible_collections
