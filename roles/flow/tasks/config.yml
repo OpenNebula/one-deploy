@@ -3,6 +3,6 @@
   ansible.builtin.lineinfile:
     path: /etc/one/oneflow-server.conf
     regexp: '^:host:.*$'
-    line: ':host: "{{ flow_listen_addr }}"'
+    line: ':host: "{{ flow_bind_addr }}"'
   notify:
     - Restart OneFlow Server

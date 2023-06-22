@@ -88,6 +88,8 @@
 
 - when: not (auth_ok and key_ok)
   block:
+    # NOTE: Artifacts are copied from Frontend to Frontend via RSYNC/SSH *directly*,
+    # please make sure SSH/RSA keys are distributed accordingly (password-less login).
     - name: Distribute AUTH and SSH data
       ansible.posix.synchronize:
         dest: *leader_tar_gz
@@ -124,6 +126,8 @@
 
 - when: not db_ok
   block:
+    # NOTE: Artifacts are copied from Frontend to Frontend via RSYNC/SSH *directly*,
+    # please make sure SSH/RSA keys are distributed accordingly (password-less login).
     - name: Distribute DB backup
       ansible.posix.synchronize:
         dest: *db_sql_gz

@@ -20,6 +20,7 @@
   delay: 5
   tags: [preinstall]
 
+# NOTE: In RedHat-like distros PostgreSQL is not initialized automatically..
 - when: package is changed and (ansible_os_family == 'RedHat' and db_backend == 'PostgreSQL')
   block:
     - name: Check if PostgreSQL has been initialized

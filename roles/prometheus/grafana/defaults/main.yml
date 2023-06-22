@@ -1,0 +1,16 @@
+---
+grafana_repo_key_path:
+  Debian: /etc/apt/trusted.gpg.d/grafana.asc
+  RedHat: /etc/pki/rpm-gpg/RPM-GPG-KEY-grafana
+
+grafana_repo_key_url:
+  Debian: https://apt.grafana.com/gpg.key
+  RedHat: https://rpm.grafana.com/gpg.key
+
+grafana_repo_path:
+  Debian: /etc/apt/sources.list.d/grafana.list
+  RedHat: /etc/yum.repos.d/grafana.repo
+
+grafana_repo_url:
+  Debian: https://apt.grafana.com
+  RedHat: https://rpm.grafana.com

@@ -3,6 +3,7 @@ features:
   gateproxy: false
   prometheus: false
 
+# We define it here, because it's used in both opennebula/* and gate/* roles.
 gate_endpoint: >-
   {{ 'http://169.254.16.9:5030'
      if features.gateproxy | bool is true else

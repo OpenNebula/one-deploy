@@ -10,13 +10,17 @@
 - name: Detect or select a Leader
   run_once: true
   ansible.builtin.set_fact:
+    # If we cannot detect anything, we default to the first play host.
     leader: >-
       {{ ansible_play_hosts_all[0] if _running is falsy else _leader }}
+    # This fact is used to prevent extra/unneeded restart of OpenNebula (triggered via handlers)
+    # during initial deployment of a Frontend.
     oned_no_restart: >-
       {{ ansible_play_hosts_all
          if _running is falsy else
          ansible_play_hosts_all | difference(_peer_names) }}
   vars:
+    # We process shell results from all Frontends at once.
     _results: >-
       {{ ansible_play_hosts_all | map('extract', hostvars, ['shell']) | list }}
     _running: >-

@@ -5,6 +5,8 @@
       {{ _items | map(attribute='key')
                 | default([])
                 | list }}
+    # NOTE: We deliberately remove ARs from VNET templates to manage them separately.
+    # (They both can be created from a single VNET template, but never updated..)
     vn_dict: >-
       {{ _items | map('combine', {"value": {"template": {"AR": omit}}}, recursive=true)
                 | default([])
@@ -42,7 +44,3 @@
       {%- endfor -%}
       {{- output | items2dict -}}
   run_once: true
-
-- ansible.builtin.include_role:
-    name: opennebula/leader
-  when: leader is undefined

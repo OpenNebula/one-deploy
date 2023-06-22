@@ -3,4 +3,4 @@ collections:
   - opennebula.deploy
 
 dependencies:
-  - role: gate/common
+  - role: opennebula.deploy.common

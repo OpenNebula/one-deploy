@@ -6,7 +6,6 @@
   vars:
     _mode_to_role:
       ssh: simple
-      qcow2: simple
       shared: simple
       generic: generic
   when:

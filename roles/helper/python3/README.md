@@ -1,7 +1,7 @@
-Role: opennebula.deploy.prometheus.common
-=========================================
+Role: opennebula.deploy.helper.python3
+======================================
 
-A basic role to aggregate Prometheus/Grafana defaults/handlers etc.
+A simple role that installs python3 on Debian/RedHat-like distros (via BASH script).
 
 Requirements
 ------------
@@ -21,9 +21,10 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: frontend:grafana
+    - hosts: frontend:node
+      strategy: linear
       roles:
-        - role: opennebula.deploy.prometheus.common
+         - role: opennebula.deploy.helper.python3
 
 License
 -------

@@ -13,6 +13,7 @@
       loop: >-
         {{ [inventory_hostname] | product(ensure_keys_for) }}
       when:
+        # Skip creating keypairs on hypervisor nodes as they are unneeded/unused.
         - inventory_hostname not in groups[node_group | d('node')]
       register: keypair
 
@@ -22,10 +23,13 @@
         key: "{{ item.public_key }}"
       loop: "{{ _items }}"
       vars:
+        # Exclude hypervisor nodes as we don't create keypairs on them.
         _hosts: >-
           {{ ansible_play_hosts | difference(groups[node_group | d('node')]) }}
+        # Gather results from all viable play hosts.
         _results: >-
           {{ _hosts | map('extract', hostvars, ['keypair', 'results']) | flatten }}
+        # Filter the results and exclude current play host (not to self-install the authorized key).
         _items: >-
           {{ _results | map('dict2items')
                       | map('selectattr', 'key', 'in', ['item', 'public_key'])

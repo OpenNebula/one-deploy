@@ -1,4 +1,8 @@
 ---
+- ansible.builtin.include_role:
+    name: opennebula/leader
+  when: leader is undefined
+
 - delegate_to: "{{ leader }}"
   run_once: true
   block:

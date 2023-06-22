@@ -34,6 +34,7 @@
 
 - name: Get SERVER_ID of this Frontend
   ansible.builtin.set_fact:
+    # NOTE: Each Frontend is identified via *unique* SERVER_ID.
     server_id: >-
       {{ ([_server_pool.SERVER] | flatten
                                 | selectattr('NAME', '==', _this)

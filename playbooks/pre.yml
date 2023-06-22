@@ -13,7 +13,7 @@
   collections:
     - opennebula.deploy
   roles:
-    - role: python3
+    - role: helper/python3
 
 - hosts: "{{ frontend_group | d('frontend') }}:{{ node_group | d('node') }}"
   collections:

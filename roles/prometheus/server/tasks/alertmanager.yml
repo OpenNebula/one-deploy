@@ -25,6 +25,8 @@
                     --config.file=/etc/one/alertmanager/alertmanager.yml \
                     --storage.path=/var/lib/alertmanager/data/ {{ _peers }}
       vars:
+        # NOTE: Providing cluster peers from the command line seems to be
+        # the only supported way to configure HA Alertmanager.
         _peers: >-
           {{ ansible_play_hosts_all | difference([inventory_hostname])
                                     | map('regex_replace', '^(.*)$', ' --cluster.peer=\g<1>:9094 ')
