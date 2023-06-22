@@ -2,9 +2,8 @@
 - name: Provision Datastores (node)
   ansible.builtin.include_role:
     name: "datastore/{{ _mode_to_role[ds.mode] }}"
+    tasks_from: node
   vars:
-    _target_group: >-
-      {{ node_group | d('node') }}
     _mode_to_role:
       ssh: simple
       qcow2: simple

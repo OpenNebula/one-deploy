@@ -1,0 +1,72 @@
+---
+- ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/common.yml"
+
+- name: Setup datastore symlinks (image)
+  ansible.builtin.shell: &shell
+    cmd: |
+      set -o errexit
+
+      if [[ -L '{{ _base_path }}' ]]; then exit 0; fi
+
+      if [[ -d '{{ _base_path }}/' ]] && ! rmdir '{{ _base_path }}/'; then exit 1; fi
+
+      if ! ln -s '{{ _mount_path }}/' '{{ _base_path }}'; then exit 1; fi
+
+      exit 78
+    executable: /bin/bash
+  loop: "{{ range(ds_items.image | length) }}"
+  vars:
+    _mount_path: >-
+      {{ ds_items.image[item].0.path | realpath }}
+    _base_path: >-
+      {{ ds_items.image[item].1.BASE_PATH | realpath }}
+  register: shell
+  changed_when:
+    - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
+  failed_when:
+    - shell.rc != 0 and shell.rc != 78
+
+- name: Setup datastore symlinks (file)
+  ansible.builtin.shell: *shell
+  loop: "{{ range(ds_items.file | length) }}"
+  vars:
+    _mount_path: >-
+      {{ ds_items.file[item].0.path | realpath }}
+    _base_path: >-
+      {{ ds_items.file[item].1.BASE_PATH | realpath }}
+  register: shell
+  changed_when:
+    - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
+  failed_when:
+    - shell.rc != 0 and shell.rc != 78
+
+- name: Update Datastores
+  ansible.builtin.shell:
+    cmd: |
+      set +o errexit
+      TEMPLATE="$(mktemp)"
+      tee "$TEMPLATE"
+      onedatastore update '{{ _id }}' "$TEMPLATE"; RC="$?"
+      rm -f "$TEMPLATE"
+      exit "$RC"
+    stdin: |
+      {{ _combined | opennebula.deploy.to_one }}
+    executable: /bin/bash
+  when: _combined | opennebula.deploy.to_one != _template | opennebula.deploy.to_one
+  loop: "{{ _datastores }}"
+  vars:
+    _datastores: >-
+      {{ ds_items.values() | flatten(levels=1)
+                           | map(attribute=1)
+                           | list }}
+    _id: >-
+      {{ item.ID }}
+    _template: >-
+      {{ item.TEMPLATE }}
+    _type: >-
+      {{ _template.TYPE }}
+    _combined: >-
+      {{ _template | combine(ds_defaults[ds.mode][_type].template, recursive=true) }}
+  run_once: true
+  delegate_to: "{{ leader }}"

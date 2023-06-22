@@ -1,0 +1,55 @@
+---
+- ansible.builtin.include_role:
+    name: opennebula/leader
+  when: leader is undefined
+
+- run_once: true
+  block:
+    - name: Get Datastores
+      ansible.builtin.shell:
+        cmd: onedatastore list --json
+        executable: /bin/bash
+      register: shell
+      changed_when: false
+      delegate_to: "{{ leader }}"
+
+    - name: Parse Datastores
+      ansible.builtin.set_fact:
+        ds_mounts: >-
+          {{ _mounts }}
+        ds_parsed: >-
+          {{ _datastores }}
+        ds_items:
+          image: >-
+            {{ _mounts.image | zip(_grouped.image) }}
+          system: >-
+            {{ _mounts.system | zip(_grouped.system) }}
+          file: >-
+            {{ _mounts.file | zip(_grouped.file) }}
+      vars:
+        _document: >-
+          {{ shell.stdout | from_json }}
+        _datastores: >-
+          {{ [_document.DATASTORE_POOL.DATASTORE | default([])] | flatten | list }}
+        _mounts:
+          image: >-
+            {{ ds.config.mounts | default([]) | selectattr('type', '==', 'image') }}
+          system: >-
+            {{ ds.config.mounts | default([]) | selectattr('type', '==', 'system') }}
+          file: >-
+            {{ ds.config.mounts | default([]) | selectattr('type', '==', 'file') }}
+        _grouped:
+          image: >-
+            {{ _datastores | selectattr('TYPE', '==', '0') | sort(attribute='ID') }}
+          system: >-
+            {{ _datastores | selectattr('TYPE', '==', '1') | sort(attribute='ID') }}
+          file: >-
+            {{ _datastores | selectattr('TYPE', '==', '2') | sort(attribute='ID') }}
+
+- name: Ensure /var/lib/one/datastores/ exists
+  ansible.builtin.file:
+    path: /var/lib/one/datastores/
+    state: directory
+    owner: oneadmin
+    group: oneadmin
+    mode: u=rwx,g=rx,o=
