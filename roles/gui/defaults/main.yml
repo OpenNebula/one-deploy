@@ -1,2 +1,3 @@
 ---
-public_fireedge_endpoint: "http://{{ one_fqdn | default(one_vip | default(leader)) }}:2616"
+public_fireedge_endpoint: >-
+  http://{{ one_fqdn | default(one_vip | default(hostvars[leader].ansible_host)) }}:2616

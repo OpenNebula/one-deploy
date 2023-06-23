@@ -26,33 +26,36 @@
         port: "{{ ping_port | int }}"
         timeout: 10
 
-    - name: Get Zone 0
-      ansible.builtin.shell:
-        cmd: onezone show 0 --json
-        executable: /bin/bash
-      register: shell
-      changed_when: false
-      delegate_to: "{{ leader }}"
+    # NOTE: This check makes sense only when HA mode is enabled.
+    - when: groups[frontend_group | d('frontend')] | length > 1
+      block:
+        - name: Get Zone 0
+          ansible.builtin.shell:
+            cmd: onezone show 0 --json
+            executable: /bin/bash
+          register: shell
+          changed_when: false
+          delegate_to: "{{ leader }}"
 
-    - name: Detect if the Leader is there
-      ansible.builtin.set_fact:
-        # Make sure the Leader isn't specifically the VIP, but
-        # rather use its inventory_hostname (or the "SERVER[x].NAME").
-        # This helps later when dealing with OneGate/OneFlow
-        # services (that's because OneGate/OneFlow services running not
-        # on the Leader are automatically deactivated).
-        leader: >-
-          {{ _leader[0].NAME }}
-      failed_when: _server_pool is truthy and _leader is falsy
-      vars:
-        _document: >-
-          {{ shell.stdout | from_json }}
-        _server_pool: >-
-          {{ _document.ZONE.SERVER_POOL }}
-        _peers: >-
-          {{ [_server_pool.SERVER] | flatten | list }}
-        _leader: >-
-          {{ _peers | selectattr('STATE', '==', '3') | list }}
+        - name: Detect if the Leader is there
+          ansible.builtin.set_fact:
+            # Make sure the Leader isn't specifically the VIP, but
+            # rather use its inventory_hostname (or the "SERVER[x].NAME").
+            # This helps later when dealing with OneGate/OneFlow
+            # services (that's because OneGate/OneFlow services running not
+            # on the Leader are automatically deactivated).
+            leader: >-
+              {{ _leader[0].NAME }}
+          failed_when: _server_pool is truthy and _leader is falsy
+          vars:
+            _document: >-
+              {{ shell.stdout | from_json }}
+            _server_pool: >-
+              {{ _document.ZONE.SERVER_POOL }}
+            _peers: >-
+              {{ [_server_pool.SERVER] | flatten | list }}
+            _leader: >-
+              {{ _peers | selectattr('STATE', '==', '3') | list }}
   rescue:
     - name: Abort after timeout
       ansible.builtin.fail:
