@@ -11,11 +11,11 @@ N/A
 Role Variables
 --------------
 
-| Name                  | Type   | Default    | Example       | Description                                            |
-|-----------------------|--------|------------|---------------|--------------------------------------------------------|
-| `disable_default_net` | `bool` | `true`     |               | Disable default LibVirt's network.                     |
-| `libvirtd_args`       | `str`  | `` (empty) |               | Overwrite arguments in the `libvirtd` systemd service. |
-| `leader`              | `str`  | undefined  | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. |
+| Name                  | Type   | Default   | Example       | Description                                            |
+|-----------------------|--------|-----------|---------------|--------------------------------------------------------|
+| `disable_default_net` | `bool` | `true`    |               | Disable default Libvirt's network.                     |
+| `libvirtd_args`       | `str`  | `''`      |               | Overwrite arguments in the `libvirtd` systemd service. |
+| `leader`              | `str`  | undefined | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. |
 
 Dependencies
 ------------
@@ -29,6 +29,7 @@ Example Playbook
     - hosts: node
       roles:
         - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.repository
         - role: opennebula.deploy.kvm
 
 License

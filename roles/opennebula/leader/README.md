@@ -11,11 +11,11 @@ N/A
 Role Variables
 --------------
 
-| Name              | Type   | Default    | Example       | Description                                            |
-|-------------------|--------|------------|---------------|--------------------------------------------------------|
-| `frontend_group`  | `str`  | `frontend` |               | Custom name of the Frontend group in the inventory.    |
-| `one_vip`         | `str`  | undefined  | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. |
-| `ping_port`       | `int`  | `22`       |               | TCP port to check while detecting the Leader.          |
+| Name              | Type  | Default    | Example       | Description                                            |
+|-------------------|-------|------------|---------------|--------------------------------------------------------|
+| `frontend_group`  | `str` | `frontend` |               | Custom name of the Frontend group in the inventory.    |
+| `one_vip`         | `str` | undefined  | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. |
+| `ping_port`       | `int` | `22`       |               | TCP port to check while detecting the Leader.          |
 
 Dependencies
 ------------

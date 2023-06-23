@@ -1,7 +1,7 @@
 Role: opennebula.deploy.helper.python3
 ======================================
 
-A simple role that installs python3 on Debian/RedHat-like distros (via BASH script).
+A simple role that installs Python3 on Debian/RedHat-like distros (via BASH script).
 
 Requirements
 ------------

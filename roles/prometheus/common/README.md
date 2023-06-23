@@ -1,7 +1,7 @@
 Role: opennebula.deploy.prometheus.common
 =========================================
 
-A basic role to aggregate Prometheus/Grafana defaults/handlers etc.
+A role that aggregates Prometheus/Grafana defaults/handlers etc.
 
 Requirements
 ------------

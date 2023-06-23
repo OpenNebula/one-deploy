@@ -51,6 +51,7 @@ Example Playbook
               equal: [alertname, dev, instance]
       roles:
         - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.repository
         - role: opennebula.deploy.prometheus.server
 
 License

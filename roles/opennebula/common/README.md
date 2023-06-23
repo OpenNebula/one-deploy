@@ -1,7 +1,7 @@
 Role: opennebula.deploy.opennebula.common
 =========================================
 
-A basic role to aggregate OpenNebula defaults.
+A role that aggregates common OpenNebula defaults/handlers etc.
 
 Requirements
 ------------

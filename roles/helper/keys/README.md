@@ -11,11 +11,11 @@ N/A
 Role Variables
 --------------
 
-| Name              | Type   | Default    | Example          | Description                                         |
-|-------------------|--------|------------|------------------|-----------------------------------------------------|
-| `rsa_key_size`    | `str`  | `3072`     |                  |                                                     |
-| `ensure_keys_for` | `list` | `[]`       | `[ubuntu, root]` | A list of system users to manage SSH/RSA keys for.  |
-| `node_group`      | `str`  | `node`     |                  | Custom name of the Node group in the inventory.     |
+| Name              | Type   | Default | Example          | Description                                        |
+|-------------------|--------|---------|------------------|----------------------------------------------------|
+| `rsa_key_size`    | `str`  | `3072`  |                  |                                                    |
+| `ensure_keys_for` | `list` | `[]`    | `[ubuntu, root]` | A list of system users to manage SSH/RSA keys for. |
+| `node_group`      | `str`  | `node`  |                  | Custom name of the Node group in the inventory.    |
 
 Dependencies
 ------------

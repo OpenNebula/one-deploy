@@ -11,12 +11,12 @@ N/A
 Role Variables
 --------------
 
-| Name          | Type   | Default      | Example | Description                                           |
-|---------------|--------|--------------|---------|-------------------------------------------------------|
-| `db_backend`  | `str`  | `MariaDB`    |         | Can be `MariaDB` or `PostgreSQL`.                     |
-| `db_name`     | `str`  | `opennebula` |         | Name of the database/schema used by OpenNebula.       |
-| `db_owner`    | `str`  | `oneadmin`   |         | Username used by OpenNebula to access the database.   |
-| `db_password` | `str`  | `opennebula` |         | Password used by OpenNebula to authenticate the user. |
+| Name          | Type  | Default      | Example | Description                                           |
+|---------------|-------|--------------|---------|-------------------------------------------------------|
+| `db_backend`  | `str` | `MariaDB`    |         | Can be `MariaDB` or `PostgreSQL`.                     |
+| `db_name`     | `str` | `opennebula` |         | Name of the database/schema used by OpenNebula.       |
+| `db_owner`    | `str` | `oneadmin`   |         | User used by OpenNebula to access the database.       |
+| `db_password` | `str` | `opennebula` |         | Password used by OpenNebula to authenticate the user. |
 
 Dependencies
 ------------

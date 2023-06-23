@@ -1,7 +1,7 @@
 Role: opennebula.deploy.network.common
 ======================================
 
-A role to aggregate common network defaults/handlers/tasks etc.
+A role that aggregates common network defaults/handlers/tasks etc.
 
 Requirements
 ------------

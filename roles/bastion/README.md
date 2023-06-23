@@ -11,13 +11,13 @@ A `ssh-agent` instance running on the Ansible controller's side (possibly).
 Role Variables
 --------------
 
-| Name              | Type   | Default    | Example       | Description                                                         |
-|-------------------|--------|------------|---------------|---------------------------------------------------------------------|
-| `env_name`        | `str`  | undefined  | `nebula3`     | Used to distinguish multiple SSH configs/clusters in the inventory. |
-| `bastion_group`   | `str`  | `bastion`  |               | Custom name of the Bastion group in the inventory.                  |
-| `frontend_group`  | `str`  | `frontend` |               | Custom name of the Frontend group in the inventory.                 |
-| `node_group`      | `str`  | `node`     |               | Custom name of the Node group in the inventory.                     |
-| `one_vip`         | `str`  | undefined  | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader.              |
+| Name             | Type  | Default    | Example       | Description                                                         |
+|------------------|-------|------------|---------------|---------------------------------------------------------------------|
+| `env_name`       | `str` | undefined  | `nebula3`     | Used to distinguish multiple SSH configs/clusters in the inventory. |
+| `bastion_group`  | `str` | `bastion`  |               | Custom name of the Bastion group in the inventory.                  |
+| `frontend_group` | `str` | `frontend` |               | Custom name of the Frontend group in the inventory.                 |
+| `node_group`     | `str` | `node`     |               | Custom name of the Node group in the inventory.                     |
+| `one_vip`        | `str` | undefined  | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader.              |
 
 Dependencies
 ------------

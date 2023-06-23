@@ -23,7 +23,7 @@ Example Playbook
 
     - hosts: frontend
       roles:
-         - { role: opennebula.deploy.helper.flush }
+         - role: opennebula.deploy.helper.flush
 
 License
 -------

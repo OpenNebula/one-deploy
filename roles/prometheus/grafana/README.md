@@ -47,6 +47,7 @@ Example Playbook
           RedHat: https://rpm.grafana.com
       roles:
         - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.repository
         - role: opennebula.deploy.prometheus.grafana
 
 License

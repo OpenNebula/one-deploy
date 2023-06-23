@@ -24,6 +24,7 @@ Example Playbook
     - hosts: node
       roles:
         - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.repository
         - role: opennebula.deploy.gate.proxy
 
 License

@@ -30,6 +30,7 @@
         _names: >-
           {{ _datastores | map(attribute='NAME') | default([]) | list }}
 
+    # NOTE: Only "system" datastores can be enabled or disabled.
     - name: Update Datastores
       ansible.builtin.shell:
         cmd: |

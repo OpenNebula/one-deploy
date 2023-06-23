@@ -1,7 +1,7 @@
 Role: opennebula.deploy.helper.facts
 ====================================
 
-A role to replace/optimize built-in fact gathering.
+A role that replaces/optimizes built-in fact gathering.
 
 Requirements
 ------------
@@ -13,7 +13,7 @@ Role Variables
 
 | Name           | Type   | Default          | Example | Description                                                  |
 |----------------|--------|------------------|---------|--------------------------------------------------------------|
-| `facts_subset` | `list` | `[min, network]` |         | Define it to gather only a subset of facts.                  |
+| `facts_subset` | `list` | `[min, network]` |         | Gather only a subset of facts.                               |
 | `_force`       | `bool` | undefined        | `true`  | Re-gather facts even if the `setup` fact is already defined. |
 
 Dependencies
