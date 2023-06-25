@@ -1,8 +1,36 @@
 ---
+- name: Check if one_vip/force_ha settings are valid
+  ansible.builtin.assert:
+    that: (one_vip is undefined)
+          or
+          (groups[frontend_group | d('frontend')] | length > 1)
+          or
+          (force_ha | d(false) | bool is true)
+    msg: >-
+      Please either define one_vip in the inventory, add more Frontends or enable force_ha.
+  run_once: true
+
+- name: Check if all vip related settings are provided
+  ansible.builtin.assert:
+    that: ((one_vip is defined) and (one_vip_cidr is defined) and (one_vip_if is defined))
+          or
+          ((one_vip is undefined) and (one_vip_cidr is undefined) and (one_vip_if is undefined))
+    msg: >-
+      Please either define all or undefine all one_vip, one_vip_cidr, one_vip_if vars.
+  run_once: true
+
+- name: Check if Prometheus can be enabled
+  ansible.builtin.assert:
+    that: (features.prometheus | d(false) | bool is false)
+          or
+          (one_token is defined and one_token is truthy)
+    msg: >-
+      Please either disable the Prometheus feature or provide one_token.
+  run_once: true
+
 - name: Check if distro family is supported
   ansible.builtin.assert:
-    that:
-      - ansible_os_family in {{ _supported }}
+    that: ansible_os_family in {{ _supported }}
   vars:
     _supported:
       - Debian
@@ -10,8 +38,7 @@
 
 - name: Check if distro is supported
   ansible.builtin.assert:
-    that:
-      - ansible_distribution in {{ _supported }}
+    that: ansible_distribution in {{ _supported }}
   vars:
     _supported:
       - AlmaLinux

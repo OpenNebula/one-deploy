@@ -7,16 +7,15 @@
   notify:
     - Restart OneGate Server
 
-# NOTE: ONEGATE_ENDPOINT is automatically propagated
-# (as an environment variable) to VMs that are expected
-# to be using OneGate.
+# NOTE: ONEGATE_ENDPOINT is automatically propagated (as an environment variable)
+# to VMs that are expected to be using OneGate.
 - name: Configure oned (ONEGATE_ENDPOINT)
   ansible.builtin.lineinfile:
     path: /etc/one/oned.conf
     regexp: '^[#\s]*ONEGATE_ENDPOINT\s*=.*$'
     line: 'ONEGATE_ENDPOINT = "{{ gate_endpoint }}"'
   notify:
-    - Restart OpenNebula (gate)
+    - Restart OpenNebula
 
 - name: Update dynamic config for OneGateProxy
   ansible.builtin.lineinfile:
@@ -29,4 +28,5 @@
     # Changes applied to '/var/lib/one/remotes/etc/onegate-proxy.conf'
     # on the Leader can be propagated to Nodes with the 'onehost sync -f'
     # command.
-    - Sync Remotes (gate)
+    - Sync Remotes
+  when: features.gateproxy | bool is true

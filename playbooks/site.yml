@@ -12,10 +12,6 @@
 
     - role: database
     - role: opennebula/server
-
-    - role: helper/flush
-    - role: opennebula/leader
-
     - role: gate/server
       tags: [gate]
 

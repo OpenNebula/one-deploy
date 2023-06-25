@@ -6,15 +6,3 @@
   when:
     - inventory_hostname == leader
     - gate_no_restart is false
-
-- name: Restart OpenNebula (gate)
-  ansible.builtin.service:
-    name: opennebula
-    state: restarted
-
-- name: Sync Remotes (gate)
-  ansible.builtin.shell:
-    cmd: onehost sync -f
-    executable: /bin/bash
-  become_user: oneadmin
-  when: inventory_hostname == leader
