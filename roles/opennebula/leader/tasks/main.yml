@@ -2,7 +2,7 @@
 - name: Guess the Leader
   ansible.builtin.set_fact:
     leader: >-
-      {{ one_vip | default(_frontend | random)
+      {{ one_vip | d(_frontend | random)
          if _frontend | length > 1 else
          _frontend[0] }}
   vars:
@@ -22,7 +22,7 @@
     # thus we need to check if the Leader is reachable before delegating.
     - name: Ping the Leader
       ansible.builtin.wait_for:
-        host: "{{ leader }}"
+        host: "{{ hostvars[leader].ansible_host | d(leader) }}"
         port: "{{ ping_port | int }}"
         timeout: 10
 
