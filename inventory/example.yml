@@ -13,33 +13,31 @@ all:
     one_vip_cidr: 24
     one_vip_if: eth0
     vn:
-      bridge:
-        service:
-          managed: true
-          move_ip: true
-          template:
-            VN_MAD: bridge
-            PHYDEV: eth0
-            BRIDGE: br0
-            AR:
-              TYPE: IP4
-              IP: 10.11.12.200
-              SIZE: 48
-            NETWORK_ADDRESS: 10.11.12.0
-            NETWORK_MASK: 255.255.255.0
-            GATEWAY: 10.11.12.1
-            DNS: 1.1.1.1
-        vm:
-          managed: true
-          template:
-            VN_MAD: bridge
-            PHYDEV: eth1
-            AR:
-              TYPE: IP4
-              IP: 192.168.150.200
-              SIZE: 48
-            NETWORK_ADDRESS: 192.168.150.0
-            NETWORK_MASK: 255.255.255.0
+      service:
+        managed: true
+        template:
+          VN_MAD: bridge
+          PHYDEV: eth0
+          BRIDGE: br0
+          AR:
+            TYPE: IP4
+            IP: 10.11.12.200
+            SIZE: 48
+          NETWORK_ADDRESS: 10.11.12.0
+          NETWORK_MASK: 255.255.255.0
+          GATEWAY: 10.11.12.1
+          DNS: 1.1.1.1
+      vm:
+        managed: true
+        template:
+          VN_MAD: bridge
+          PHYDEV: eth1
+          AR:
+            TYPE: IP4
+            IP: 192.168.150.200
+            SIZE: 48
+          NETWORK_ADDRESS: 192.168.150.0
+          NETWORK_MASK: 255.255.255.0
     ds:
       mode: ssh
       config:

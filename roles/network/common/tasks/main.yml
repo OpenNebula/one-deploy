@@ -25,9 +25,6 @@
   vars:
     _items: >-
       {{ vn | dict2items
-            | map(attribute='value')
-            | map('dict2items')
-            | flatten
             | selectattr('value.managed', 'true')
             | list }}
     _ar_dict: >-
