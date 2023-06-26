@@ -2,14 +2,13 @@
 all:
   vars:
     env_name: example
-    ansible_python_interpreter: /usr/bin/python3
     ansible_user: example
     ensure_keys_for: [example, root]
     one_version: '6.6'
     one_token: example:example
     features:
+      gateproxy: true
       prometheus: false
-      gateproxy: false
     one_vip: 10.11.12.69
     one_vip_cidr: 24
     one_vip_if: eth0

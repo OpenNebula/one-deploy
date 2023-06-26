@@ -1,6 +1,6 @@
 ---
 features:
-  gateproxy: false
+  gateproxy: true
   prometheus: false
 
 # We define it here, because it's used in both opennebula/* and gate/* roles.
