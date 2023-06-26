@@ -17,6 +17,7 @@ all:
       bridge:
         service:
           managed: true
+          move_ip: true
           template:
             VN_MAD: bridge
             PHYDEV: eth0

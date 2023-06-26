@@ -10,6 +10,7 @@
     _phydev: "{{ vn_dict[_item.0].template.PHYDEV }}"
     _bridge: "{{ vn_dict[_item.0].template.BRIDGE }}"
   when:
+    - vn_dict[_item.0].move_ip | d(false) | bool is true
     - _phydev is defined
     - _bridge is defined
     - _phydev in ansible_interfaces

@@ -19,8 +19,9 @@
       {%- endfor -%}
       {{- dict(output) -}}
   vars:
+    # NOTE: If you don't use netplan, then the automatic IP address "move" will be skipped.
     _network: >-
-      {{ (shell.stdout | from_yaml).network }}
+      {{ (shell.stdout | from_yaml).network | d({}) }}
 
 - name: Decide if bridge should be created
   ansible.builtin.set_fact:
