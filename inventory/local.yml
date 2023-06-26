@@ -5,8 +5,7 @@ all:
     one_version: '6.6'
     one_pass: opennebulapass
     vn:
-      service:
-        move_ip: true
+      admin_net:
         managed: true
         template:
           VN_MAD: bridge
