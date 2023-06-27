@@ -27,7 +27,9 @@
         timeout: 10
 
     # NOTE: This check makes sense only when HA mode is enabled.
-    - when: groups[frontend_group | d('frontend')] | length > 1
+    - when: (groups[frontend_group | d('frontend')] | length > 1)
+            or
+            (force_ha | bool is true)
       block:
         - name: Get Zone 0
           ansible.builtin.shell:
@@ -44,8 +46,9 @@
             # This helps later when dealing with OneGate/OneFlow
             # services (that's because OneGate/OneFlow services running not
             # on the Leader are automatically deactivated).
+            # NOTE: d() prevents the syntax error, when the _leader list is empty.
             leader: >-
-              {{ _leader[0].NAME }}
+              {{ _leader[0].NAME | d() }}
           failed_when: _server_pool is truthy and _leader is falsy
           vars:
             _document: >-

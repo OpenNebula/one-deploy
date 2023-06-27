@@ -15,6 +15,10 @@
     - role: gate/server
       tags: [gate]
 
+    # Wait until the Leader is elected, then run handlers (and possibly restart all oned instances),
+    # then wait until the cluster is stable again. NOTE: After all that we make sure not to restart
+    # OpenNebula services until the end of the playbook!
+    - role: opennebula/leader
     - role: helper/flush
     - role: opennebula/leader
 

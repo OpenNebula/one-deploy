@@ -1,7 +1,7 @@
 Role: opennebula.deploy.gate.proxy
 ==================================
 
-A role that manages the OneGateProxy service.
+A role that manages the OneGate Proxy service.
 
 Requirements
 ------------

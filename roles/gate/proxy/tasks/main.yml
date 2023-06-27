@@ -13,7 +13,7 @@
   delay: 5
   tags: [preinstall]
 
-- name: Enable / Start OneGateProxy (NOW)
+- name: Enable / Start OneGate Proxy (NOW)
   ansible.builtin.service:
     name: opennebula-gate-proxy
     enabled: true

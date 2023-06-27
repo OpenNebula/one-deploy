@@ -11,11 +11,11 @@ N/A
 Role Variables
 --------------
 
-| Name                 | Type   | Default   | Example       | Description                                            |
-|----------------------|--------|-----------|---------------|--------------------------------------------------------|
-| `features.gateproxy` | `bool` | `true`    |               | Indicates if OneGateProxy service is enabled/disabled. |
-| `one_vip`            | `str`  | undefined | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. |
-| `leader`             | `str`  | undefined | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. |
+| Name                 | Type   | Default   | Example       | Description                                             |
+|----------------------|--------|-----------|---------------|---------------------------------------------------------|
+| `features.gateproxy` | `bool` | `true`    |               | Indicates if OneGate Proxy service is enabled/disabled. |
+| `one_vip`            | `str`  | undefined | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader.  |
+| `leader`             | `str`  | undefined | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader.  |
 
 Dependencies
 ------------
