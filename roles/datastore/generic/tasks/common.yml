@@ -21,8 +21,8 @@
   ansible.builtin.file:
     path: /var/lib/one/datastores/
     state: directory
-    owner: oneadmin
-    group: oneadmin
+    owner: 9869 # oneadmin
+    group: 9869 # oneadmin
     mode: u=rwx,g=rx,o=
 
 - name: Setup datastore symlinks

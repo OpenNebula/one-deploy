@@ -2,8 +2,8 @@
 - name: Set oneadmin's password if provided
   ansible.builtin.copy:
     dest: /var/lib/one/.one/one_auth
-    owner: oneadmin
-    group: oneadmin
+    owner: 9869 # oneadmin
+    group: 9869 # oneadmin
     mode: u=rw,g=r,o=
     content: "oneadmin:{{ one_pass }}"
     backup: true
