@@ -1,0 +1,27 @@
+---
+ds:
+  mode: ssh
+  config: {}
+
+ds_defaults:
+  ssh:
+    SYSTEM_DS:
+      template:
+        TM_MAD: ssh
+    IMAGE_DS:
+      template:
+        TM_MAD: ssh
+    FILE_DS:
+      template:
+        TM_MAD: ssh
+  shared:
+    SYSTEM_DS:
+      template:
+        TM_MAD: shared
+        BRIDGE_LIST: "{{ groups[node_group | d('node')] | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
+    IMAGE_DS:
+      template:
+        TM_MAD: shared
+    FILE_DS:
+      template:
+        TM_MAD: ssh

@@ -1,0 +1,8 @@
+---
+collections:
+  - opennebula.deploy
+  - community.crypto
+  - ansible.posix
+
+dependencies:
+  - role: opennebula.deploy.common

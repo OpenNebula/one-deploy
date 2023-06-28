@@ -1,0 +1,8 @@
+---
+collections:
+  - opennebula.deploy
+
+dependencies:
+  - role: opennebula/common
+
+allow_duplicates: true

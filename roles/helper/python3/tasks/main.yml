@@ -1,0 +1,10 @@
+---
+- name: Bootstrap python3 intepreter
+  ansible.builtin.script:
+    cmd: "{{ playbook_dir }}/roles/templates/python3.sh"
+    executable: /bin/bash
+    creates: /usr/bin/python3
+  register: script
+  until: script is success
+  retries: 12
+  delay: 5

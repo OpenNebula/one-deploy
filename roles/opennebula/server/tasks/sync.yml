@@ -1,0 +1,149 @@
+---
+- name: Stat /var/lib/one/.one/one_auth
+  ansible.builtin.stat:
+    path: /var/lib/one/.one/one_auth
+    get_attributes: false
+    get_checksum: true
+    get_mime: false
+  delegate_to: "{{ item }}"
+  loop:
+    - "{{ leader }}"
+    - "{{ inventory_hostname }}"
+  register: stat
+
+- name: Detect if AUTH info has been replicated
+  ansible.builtin.set_fact:
+    auth_ok: >-
+      {{ _exist_ok and _cksum_ok }}
+  vars:
+    _exist_ok: >-
+      {{ stat.results | map(attribute='stat.exists') | list is all }}
+    _cksum_ok: >-
+      {{ stat.results | map(attribute='stat.checksum') | list | unique | length == 1 }}
+
+- name: Stat /var/lib/one/.ssh/id_rsa
+  ansible.builtin.stat:
+    path: /var/lib/one/.ssh/id_rsa
+    get_attributes: false
+    get_checksum: true
+    get_mime: false
+  delegate_to: "{{ item }}"
+  loop:
+    - "{{ leader }}"
+    - "{{ inventory_hostname }}"
+  register: stat
+
+- name: Detect if SSH key has been replicated
+  ansible.builtin.set_fact:
+    key_ok: >-
+      {{ _exist_ok and _cksum_ok }}
+  vars:
+    _exist_ok: >-
+      {{ stat.results | map(attribute='stat.exists') | list is all }}
+    _cksum_ok: >-
+      {{ stat.results | map(attribute='stat.checksum') | list | unique | length == 1 }}
+
+- name: Get DB version info
+  ansible.builtin.shell:
+    cmd: |
+      onedb version -t '{{ db_backend_types[db_backend] }}' \
+                    -u '{{ db_owner }}' \
+                    -p '{{ db_password }}' \
+                    -d '{{ db_name }}'
+    executable: /bin/bash
+  register: shell
+  changed_when: false
+  ignore_errors: true
+
+- name: Detect if DB has been replicated
+  ansible.builtin.set_fact:
+    db_ok: >-
+      {{ shell is success }}
+
+- name: Combine all results
+  ansible.builtin.set_fact:
+    all_key_ok: >-
+      {{ _followers | map('extract', hostvars, ['key_ok']) is all }}
+    all_auth_ok: >-
+      {{ _followers | map('extract', hostvars, ['auth_ok']) is all }}
+    all_db_ok: >-
+      {{ _followers | map('extract', hostvars, ['db_ok']) is all }}
+  vars:
+    _followers: >-
+      {{ ansible_play_hosts_all | difference([leader]) }}
+  run_once: true
+
+- when: not (all_auth_ok and all_key_ok)
+  delegate_to: "{{ leader }}"
+  run_once: true
+  block:
+    - name: Archive AUTH and SSH data
+      ansible.builtin.archive:
+        dest: &leader_tar_gz /var/tmp/leader.tar.gz
+        path:
+          - /var/lib/one/.one
+          - /var/lib/one/.ssh
+        format: gz
+        remove: false
+
+- when: not (auth_ok and key_ok)
+  block:
+    # NOTE: Artifacts are copied from Frontend to Frontend via RSYNC/SSH *directly*,
+    # please make sure SSH/RSA keys are distributed accordingly (password-less login).
+    - name: Distribute AUTH and SSH data
+      ansible.posix.synchronize:
+        dest: *leader_tar_gz
+        src: *leader_tar_gz
+        mode: push
+      delegate_to: "{{ leader }}"
+      become: false
+
+    - name: Unarchive AUTH and SSH data into /var/lib/one/
+      ansible.builtin.unarchive:
+        dest: /var/lib/one/
+        src: *leader_tar_gz
+        remote_src: true
+
+- when: not all_db_ok
+  delegate_to: "{{ leader }}"
+  run_once: true
+  block:
+    - name: Create DB backup
+      ansible.builtin.shell:
+        cmd: |
+          onedb backup -f -t '{{ db_backend_types[db_backend] }}' \
+                          -u '{{ db_owner }}' \
+                          -p '{{ db_password }}' \
+                          -d '{{ db_name }}' /var/tmp/db.sql
+        executable: /bin/bash
+
+    - name: Compress DB backup
+      ansible.builtin.archive:
+        dest: &db_sql_gz /var/tmp/db.sql.gz
+        path: /var/tmp/db.sql
+        format: gz
+        remove: true
+
+- when: not db_ok
+  block:
+    # NOTE: Artifacts are copied from Frontend to Frontend via RSYNC/SSH *directly*,
+    # please make sure SSH/RSA keys are distributed accordingly (password-less login).
+    - name: Distribute DB backup
+      ansible.posix.synchronize:
+        dest: *db_sql_gz
+        src: *db_sql_gz
+        mode: push
+      delegate_to: "{{ leader }}"
+      become: false
+
+    - name: Restore DB backup
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit -o pipefail
+          zcat '{{ _db_sql_gz }}' | onedb restore -t '{{ db_backend_types[db_backend] }}' \
+                                                  -u '{{ db_owner }}' \
+                                                  -p '{{ db_password }}' \
+                                                  -d '{{ db_name }}' /dev/fd/0
+        executable: /bin/bash
+      vars:
+        _db_sql_gz: *db_sql_gz

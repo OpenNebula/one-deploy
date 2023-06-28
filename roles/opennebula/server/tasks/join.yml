@@ -1,0 +1,59 @@
+---
+- name: Enable / Start OpenNebula (NOW)
+  ansible.builtin.service:
+    name: opennebula
+    enabled: true
+    state: started
+
+- &Get_Zone_0
+  name: Get Zone 0
+  ansible.builtin.shell:
+    cmd: onezone show 0 --json
+    executable: /bin/bash
+  register: shell
+  changed_when: false
+  delegate_to: "{{ leader }}"
+
+- name: Add this Frontend to Zone 0
+  ansible.builtin.shell:
+    cmd: onezone server-add 0 --name '{{ _this }}' --rpc 'http://{{ _this }}:2633/RPC2'
+    executable: /bin/bash
+  when: _server_pool is falsy or _this not in _node_names
+  vars: &vars
+    _document: >-
+      {{ shell.stdout | from_json }}
+    _server_pool: >-
+      {{ _document.ZONE.SERVER_POOL }}
+    _node_names: >-
+      {{ [_server_pool.SERVER] | flatten | map(attribute='NAME') | list }}
+    _this: >-
+      {{ follower | default(inventory_hostname) }}
+  delegate_to: "{{ leader }}"
+
+- *Get_Zone_0
+
+- name: Get SERVER_ID of this Frontend
+  ansible.builtin.set_fact:
+    # NOTE: Each Frontend is identified via *unique* SERVER_ID.
+    server_id: >-
+      {{ ([_server_pool.SERVER] | flatten
+                                | selectattr('NAME', '==', _this)
+                                | first).ID }}
+  when: _server_pool is truthy
+  vars: *vars
+
+- name: Configure oned (SERVER_ID)
+  ansible.builtin.replace:
+    path: /etc/one/oned.conf
+    after: '\nFEDERATION *= *\['         # find the start
+    regexp: 'SERVER_ID( *)= *.*([,\s])$' # match the option
+    before: '\] *\n'                     # find the end
+    replace: >-
+      SERVER_ID\g<1>= {{ server_id }}\g<2>
+  register: replace
+
+- name: Restart OpenNebula (NOW)
+  ansible.builtin.service:
+    name: opennebula
+    state: restarted
+  when: replace is changed

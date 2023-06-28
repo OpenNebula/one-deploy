@@ -1,0 +1,5 @@
+---
+one_pass: null
+force_ha: false
+unsafe_migrations: true
+keep_empty_bridge: true

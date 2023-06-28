@@ -1,0 +1,10 @@
+---
+features:
+  gateproxy: true
+  prometheus: false
+
+# We define it here, because it's used in both opennebula/* and gate/* roles.
+gate_endpoint: >-
+  {{ 'http://169.254.16.9:5030'
+     if features.gateproxy | bool is true else
+     'http://' ~ one_vip | d(leader) | d(groups[frontend_group | d('frontend')][0]) ~ ':5030' }}

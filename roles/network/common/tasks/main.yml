@@ -1,0 +1,43 @@
+---
+- name: Compute helper facts
+  ansible.builtin.set_fact:
+    vn_names: >-
+      {{ _items | map(attribute='key')
+                | default([])
+                | list }}
+    # NOTE: We deliberately remove ARs from VNET templates to manage them separately.
+    # (They both can be created from a single VNET template, but never updated..)
+    vn_dict: >-
+      {{ _items | map('combine', {"value": {"template": {"AR": omit}}}, recursive=true)
+                | default([])
+                | list
+                | items2dict }}
+    ar_keys: >-
+      {%- set output = [] -%}
+      {%- for item in _ar_dict | dict2items -%}
+        {%- for key in item.value.keys() -%}
+          {{- output.append([item.key, key]) -}}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{- output -}}
+    ar_dict: >-
+      {{ _ar_dict }}
+  vars:
+    _items: >-
+      {{ vn | dict2items
+            | selectattr('value.managed', 'true')
+            | list }}
+    _ar_dict: >-
+      {%- set output = [] -%}
+      {%- for item in _items -%}
+        {%- set address_ranges = [item.value.template.AR | default([])] | flatten | list -%}
+        {{-
+            output.append({
+              "key": item.key,
+              "value": range(address_ranges | length) | zip(address_ranges)
+                                                      | items2dict(key_name=0, value_name=1)
+            })
+        -}}
+      {%- endfor -%}
+      {{- output | items2dict -}}
+  run_once: true

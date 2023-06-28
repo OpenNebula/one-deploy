@@ -1,0 +1,6 @@
+---
+one_version: '6.6'
+
+gpg_keys:
+  - name: opennebula2
+    url: https://downloads.opennebula.io/repo/repo2.key

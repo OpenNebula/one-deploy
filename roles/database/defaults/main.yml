@@ -1,0 +1,14 @@
+---
+db_supported_backends:
+  - MariaDB
+  - PostgreSQL
+
+db_backend_types:
+  MariaDB: mysql
+  PostgreSQL: postgresql
+
+db_backend: MariaDB
+
+db_name: opennebula
+db_owner: oneadmin
+db_password: opennebula

@@ -1,0 +1,35 @@
+---
+- name: Patch Prometheus datasources
+  ansible.builtin.shell:
+    cmd: |
+      set -o errexit
+      BEFORE=$(cksum /etc/one/prometheus/prometheus.yml)
+      if /usr/share/one/prometheus/patch_datasources.rb; then
+        AFTER=$(cksum /etc/one/prometheus/prometheus.yml)
+        if [[ "$AFTER" == "$BEFORE" ]]; then
+          exit 0
+        else
+          exit 78
+        fi
+      fi
+      exit 1
+    executable: /bin/bash
+  register: shell
+  changed_when:
+    - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
+  failed_when:
+    - shell.rc != 0 and shell.rc != 78
+
+- name: Enable / Start / Restart Prometheus service and exporters (NOW)
+  ansible.builtin.service:
+    name: "{{ item }}"
+    enabled: true
+    state: >-
+      {{ 'restarted' if _changed else 'started' }}
+  loop:
+    - opennebula-exporter
+    - opennebula-node-exporter
+    - opennebula-prometheus
+  vars:
+    _changed: >-
+      {{ shell is changed }}

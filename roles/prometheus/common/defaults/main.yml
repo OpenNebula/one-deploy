@@ -1,0 +1,2 @@
+---
+node_hypervisor: kvm # currently "kvm" only

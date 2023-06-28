@@ -1,0 +1,8 @@
+---
+- name: Restart OneGate Server
+  ansible.builtin.service:
+    name: opennebula-gate
+    state: restarted
+  when:
+    - inventory_hostname == leader
+    - gate_no_restart is false

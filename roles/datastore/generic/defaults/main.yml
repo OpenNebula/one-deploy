@@ -1,0 +1,39 @@
+---
+ds:
+  mode: generic
+  config: {}
+
+ds_defaults:
+  SYSTEM_DS:
+    system:
+      id: 0
+      managed: true
+      enabled: true
+      symlink:
+        groups: [node]
+        src: /var/lib/one/datastores/
+      template:
+        TYPE: SYSTEM_DS
+        TM_MAD: ssh
+  IMAGE_DS:
+    default:
+      id: 1
+      managed: true
+      symlink:
+        groups: [frontend, node]
+        src: /var/lib/one/datastores/
+      template:
+        TYPE: IMAGE_DS
+        DS_MAD: fs
+        TM_MAD: ssh
+  FILE_DS:
+    files:
+      id: 2
+      managed: true
+      symlink:
+        groups: [frontend]
+        src: /var/lib/one/datastores/
+      template:
+        TYPE: FILE_DS
+        DS_MAD: fs
+        TM_MAD: ssh

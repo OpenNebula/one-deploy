@@ -1,0 +1,17 @@
+---
+- name: Configure Sunstone Server (:public_fireedge_endpoint)
+  ansible.builtin.lineinfile:
+    path: /etc/one/sunstone-server.conf
+    regexp: '^:public_fireedge_endpoint:.*$'
+    line: ':public_fireedge_endpoint: "{{ public_fireedge_endpoint | lower }}"'
+  notify:
+    - Restart Sunstone Server
+
+- name: Configure Sunstone Server (:token_remote_support)
+  ansible.builtin.lineinfile:
+    path: /etc/one/sunstone-server.conf
+    regexp: '^[#\s]*:token_remote_support:.*$'
+    line: ':token_remote_support: "{{ one_token }}"'
+  notify:
+    - Restart Sunstone Server
+  when: one_token is defined and one_token is truthy

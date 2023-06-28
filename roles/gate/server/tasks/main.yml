@@ -1,0 +1,40 @@
+---
+- ansible.builtin.include_role:
+    name: opennebula/leader
+  when: leader is undefined
+
+- name: Install OneGate Server and dependencies
+  ansible.builtin.package:
+    name: "{{ _common + _specific[ansible_os_family] }}"
+  vars:
+    _common: [opennebula-gate]
+    _specific:
+      Debian: []
+      RedHat: []
+  register: package
+  until: package is success
+  retries: 12
+  delay: 5
+  tags: [preinstall]
+
+- ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/config.yml"
+
+- name: Enable OneGate Server (NOW)
+  ansible.builtin.service:
+    name: opennebula-gate
+    enabled: true
+
+- delegate_to: "{{ leader }}"
+  run_once: true
+  block:
+    - name: Start OneGate Server (NOW)
+      ansible.builtin.service:
+        name: opennebula-gate
+        state: started
+      register: service
+
+    - name: Make sure OneGate Server is not restarted twice
+      ansible.builtin.set_fact:
+        gate_no_restart: >-
+          {{ service is changed }}
