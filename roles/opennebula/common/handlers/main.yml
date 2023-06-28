@@ -1,0 +1,13 @@
+---
+- name: Restart OpenNebula
+  ansible.builtin.service:
+    name: opennebula
+    state: restarted
+  when: inventory_hostname not in (oned_no_restart | d([]))
+
+- name: Sync Remotes
+  ansible.builtin.shell:
+    cmd: onehost sync -f
+    executable: /bin/bash
+  become_user: oneadmin
+  when: inventory_hostname == leader

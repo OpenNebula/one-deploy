@@ -1,0 +1,48 @@
+---
+- name: Configure Alertmanager
+  ansible.builtin.copy:
+    dest: /etc/one/alertmanager/alertmanager.yml
+    mode: u=rw,go=r
+    content: "{{ alertmanager_config }}"
+  register: copy_alertmanager_yml
+
+- when: ansible_play_hosts_all | length > 1
+  block:
+    - name: Override Alertmanager's systemd unit (mkdir)
+      ansible.builtin.file:
+        path: /etc/systemd/system/opennebula-alertmanager.service.d/
+        state: directory
+        mode: u=rwx,go=rx
+
+    - name: Override Alertmanager's systemd unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/opennebula-alertmanager.service.d/override.conf
+        mode: u=rw,go=r
+        content: |
+          [Service]
+          ExecStart=
+          ExecStart=/usr/bin/alertmanager \
+                    --config.file=/etc/one/alertmanager/alertmanager.yml \
+                    --storage.path=/var/lib/alertmanager/data/ {{ _peers }}
+      vars:
+        # NOTE: Providing cluster peers from the command line seems to be
+        # the only supported way to configure HA Alertmanager.
+        _peers: >-
+          {{ ansible_play_hosts_all | difference([inventory_hostname])
+                                    | map('regex_replace', '^(.*)$', ' --cluster.peer=\g<1>:9094 ')
+                                    | join }}
+      register: copy_override_conf
+
+- name: Enable / Start / Restart Alertmanager service (NOW)
+  ansible.builtin.systemd:
+    name: opennebula-alertmanager
+    enabled: true
+    state: >-
+      {{ 'restarted' if _changed else 'started' }}
+    daemon_reload: >-
+      {{ _changed }}
+  vars:
+    _changed: >-
+      {{ copy_alertmanager_yml is changed
+         or
+         (copy_override_conf is defined and copy_override_conf is changed) }}

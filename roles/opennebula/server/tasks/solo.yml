@@ -1,0 +1,14 @@
+---
+- name: Enable / Start OpenNebula (NOW)
+  ansible.builtin.service:
+    name: opennebula
+    enabled: true
+    state: started
+  register: service
+
+- name: Make sure OpenNebula is not restarted twice
+  ansible.builtin.set_fact:
+    leader: >-
+      {{ inventory_hostname }}
+    oned_no_restart: >-
+      {{ [inventory_hostname] if service is changed else [] }}

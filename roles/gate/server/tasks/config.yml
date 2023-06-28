@@ -1,0 +1,32 @@
+---
+- name: Configure OneGate Server (:host)
+  ansible.builtin.lineinfile:
+    path: /etc/one/onegate-server.conf
+    regexp: '^:host:.*$'
+    line: ':host: "{{ gate_bind_addr }}"'
+  notify:
+    - Restart OneGate Server
+
+# NOTE: ONEGATE_ENDPOINT is automatically propagated (as an environment variable)
+# to VMs that are expected to be using OneGate.
+- name: Configure oned (ONEGATE_ENDPOINT)
+  ansible.builtin.lineinfile:
+    path: /etc/one/oned.conf
+    regexp: '^[#\s]*ONEGATE_ENDPOINT\s*=.*$'
+    line: 'ONEGATE_ENDPOINT = "{{ gate_endpoint }}"'
+  notify:
+    - Restart OpenNebula
+
+- name: Update dynamic config for OneGate Proxy
+  ansible.builtin.lineinfile:
+    path: /var/lib/one/remotes/etc/onegate-proxy.conf
+    regexp: '^[#\s]*:onegate_addr:.*$'
+    line: ":onegate_addr: '{{ one_vip | default(leader) }}'"
+  notify:
+    # NOTE: The OneGate Proxy service runs on a Node and uses inotify
+    # to detect changes inside '/var/tmp/one/etc/onegate-proxy.conf'.
+    # Changes applied to '/var/lib/one/remotes/etc/onegate-proxy.conf'
+    # on the Leader can be propagated to Nodes with the 'onehost sync -f'
+    # command.
+    - Sync Remotes
+  when: features.gateproxy | bool is true

@@ -1,0 +1,92 @@
+---
+- block: &collect
+    - name: Map PHYDEV -> CON (get)
+      ansible.builtin.shell:
+        cmd: nmcli --terse -f DEVICE,NAME con show --active
+        executable: /bin/bash
+      changed_when: false
+      register: shell
+
+    - name: Map PHYDEV -> CON (parse)
+      ansible.builtin.set_fact:
+        if_to_con: >-
+          {{ dict(_selected | zip(_selected | map('extract', _active))) }}
+      vars:
+        _active: >-
+          {{ dict(shell.stdout_lines | map('split', _sep)) }}
+        _selected: >-
+          {{ _active.keys() | intersect([_phydev, _bridge]) }}
+        _sep: ':'
+
+    - name: Map CON -> KV (get)
+      ansible.builtin.shell:
+        cmd: nmcli --terse con show '{{ item }}'
+        executable: /bin/bash
+      loop: >-
+        {{ if_to_con.values() }}
+      changed_when: false
+      register: shell
+
+    - name: Map CON -> KV (parse)
+      ansible.builtin.set_fact:
+        con_to_kv: >-
+          {%- set output = _empty -%}
+          {%- for item in shell.results -%}
+            {%- for line in item.stdout_lines -%}
+              {%- set p = line.split(_sep) -%}
+              {%- set k = p[0] -%}
+              {%- set v = p[1:] | join(_sep) -%}
+              {%- if k.startswith('ipv') -%}
+                {{- output[item.item].update([[k, v]]) -}}
+              {%- endif -%}
+            {%- endfor -%}
+          {%- endfor -%}
+          {{- output -}}
+      vars:
+        _empty: >-
+          {{ dict(if_to_con.values() | zip(if_to_con.values() | length * [{}])) }}
+        _sep: ':'
+
+- name: Decide if bridge should be created
+  ansible.builtin.set_fact:
+    should_create_bridge: >-
+      {{ if_to_con[_phydev] is defined
+         and
+         if_to_con[_bridge] is undefined }}
+
+- when: should_create_bridge is true
+  block:
+    - name: Create a bridge using NetworkManager CLI
+      ansible.builtin.shell:
+        cmd: nmcli con add type bridge ifname '{{ _bridge }}'
+        executable: /bin/bash
+
+    - block: *collect
+
+    - name: Copy IP4/6 settings PHYDEV -> BRIDGE
+      ansible.builtin.shell:
+        cmd: nmcli con modify '{{ if_to_con[_bridge] }}' {{ _options }}
+        executable: /bin/bash
+      vars:
+        _options: >-
+          {{ con_to_kv[if_to_con[_phydev]].items() | flatten
+                                                   | map('regex_replace', '^(.*)$', " '\g<1>'")
+                                                   | join }}
+
+    - name: Copy IP4/6 settings BRIDGE -> PHYDEV
+      ansible.builtin.shell:
+        cmd: nmcli con modify '{{ if_to_con[_phydev] }}' {{ _options }} master '{{ _bridge }}' slave-type bridge
+        executable: /bin/bash
+      vars:
+        _options: >-
+          {{ con_to_kv[if_to_con[_bridge]].items() | flatten
+                                                   | map('regex_replace', '^(.*)$', " '\g<1>'")
+                                                   | join }}
+
+    - name: Apply config using NetworkManager CLI
+      ansible.builtin.shell:
+        cmd: "{{ item }}"
+        executable: /bin/bash
+      loop:
+        - nmcli con up '{{ if_to_con[_bridge] }}'
+        - nmcli con up '{{ if_to_con[_phydev] }}'

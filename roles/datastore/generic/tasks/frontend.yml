@@ -1,0 +1,75 @@
+---
+- ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/common.yml"
+
+- ansible.builtin.include_role:
+    name: opennebula/leader
+  when: leader is undefined
+
+- delegate_to: "{{ leader }}"
+  run_once: true
+  block:
+    - name: Get Datastores
+      ansible.builtin.shell:
+        cmd: onedatastore list --json
+        executable: /bin/bash
+      register: shell
+      changed_when: false
+
+    - name: Parse Datastores
+      ansible.builtin.set_fact:
+        ds_names_parsed: >-
+          {{ _names }}
+        ds_dict_parsed: >-
+          {{ dict(_names | zip(_datastores)) }}
+      vars:
+        _document: >-
+          {{ shell.stdout | from_json }}
+        _datastores: >-
+          {{ [_document.DATASTORE_POOL.DATASTORE | default([])] | flatten | list }}
+        _names: >-
+          {{ _datastores | map(attribute='NAME') | default([]) | list }}
+
+    # NOTE: Only "system" datastores can be enabled or disabled.
+    - name: Update Datastores
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit
+          {% if ds_dict[item].enabled is defined %}
+          onedatastore {{ 'enable' if ds_dict[item].enabled else 'disable' }} '{{ ds_dict[item].id }}'
+          {% endif %}
+          set +o errexit
+          TEMPLATE="$(mktemp)"
+          tee "$TEMPLATE"
+          onedatastore update '{{ ds_dict[item].id }}' "$TEMPLATE"; RC="$?"
+          rm -f "$TEMPLATE"
+          exit "$RC"
+        stdin: |
+          {{ _combined | opennebula.deploy.to_one }}
+        executable: /bin/bash
+      when: (_combined | opennebula.deploy.to_one != ds_dict_parsed[item].TEMPLATE | opennebula.deploy.to_one)
+            or
+            (ds_dict[item].enabled is defined and (ds_dict[item].enabled != (ds_dict_parsed[item].STATE | int == 0)))
+      loop: "{{ _existing }}"
+      vars:
+        _existing: >-
+          {{ ds_names | intersect(ds_names_parsed) | list }}
+        _combined: >-
+          {{ ds_dict_parsed[item].TEMPLATE | combine(ds_dict[item].template, recursive=true) }}
+
+    - name: Create Datastores
+      ansible.builtin.shell:
+        cmd: |
+          set +o errexit
+          TEMPLATE="$(mktemp)"
+          tee "$TEMPLATE"
+          onedatastore create "$TEMPLATE"; RC="$?"
+          rm -f "$TEMPLATE"
+          exit "$RC"
+        stdin: |
+          {{ ds_dict[item].template | combine({"NAME": item}) | opennebula.deploy.to_one }}
+        executable: /bin/bash
+      loop: "{{ _missing }}"
+      vars:
+        _missing: >-
+          {{ ds_names | difference(ds_names_parsed) | list }}

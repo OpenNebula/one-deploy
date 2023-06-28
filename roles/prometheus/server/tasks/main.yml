@@ -1,0 +1,23 @@
+---
+- name: Install Prometheus and dependencies
+  ansible.builtin.package:
+    name: "{{ _common + _specific[ansible_os_family] }}"
+  vars:
+    _common:
+      - bash
+      - opennebula-prometheus
+      - opennebula-prometheus-{{ node_hypervisor }}
+    _specific:
+      Debian: []
+      RedHat: []
+  register: package
+  until: package is success
+  retries: 12
+  delay: 5
+  tags: [preinstall]
+
+- ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/prometheus.yml"
+
+- ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/alertmanager.yml"

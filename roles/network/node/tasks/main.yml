@@ -1,0 +1,17 @@
+---
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/{{ _item.1 }}.yml"
+  loop: "{{ vn_names | product(_managers[ansible_os_family]) }}"
+  loop_control: { loop_var: _item }
+  vars:
+    _managers:
+      Debian: [netplan]
+      RedHat: [networkmanager]
+    _phydev: "{{ vn_dict[_item.0].template.PHYDEV }}"
+    _bridge: "{{ vn_dict[_item.0].template.BRIDGE }}"
+  when:
+    - vn_dict[_item.0].move_ip | d(true) | bool is true
+    - _phydev is defined
+    - _bridge is defined
+    - _phydev in ansible_interfaces
+    - _bridge not in ansible_interfaces

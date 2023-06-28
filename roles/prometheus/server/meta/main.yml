@@ -1,0 +1,6 @@
+---
+collections:
+  - opennebula.deploy
+
+dependencies:
+  - role: prometheus/common

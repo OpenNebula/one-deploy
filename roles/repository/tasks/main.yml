@@ -1,0 +1,87 @@
+---
+- name: Check if OpenNebula GPG keys are installed
+  ansible.builtin.stat:
+    path: "{{ _path[ansible_os_family] }}"
+    get_attributes: false
+    get_checksum: false
+    get_mime: false
+  loop: "{{ gpg_keys }}"
+  vars:
+    _path:
+      Debian: "/etc/apt/trusted.gpg.d/{{ item.name }}.asc"
+      RedHat: "/etc/pki/rpm-gpg/RPM-GPG-KEY-{{ item.name }}"
+  register: stat
+
+- when: stat.results | map(attribute='stat.exists') is not all
+  block:
+    - name: Download OpenNebula GPG keys (once)
+      ansible.builtin.uri:
+        url: "{{ item.url }}"
+        return_content: true
+      loop: "{{ gpg_keys }}"
+      run_once: true
+      register: uri
+
+    - name: Install OpenNebula GPG keys
+      ansible.builtin.copy:
+        dest: "{{ _dest[ansible_os_family] }}"
+        mode: u=rw,go=r
+        content: "{{ item.1 }}"
+      loop: >-
+        {{ gpg_keys | map(attribute='name')
+                    | zip(uri.results | map(attribute='content')) }}
+      vars:
+        _dest:
+          Debian: "/etc/apt/trusted.gpg.d/{{ item.0 }}.asc"
+          RedHat: "/etc/pki/rpm-gpg/RPM-GPG-KEY-{{ item.0 }}"
+
+- name: Install OpenNebula package source
+  ansible.builtin.copy:
+    dest: "{{ _dest[ansible_os_family] }}"
+    mode: u=rw,go=r
+    content: "{{ _content[ansible_os_family] }}"
+  vars:
+    _dest:
+      Debian: /etc/apt/sources.list.d/opennebula.list
+      RedHat: /etc/yum.repos.d/opennebula.repo
+    _content:
+      Debian: |
+        {% if one_token is defined and one_token is truthy %}
+        deb https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }} stable opennebula
+        {% else %}
+        deb https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }} stable opennebula
+        {% endif %}
+      RedHat: |
+        [opennebula]
+        {% if one_token is defined and one_token is truthy %}
+        name=OpenNebula Enterprise Edition
+        baseurl=https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/$releasever/$basearch
+        {% else %}
+        name=OpenNebula Community Edition
+        baseurl=https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/$releasever/$basearch
+        {% endif %}
+        enabled=1
+        gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-opennebula2
+        gpgcheck=1
+        repo_gpgcheck=1
+  register: copy
+
+- when: ansible_pkg_mgr == 'apt'
+  block:
+    - name: Update APT cache
+      ansible.builtin.apt:
+        update_cache: true
+      when: copy is changed
+
+- when: ansible_pkg_mgr == 'dnf'
+  block:
+    - name: Enable required DNF extra repos
+      ansible.builtin.shell:
+        cmd: dnf config-manager -y --enable crb epel highavailability
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Update DNF cache
+      ansible.builtin.dnf:
+        update_cache: true
+      when: copy is changed

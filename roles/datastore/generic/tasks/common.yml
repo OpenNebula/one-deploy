@@ -1,0 +1,57 @@
+---
+- name: Compute helper facts
+  ansible.builtin.set_fact:
+    ds_names: >-
+      {{ _items | map(attribute='key') | list }}
+    ds_dict: >-
+      {{ _items | items2dict }}
+  vars:
+    _ds: >-
+      {{ ds_defaults | combine(ds.config | default({}), recursive=true) }}
+    _items: >-
+      {{ _ds | dict2items
+             | map(attribute='value')
+             | map('dict2items')
+             | flatten
+             | selectattr('value.managed', 'true')
+             | list }}
+  run_once: true
+
+- name: Ensure /var/lib/one/datastores/ exists
+  ansible.builtin.file:
+    path: /var/lib/one/datastores/
+    state: directory
+    owner: 9869 # oneadmin
+    group: 9869 # oneadmin
+    mode: u=rwx,g=rx,o=
+
+- name: Setup datastore symlinks
+  ansible.builtin.shell:
+    cmd: |
+      set -o errexit
+
+      if [[ -L '{{ _base_path }}' ]]; then exit 0; fi
+
+      if [[ -d '{{ _base_path }}/' ]] && ! rmdir '{{ _base_path }}/'; then exit 1; fi
+
+      if ! ln -s '{{ _mount_path }}/' '{{ _base_path }}'; then exit 1; fi
+
+      exit 78
+    executable: /bin/bash
+  when: inventory_hostname in _hosts and _mount_path != '/var/lib/one/datastores'
+  vars:
+    _mount_path: >-
+      {{ ds_dict[item].symlink.src | realpath }}
+    _base_path: >-
+      /var/lib/one/datastores/{{ ds_dict[item].id }}
+    _hosts: >-
+      {{ ds_dict[item].symlink.groups | map('extract', groups)
+                                      | flatten
+                                      | unique
+                                      | list }}
+  loop: "{{ ds_names }}"
+  register: shell
+  changed_when:
+    - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
+  failed_when:
+    - shell.rc != 0 and shell.rc != 78

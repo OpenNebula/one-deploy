@@ -1,0 +1,8 @@
+---
+- name: Configure OneFlow Server (:host)
+  ansible.builtin.lineinfile:
+    path: /etc/one/oneflow-server.conf
+    regexp: '^:host:.*$'
+    line: ':host: "{{ flow_bind_addr }}"'
+  notify:
+    - Restart OneFlow Server

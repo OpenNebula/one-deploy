@@ -1,0 +1,3 @@
+---
+rsa_key_size: 3072
+ensure_keys_for: []

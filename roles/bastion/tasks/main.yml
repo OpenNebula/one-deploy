@@ -1,0 +1,21 @@
+---
+- name: Create local .ssh directory tree
+  ansible.builtin.file:
+    path: "{{ item }}/"
+    state: directory
+    mode: u+rwx,g=rx,o=
+  loop:
+    - "{{ inventory_dir }}/.one-deploy"
+    - "{{ inventory_dir }}/.one-deploy/bastion.d"
+
+- name: Generate bastion SSH main config
+  ansible.builtin.template:
+    dest: "{{ inventory_dir }}/.one-deploy/bastion"
+    src: bastion.j2
+    mode: u=rw,g=r,o=
+
+- name: Generate bastion SSH env config
+  ansible.builtin.template:
+    dest: "{{ inventory_dir }}/.one-deploy/bastion.d/{{ env_name }}"
+    src: bastion.d/env.j2
+    mode: u=rw,g=r,o=

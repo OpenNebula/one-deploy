@@ -1,0 +1,44 @@
+---
+- ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/common.yml"
+
+- when: ds.mode != 'ssh'
+  block:
+    - name: Setup datastore symlinks (image)
+      ansible.builtin.shell: &shell
+        cmd: |
+          set -o errexit
+
+          if [[ -L '{{ _base_path }}' ]]; then exit 0; fi
+
+          if [[ -d '{{ _base_path }}/' ]] && ! rmdir '{{ _base_path }}/'; then exit 1; fi
+
+          if ! ln -s '{{ _mount_path }}/' '{{ _base_path }}'; then exit 1; fi
+
+          exit 78
+        executable: /bin/bash
+      loop: "{{ range(ds_items.image | length) }}"
+      vars:
+        _mount_path: >-
+          {{ ds_items.image[item].0.path | realpath }}
+        _base_path: >-
+          {{ ds_items.image[item].1.BASE_PATH | realpath }}
+      register: shell
+      changed_when:
+        - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
+      failed_when:
+        - shell.rc != 0 and shell.rc != 78
+
+- name: Setup datastore symlinks (system)
+  ansible.builtin.shell: *shell
+  loop: "{{ range(ds_items.system | length) }}"
+  vars:
+    _mount_path: >-
+      {{ ds_items.system[item].0.path | realpath }}
+    _base_path: >-
+      {{ ds_items.system[item].1.BASE_PATH | realpath }}
+  register: shell
+  changed_when:
+    - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
+  failed_when:
+    - shell.rc != 0 and shell.rc != 78

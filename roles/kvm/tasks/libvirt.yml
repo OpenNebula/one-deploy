@@ -1,0 +1,93 @@
+---
+- name: Ensure each libvirtd uses distinct UUID
+  ansible.builtin.lineinfile:
+    path: /etc/libvirt/libvirtd.conf
+    regexp: '^[#\s]*host_uuid\s*=.*$'
+    line: 'host_uuid = "{{ inventory_hostname | to_uuid }}"'
+  register: lineinfile
+
+- name: Restart libvirtd (NOW)
+  ansible.builtin.service:
+    name: "{{ _name[ansible_os_family] }}"
+    state: restarted
+  vars:
+    _name:
+      Debian: libvirtd
+      RedHat: libvirtd
+  when: lineinfile is changed
+
+- name: Disable Libvirt's default network (optional)
+  ansible.builtin.shell:
+    cmd: |
+      set -o errexit
+      if virsh net-dumpxml default; then
+        virsh net-destroy default ||:
+        virsh net-autostart default --disable
+      fi
+    executable: /bin/bash
+  changed_when: false
+  when: disable_default_net | bool is true
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+  no_log: true
+
+# NOTE: OpenNebula cannot deal with socket-activated Libvirt (yet),
+# so the socket activation *MUST* be disabled.
+- when: ansible_facts.services is contains('virtqemud.service')
+  block:
+    - name: Mask virtqemud* units and libvirtd* sockets
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: false
+        masked: true
+        state: stopped
+      loop:
+        - virtqemud.service
+        - virtqemud.socket
+        - virtqemud-admin.socket
+        - virtqemud-ro.socket
+        - libvirtd.socket
+        - libvirtd-admin.socket
+        - libvirtd-ro.socket
+        - libvirtd-tcp.socket
+        - libvirtd-tls.socket
+
+    - name: Create /etc/systemd/system/libvirtd.service.d/
+      ansible.builtin.file:
+        path: /etc/systemd/system/libvirtd.service.d/
+        state: directory
+        mode: u=rwx,go=rx
+
+    - name: Override libvirtd.service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/libvirtd.service.d/override.conf
+        mode: u=rw,go=r
+        content: "[Service]\nEnvironment=LIBVIRTD_ARGS=\"{{ libvirtd_args }}\""
+      register: copy
+
+    - name: Restart libvirtd (NOW)
+      ansible.builtin.systemd:
+        name: libvirtd
+        daemon_reload: true
+        enabled: true
+        state: restarted
+      when: copy is changed
+
+    - name: Check if virsh errors out
+      ansible.builtin.shell:
+        cmd: virsh -r -c qemu:///system capabilities
+        executable: /bin/bash
+      register: shell
+      changed_when: false
+      ignore_errors: true
+
+    - name: Delete stale virtqemud* sockets (fix)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/run/libvirt/virtqemud-admin-sock
+        - /var/run/libvirt/virtqemud-sock
+        - /var/run/libvirt/virtqemud-sock-ro
+      when: shell is failed

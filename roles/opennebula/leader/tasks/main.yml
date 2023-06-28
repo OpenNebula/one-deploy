@@ -1,0 +1,73 @@
+---
+- name: Guess the Leader
+  ansible.builtin.set_fact:
+    leader: >-
+      {{ one_vip | d(_frontend | random)
+         if _frontend | length > 1 else
+         _frontend[0] }}
+  vars:
+    _frontend: >-
+      {{ groups[frontend_group | d('frontend')] }}
+  run_once: true
+
+- run_once: true
+  block:
+    - name: Decrement the retry counter
+      ansible.builtin.set_fact:
+        retry_no: >-
+          {{ retry_no | default(6, true) | int - 1 }}
+
+    # When delegate_to's argument is unreachable, then a fatal error
+    # is thrown. It seems this error cannot be rescued in block/rescue/always,
+    # thus we need to check if the Leader is reachable before delegating.
+    - name: Ping the Leader
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[leader].ansible_host | d(leader) }}"
+        port: "{{ ping_port | int }}"
+        timeout: 10
+
+    # NOTE: This check makes sense only when HA mode is enabled.
+    - when: (groups[frontend_group | d('frontend')] | length > 1)
+            or
+            (force_ha | bool is true)
+      block:
+        - name: Get Zone 0
+          ansible.builtin.shell:
+            cmd: onezone show 0 --json
+            executable: /bin/bash
+          register: shell
+          changed_when: false
+          delegate_to: "{{ leader }}"
+
+        - name: Detect if the Leader is there
+          ansible.builtin.set_fact:
+            # Make sure the Leader isn't specifically the VIP, but
+            # rather use its inventory_hostname (or the "SERVER[x].NAME").
+            # This helps later when dealing with OneGate/OneFlow
+            # services (that's because OneGate/OneFlow services running not
+            # on the Leader are automatically deactivated).
+            # NOTE: d() prevents the syntax error, when the _leader list is empty.
+            leader: >-
+              {{ _leader[0].NAME | d() }}
+          failed_when: _server_pool is truthy and _leader is falsy
+          vars:
+            _document: >-
+              {{ shell.stdout | from_json }}
+            _server_pool: >-
+              {{ _document.ZONE.SERVER_POOL }}
+            _peers: >-
+              {{ [_server_pool.SERVER] | flatten | list }}
+            _leader: >-
+              {{ _peers | selectattr('STATE', '==', '3') | list }}
+  rescue:
+    - name: Abort after timeout
+      ansible.builtin.fail:
+      when: retry_no | int == 0
+
+    - name: Pause for 10 seconds
+      ansible.builtin.pause:
+        seconds: 10
+
+    - name: Continue the retry loop
+      ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/main.yml"

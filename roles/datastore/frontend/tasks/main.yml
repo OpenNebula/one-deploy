@@ -1,0 +1,12 @@
+---
+- name: Provision Datastores (frontend)
+  ansible.builtin.include_role:
+    name: "datastore/{{ _mode_to_role[ds.mode] }}"
+    tasks_from: frontend
+  vars:
+    _mode_to_role:
+      ssh: simple
+      shared: simple
+      generic: generic
+  when:
+    - ds.mode is defined

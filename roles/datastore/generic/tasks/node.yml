@@ -1,0 +1,3 @@
+---
+- ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/common.yml"
