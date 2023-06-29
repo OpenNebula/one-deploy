@@ -39,4 +39,5 @@ publish: build
 	shopt -qs failglob && \
 	ansible-galaxy collection publish \
 	"$$(ls -1 $(SELF)/opennebula-deploy-[0-9].[0-9].[0-9].tar.gz | sort --version-sort | tail -n1)" \
-	--api-key="$$(cat $(SELF)/.galaxy-key)"
+	--server="$$(cat $(SELF)/.galaxy-server)" \
+	--token="$$(cat $(SELF)/.galaxy-key)"

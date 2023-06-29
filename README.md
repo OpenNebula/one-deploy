@@ -9,11 +9,11 @@ The documentation is organized based on three distinct architectures. We will st
 * [Requirements & Platform Notes](../../wiki/sys_reqs)
 * [Using the playbooks](../../wiki/sys_use)
 * Deployments
-  * [Local storage](../../wiki/arch_single_local)
-  * [Shared storage](../../wiki/arch_single_shared)
-  * [High availability front-ends](../../wiki/arch_ha)
-  * [Connect through a bastion host](../../wiki/arch_bastion)
-  * [Other configurations](../../wiki/arch_other)
+    * [Local storage](../../wiki/arch_single_local)
+    * [Shared storage](../../wiki/arch_single_shared)
+    * [High availability front-ends](../../wiki/arch_ha)
+    * [Connect through a bastion host](../../wiki/arch_bastion)
+    * [Other configurations](../../wiki/arch_other)
 * [Verifying the installation](../../wiki/sys_verify)
 * [Playbook reference](../../wiki/sys_reference)
 
