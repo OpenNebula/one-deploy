@@ -1,7 +1,8 @@
 ---
-features:
+features_defaults:
   gateproxy: true
   prometheus: false
+  passenger: false
 
 # We define it here, because it's used in both opennebula/* and gate/* roles.
 gate_endpoint: >-

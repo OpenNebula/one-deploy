@@ -1,0 +1,5 @@
+---
+- name: Compute facts
+  ansible.builtin.set_fact:
+    features: >-
+      {{ features_defaults | combine(features | d({})) }}
