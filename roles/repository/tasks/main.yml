@@ -77,7 +77,14 @@
   block:
     - name: Enable required DNF extra repos
       ansible.builtin.shell:
-        cmd: dnf config-manager -y --enable crb epel highavailability
+        cmd: |
+          set -o errexit
+          dnf config-manager -y --enable epel
+          if ! dnf config-manager -y --enable crb highavailability; then
+            RELEASE=$(rpm -q redhat-release | awk -F '[-.]' '{print $3}')
+            subscription-manager repos --enable codeready-builder-for-rhel-$RELEASE-x86_64-rpms \
+                                       --enable rhel-$RELEASE-for-x86_64-highavailability-rpms
+          fi
         executable: /bin/bash
       changed_when: false
 
