@@ -1,0 +1,49 @@
+---
+- delegate_to: "{{ leader }}"
+  run_once: true
+  block:
+    - name: Slurp oneadmin's public key
+      ansible.builtin.slurp:
+        path: /var/lib/one/.ssh/id_rsa.pub
+      register: slurp
+
+    - name: Get oneadmin's user template
+      ansible.builtin.shell:
+        cmd: oneuser show oneadmin --json
+        executable: /bin/bash
+      register: shell
+      changed_when: false
+
+    - name: Update oneadmin's user template
+      ansible.builtin.shell:
+        cmd: |
+          set +o errexit
+          TEMPLATE="$(mktemp)"
+          tee "$TEMPLATE"
+          oneuser update oneadmin "$TEMPLATE"; RC="$?"
+          rm -f "$TEMPLATE"
+          exit "$RC"
+        stdin: |
+          {{ _combined | opennebula.deploy.to_one }}
+        executable: /bin/bash
+      when:
+        - admin_pubkey != None  # admin_pubkey: null
+        - admin_pubkey | d('') | trim | length > 0
+        - _combined | opennebula.deploy.to_one
+          !=
+          _template | opennebula.deploy.to_one
+      vars:
+        _document: >-
+          {{ shell.stdout | from_json }}
+        _template: >-
+          {{ _document.USER.TEMPLATE }}
+        _combined: >-
+          {{ _template | combine(_update, recursive=true) }}
+        # NOTE: The "_admin_pubkey_loaded" is used inside the "admin_pubkey" var / default.
+        # That way it can be overridden or disabled (with null) or it takes the value of
+        # existing public key from the Leader when left alone.
+        _update:
+          SSH_PUBLIC_KEY: >-
+            {{ admin_pubkey | d('') | trim }}
+        _admin_pubkey_loaded: >-
+          {{ slurp.content | b64decode }}
