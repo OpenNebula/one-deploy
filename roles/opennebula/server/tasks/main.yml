@@ -28,3 +28,6 @@
 - ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/solo.yml"
   when: use_ha is false
+
+- ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/admin.yml"
