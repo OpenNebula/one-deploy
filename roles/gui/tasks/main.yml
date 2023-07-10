@@ -31,18 +31,31 @@
     state: started
   register: service_fireedge
 
-- name: Enable Sunstone Server (NOW)
-  ansible.builtin.service:
-    name: opennebula-sunstone
-    enabled: true
+- when: features.passenger | bool is false
+  block:
+    - name: Enable Sunstone Server (NOW)
+      ansible.builtin.service:
+        name: opennebula-sunstone
+        enabled: true
 
-- name: Start Sunstone Server (NOW)
-  ansible.builtin.service:
-    name: opennebula-sunstone
-    state: started
-  register: service_sunstone
+    - name: Start Sunstone Server (NOW)
+      ansible.builtin.service:
+        name: opennebula-sunstone
+        state: started
+      register: service_sunstone
 
-- name: Make sure FireEdge and Sunstone Servers are not restarted twice
+- when: features.passenger | bool is true
+  block:
+    - name: Disable / Stop Sunstone Server (NOW)
+      ansible.builtin.service:
+        name: opennebula-sunstone
+        enabled: false
+        state: stopped
+
+    - ansible.builtin.import_tasks:
+        file: "{{ role_path }}/tasks/passenger.yml"
+
+- name: Ensure FireEdge and Sunstone are not restarted twice
   ansible.builtin.set_fact:
     gui_no_restart: >-
       {{ service_fireedge is changed and service_sunstone is changed }}

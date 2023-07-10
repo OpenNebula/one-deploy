@@ -1,0 +1,55 @@
+<VirtualHost *:443>
+  ServerName {{ one_fqdn | d(one_vip) | d(hostvars[leader].ansible_host) }}
+
+  SSLEngine on
+  SSLCertificateKeyFile {{ apache2_https.key }}
+  SSLCertificateFile    {{ apache2_https.certchain }}
+
+  # taken from:
+  #   https://bettercrypto.org
+  #   https://httpd.apache.org/docs/trunk/ssl/ssl_howto.html
+  SSLProtocol All -SSLv2 -SSLv3 -TLSv1 -TLSv1.1
+  SSLHonorCipherOrder On
+  SSLCompression off
+  Header always set Strict-Transport-Security "max-age=15768000"
+  SSLCipherSuite 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256'
+
+  PassengerUser oneadmin
+
+  # For OpenNebula >= 5.10, variables configuring dedicated directory
+  # with shipped Ruby gems must be set if these gems weren't explicitly
+  # disabled (by removing specified directory symlink).
+  SetEnv GEM_PATH /usr/share/one/gems/
+  SetEnv GEM_HOME /usr/share/one/gems/
+
+  # !!! Be sure to point DocumentRoot to 'public'!
+  DocumentRoot /usr/lib/one/sunstone/public
+  <Directory /usr/lib/one/sunstone/public>
+      # This relaxes Apache security settings.
+      AllowOverride all
+      # MultiViews must be turned off.
+      Options -MultiViews
+      # Uncomment this if you're on Apache >= 2.4:
+      Require all granted
+      Options FollowSymLinks
+  </Directory>
+
+  ProxyRequests     off
+  ProxyPreserveHost on
+
+  # no proxy for /error/ (Apache HTTPd errors messages)
+  ProxyPass /error/ !
+
+  ProxyPass        /fireedge {{ private_fireedge_endpoint }}/fireedge
+  ProxyPassReverse /fireedge {{ private_fireedge_endpoint }}/fireedge
+
+  RewriteEngine on
+  RewriteCond %{HTTP:Upgrade} websocket [NC]
+  RewriteCond %{HTTP:Connection} upgrade [NC]
+  RewriteRule ^/fireedge/?(.*) "{{ 'ws://%(hostname)s:%(port)s' % (private_fireedge_endpoint | urlsplit) }}/fireedge/$1" [P,L]
+
+  <Location /fireedge>
+      Order deny,allow
+      Allow from all
+  </Location>
+</VirtualHost>

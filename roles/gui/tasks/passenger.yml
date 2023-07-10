@@ -1,0 +1,167 @@
+---
+- tags: [preinstall]
+  block:
+    - name: Install Phusion Passenger dependencies
+      ansible.builtin.package:
+        name: "{{ _common + _specific[ansible_os_family] }}"
+      vars:
+        _common: [ca-certificates, gnupg2, memcached]
+        _specific:
+          Debian: [apt-transport-https, dirmngr, apache2]
+          RedHat: [httpd, mod_ssl]
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+    # NOTE: All modules specified below are enabled automatically
+    # in RedHat-like distros.
+    - name: Enable Apache2 modules
+      ansible.builtin.command:
+        cmd: a2enmod '{{ item }}'
+        creates: "/etc/apache2/mods-enabled/{{ item }}.load"
+      loop: [headers, proxy, proxy_http, proxy_wstunnel, rewrite, ssl]
+      notify:
+        - Restart Sunstone
+      when: ansible_os_family == 'Debian'
+
+    - name: Check if Phusion Passenger GPG key is installed
+      ansible.builtin.stat:
+        path: "{{ passenger_repo_key_path[ansible_os_family] }}"
+        get_attributes: false
+        get_checksum: false
+        get_mime: false
+      register: stat
+
+    - when: stat.stat.exists is false
+      block:
+        - name: Download Phusion Passenger GPG key (once)
+          ansible.builtin.uri:
+            url: "{{ passenger_repo_key_url[ansible_os_family] }}"
+            return_content: true
+          run_once: true
+          register: uri
+
+        - name: Install Phusion Passenger GPG key
+          ansible.builtin.copy:
+            dest: "{{ passenger_repo_key_path[ansible_os_family] }}"
+            mode: u=rw,go=r
+            content: "{{ uri.content }}"
+
+    - name: Install Phusion Passenger package source
+      ansible.builtin.copy:
+        dest: "{{ passenger_repo_path[ansible_os_family] }}"
+        mode: u=rw,go=r
+        content: "{{ _content[ansible_os_family] }}"
+      vars:
+        _content:
+          Debian: |
+            deb {{ passenger_repo_url.Debian }} {{ ansible_distribution_release }} main
+          RedHat: |
+            [passenger]
+            name=passenger
+            baseurl={{ passenger_repo_url.RedHat }}/$releasever/$basearch
+            enabled=1
+            gpgkey=file://{{ passenger_repo_key_path.RedHat }}
+            gpgcheck=0
+            repo_gpgcheck=1
+            sslverify=1
+            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+      register: copy
+
+    - when: ansible_pkg_mgr == 'apt'
+      block:
+        - name: Update APT cache
+          ansible.builtin.apt:
+            update_cache: true
+          when: copy is changed
+
+    - when: ansible_pkg_mgr == 'dnf'
+      block:
+        - name: Update DNF cache
+          ansible.builtin.dnf:
+            update_cache: true
+          when: copy is changed
+
+    - name: Install Phusion Passenger
+      ansible.builtin.package:
+        name: "{{ _common + _specific[ansible_os_family] }}"
+      vars:
+        _common: []
+        _specific:
+          Debian: [libapache2-mod-passenger]
+          RedHat: [mod_passenger]
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+- name: Enable / Start Memcached (NOW)
+  ansible.builtin.service:
+    name: memcached
+    enabled: true
+    state: started
+
+- name: Ensure correct directory permissions
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { mode: a+x, path: /var }
+    - { mode: a+x, path: /var/lib }
+    - { mode: a+x, path: /var/lib/one }
+    - { mode: a+x, path: /var/lib/one/.one }
+    - { mode: a+x, path: /var/lib/one/sunstone }
+
+- vars:
+    _destdir:
+      Debian: /etc/apache2/sites-available
+      RedHat: /etc/httpd/conf.d
+    _loop:
+      - name: opennebula
+        when: >-
+          {{ (apache2_http.managed | bool is true) }}
+      - name: opennebula-ssl
+        when: >-
+          {{ (apache2_https.managed | bool is true)
+             and
+             (apache2_https.key is defined and apache2_https.key is truthy)
+             and
+             (apache2_https.certchain is defined and apache2_https.certchain is truthy) }}
+  block:
+    - name: Configure OpenNebula VHOSTs (Apache2)
+      ansible.builtin.template:
+        dest: "{{ _destdir[ansible_os_family] }}/{{ item.name }}.conf"
+        src: "{{ role_path }}/templates/{{ item.name }}.conf.j2"
+        mode: u=rw,go=r
+      when:
+        - item.when is true
+      loop: "{{ _loop }}"
+      notify:
+        - Reload Apache2
+
+    - name: Enable OpenNebula VHOSTs (Apache2)
+      ansible.builtin.command:
+        cmd: a2ensite '{{ item.name }}'
+        creates: "/etc/apache2/sites-enabled/{{ item.name }}.conf"
+      when:
+        - item.when is true
+        - ansible_os_family == 'Debian'
+      loop: "{{ _loop }}"
+      notify:
+        - Reload Apache2
+
+- name: Enable Apache2 Server
+  ansible.builtin.service:
+    name: "{{ _name[ansible_os_family] }}"
+    enabled: true
+  vars:
+    _name: { Debian: apache2, RedHat: httpd }
+
+- name: Start Apache2 Server
+  ansible.builtin.service:
+    name: "{{ _name[ansible_os_family] }}"
+    state: started
+  vars:
+    _name: { Debian: apache2, RedHat: httpd }
+  register: service_sunstone
