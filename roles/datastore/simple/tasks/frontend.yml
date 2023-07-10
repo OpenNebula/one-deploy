@@ -15,7 +15,10 @@
 
       exit 78
     executable: /bin/bash
-  loop: "{{ range(ds_items.image | length) }}"
+  loop: >-
+    {{ range(ds_items.image | map(attribute=0)
+                            | select
+                            | count) }}
   vars:
     _mount_path: >-
       {{ ds_items.image[item].0.path | realpath }}
@@ -29,7 +32,10 @@
 
 - name: Setup datastore symlinks (file)
   ansible.builtin.shell: *shell
-  loop: "{{ range(ds_items.file | length) }}"
+  loop: >-
+    {{ range(ds_items.file | map(attribute=0)
+                           | select
+                           | count) }}
   vars:
     _mount_path: >-
       {{ ds_items.file[item].0.path | realpath }}
