@@ -8,4 +8,4 @@ features_defaults:
 gate_endpoint: >-
   {{ 'http://169.254.16.9:5030'
      if features.gateproxy | bool is true else
-     'http://' ~ one_vip | d(leader) | d(groups[frontend_group | d('frontend')][0]) ~ ':5030' }}
+     'http://' ~ (one_vip | d(hostvars[leader | d(groups[frontend_group | d('frontend')][0])].ansible_host)) ~ ':5030' }}
