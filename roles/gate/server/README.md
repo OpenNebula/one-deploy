@@ -15,7 +15,7 @@ Role Variables
 |----------------------|--------|-------------|---------------|---------------------------------------------------------|
 | `gate_bind_addr`     | `str`  | `0.0.0.0`   |               | Bind/Listen address of the OneGate service.             |
 | `gate_endpoint`      | `str`  | conditional | (check below) | An URL used to reach the OneGate endpoint (HTTP).       |
-| `features.gateproxy` | `bool` | `true`      |               | Indicates if OneGate Proxy service is enabled/disabled. |
+| `features.gateproxy` | `bool` | `false`     |               | Indicates if OneGate Proxy service is enabled/disabled. |
 | `one_vip`            | `str`  | undefined   | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader.  |
 | `leader`             | `str`  | undefined   | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader.  |
 
