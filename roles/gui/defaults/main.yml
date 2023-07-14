@@ -3,9 +3,9 @@ private_fireedge_endpoint: >-
   http://localhost:2616
 
 public_fireedge_endpoint: >-
-  {{ 'https://' ~ one_fqdn
+  {{ 'https://' ~ (one_fqdn | d(one_vip) | d(hostvars[leader].ansible_host))
      if apache2_https.managed | bool is true else
-     'http://' ~ one_fqdn | d(one_vip) | d(hostvars[leader].ansible_host) ~ ':2616' }}
+     'http://' ~ (one_fqdn | d(one_vip) | d(hostvars[leader].ansible_host)) ~ ':2616' }}
 
 passenger_repo_key_path:
   Debian: /etc/apt/trusted.gpg.d/passenger.asc
