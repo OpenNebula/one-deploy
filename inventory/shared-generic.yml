@@ -62,6 +62,8 @@ frontend:
     f2: { ansible_host: 10.11.12.20 }
     f3: { ansible_host: 10.11.12.30 }
 
+# Important: the nodes must have a different inventory 
+# name than the frontends, even if they are the same servers
 node:
   hosts:
     n1: { ansible_host: 10.11.12.40 }
