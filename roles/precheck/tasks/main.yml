@@ -58,3 +58,14 @@
       - Debian
       - RedHat
       - Ubuntu
+
+- name: Check if node_hv is supported
+  ansible.builtin.assert:
+    that: (node_hv is undefined)
+          or
+          (node_hv | lower in {{ _supported }})
+    msg: Please use one of the supported hypervisors {{ _supported }}.
+  vars:
+    _supported:
+      - kvm
+      - qemu
