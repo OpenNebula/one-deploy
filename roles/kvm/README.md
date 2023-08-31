@@ -16,6 +16,7 @@ Role Variables
 | `disable_default_net` | `bool` | `true`    |               | Disable default Libvirt's network.                     |
 | `libvirtd_args`       | `str`  | `''`      |               | Overwrite arguments in the `libvirtd` systemd service. |
 | `leader`              | `str`  | undefined | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. |
+| `node_hv`             | `str`  | `kvm`     | `qemu`        | Select `kvm` or `qemu` (software-mode) hypervisor.     |
 
 Dependencies
 ------------
@@ -30,7 +31,7 @@ Example Playbook
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.repository
-        - role: opennebula.deploy.kvm
+        - { role: opennebula.deploy.kvm, node_hv: qemu }
 
 License
 -------

@@ -1,3 +1,13 @@
 ---
 disable_default_net: true
 libvirtd_args: ""
+
+hv_types:
+  kvm:
+    im_mad: kvm
+    vmm_mad: kvm
+  qemu:
+    im_mad: qemu
+    vmm_mad: qemu
+
+node_hv: kvm
