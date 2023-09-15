@@ -1,0 +1,4 @@
+---
+ceph_origin: distro
+configure_firewall: false
+no_log_on_ceph_key_tasks: false

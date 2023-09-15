@@ -1,5 +1,11 @@
 ---
+# NOTE: These are cummulative requirements for both one-deploy and ceph-ansible.
 collections:
-  - name: ansible.posix
+  - name: https://opendev.org/openstack/ansible-config_template
+    version: 1.2.1
+    type: git
   - name: ansible.utils
+    version: '>=2.5.0'
+  - name: ansible.posix
   - name: community.crypto
+  - name: community.general

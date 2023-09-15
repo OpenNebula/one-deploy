@@ -15,16 +15,19 @@ VERBOSE ?= $(V)
 
 export
 
+# Make sure we source ANSIBLE_ settings from ansible.cfg exclusively.
+unexport $(filter ANSIBLE_%,$(.VARIABLES))
+
 .PHONY: all
 
 all: main
 
-.PHONY: pre site main
+.PHONY: pre ceph site main
 
-pre site main: _TAGS      := $(if $(TAGS),-t $(TAGS),)
-pre site main: _SKIP_TAGS := $(if $(SKIP_TAGS),--skip-tags $(SKIP_TAGS),)
-pre site main: _VERBOSE   := $(if $(VERBOSE),-$(VERBOSE),)
-pre site main:
+pre ceph site main: _TAGS      := $(if $(TAGS),-t $(TAGS),)
+pre ceph site main: _SKIP_TAGS := $(if $(SKIP_TAGS),--skip-tags $(SKIP_TAGS),)
+pre ceph site main: _VERBOSE   := $(if $(VERBOSE),-$(VERBOSE),)
+pre ceph site main:
 	cd $(SELF)/ && ansible-playbook $(_VERBOSE) -i $(INVENTORY) $(_TAGS) $(_SKIP_TAGS) opennebula.deploy.$@
 
 .PHONY: requirements build publish

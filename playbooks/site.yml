@@ -39,13 +39,18 @@
     - role: repository
       tags: [preinstall, prometheus]
 
+    - role: kvm
+
+    - role: ceph/node
+      tags: [ceph]
+      when:
+        - features.ceph | bool is true
+
     - role: datastore/node
       tags: [datastore]
 
     - role: network/node
       tags: [network]
-
-    - role: kvm
 
     - role: gate/proxy
       tags: [gate]
@@ -65,6 +70,11 @@
   roles:
     - role: helper/facts
       tags: [always]
+
+    - role: ceph/frontend
+      tags: [ceph]
+      when:
+        - features.ceph | bool is true
 
     - role: datastore/frontend
       tags: [datastore]

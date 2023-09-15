@@ -1,0 +1,42 @@
+---
+- hosts:
+    - "{{ mon_group_name | d('mons') }}"
+    - "{{ mgr_group_name | d('mgrs') }}"
+    - "{{ osd_group_name | d('osds') }}"
+  collections:
+    - opennebula.deploy
+  roles:
+    - role: helper/facts
+      facts_subset: ['all', '!facter', '!ohai']
+      tags: [always]
+
+- hosts: "{{ mon_group_name | d('mons') }}"
+  roles:
+    - role: ceph-defaults
+    - role: ceph-facts
+    - role: ceph-handler
+    - role: ceph-common
+    - role: ceph-config
+    - role: ceph-mon
+
+- hosts: "{{ mgr_group_name | d('mgrs') }}"
+  roles:
+    - role: ceph-defaults
+    - role: ceph-common
+    - role: ceph-config
+    - role: ceph-mgr
+
+- hosts: "{{ osd_group_name | d('osds') }}"
+  roles:
+    - role: ceph-defaults
+    - role: ceph-facts
+    - role: ceph-handler
+    - role: ceph-common
+    - role: ceph-config
+    - role: ceph-osd
+
+- hosts: "{{ mon_group_name | d('mons') }}"
+  collections:
+    - opennebula.deploy
+  roles:
+    - role: ceph/mon
