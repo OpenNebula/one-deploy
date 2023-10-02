@@ -3,3 +3,9 @@
   ansible.builtin.set_fact:
     features: >-
       {{ features_defaults | combine(features | d({})) }}
+
+- name: Compute facts (Ceph)
+  ansible.builtin.set_fact:
+    ceph: >-
+      {{ ceph_defaults | combine(ceph | d({})) }}
+  when: features.ceph | bool is true

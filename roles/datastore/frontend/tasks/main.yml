@@ -6,6 +6,7 @@
   vars:
     _mode_to_role:
       ssh: simple
+      ceph: simple
       shared: simple
       generic: generic
   when:

@@ -69,3 +69,18 @@
     _supported:
       - kvm
       - qemu
+
+- name: Check if Ceph feature is supported for current distro family
+  ansible.builtin.assert:
+    that: (features.ceph | bool is false)
+          or
+          (inventory_hostname not in _hosts)
+          or
+          (ansible_os_family in _supported)
+    msg: Please use one of the supported linux distro families {{ _supported }} to run Ceph.
+  vars:
+    _supported:
+      - Debian
+    _tmp:
+      - "{{ groups[node_group | d('node')] if groups[node_group | d('node')] is defined else [] }}"
+    _hosts: "{{ _tmp | flatten | unique }}"

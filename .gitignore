@@ -11,3 +11,5 @@ __pycache__/
 !/inventory/local.yml
 !/inventory/shared.yml
 !/inventory/shared-generic.yml
+!/inventory/ceph.yml
+!/inventory/ceph-hci.yml

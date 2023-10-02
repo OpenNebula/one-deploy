@@ -1,0 +1,21 @@
+---
+- when: ceph.uuid is falsy
+  delegate_to: "{{ groups[node_group | d('node')][0] }}"
+  block:
+    - name: Slurp UUID
+      ansible.builtin.slurp:
+        path: "/etc/ceph/client.{{ ceph.user }}.secret.uuid"
+      register: slurp
+      ignore_errors: true
+
+    - name: Detect UUID
+      ansible.builtin.set_fact:
+        ceph: >-
+          {{ ceph | d({}) | combine(_update, recursive=true) }}
+      vars:
+        _update:
+          uuid: >-
+            {{ (_slurp[0].content | b64decode) if _slurp is truthy else None }}
+        _slurp: >-
+          {{ play_hosts | map('extract', hostvars, ['slurp']) | selectattr('failed', 'false') | list }}
+      run_once: true

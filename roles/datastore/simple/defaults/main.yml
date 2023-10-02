@@ -14,6 +14,28 @@ ds_defaults:
     FILE_DS:
       template:
         TM_MAD: ssh
+  ceph:
+    SYSTEM_DS:
+      template:
+        TM_MAD: ceph
+        POOL_NAME: "{{ ceph.pool }}"
+        CEPH_HOST: "{{ ceph.host }}"
+        CEPH_USER: "{{ ceph.user }}"
+        CEPH_SECRET: "{{ ceph.uuid }}"
+        BRIDGE_LIST: "{{ groups[node_group | d('node')] | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
+    IMAGE_DS:
+      template:
+        TM_MAD: ceph
+        DS_MAD: ceph
+        DISK_TYPE: RBD
+        POOL_NAME: "{{ ceph.pool }}"
+        CEPH_HOST: "{{ ceph.host }}"
+        CEPH_USER: "{{ ceph.user }}"
+        CEPH_SECRET: "{{ ceph.uuid }}"
+        BRIDGE_LIST: "{{ groups[node_group | d('node')] | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
+    FILE_DS:
+      template:
+        TM_MAD: ssh
   shared:
     SYSTEM_DS:
       template:

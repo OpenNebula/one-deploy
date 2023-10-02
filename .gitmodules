@@ -1,0 +1,4 @@
+[submodule "vendor/ceph-ansible"]
+	path = vendor/ceph-ansible
+	url = https://github.com/ceph/ceph-ansible.git
+	branch = stable-7.0

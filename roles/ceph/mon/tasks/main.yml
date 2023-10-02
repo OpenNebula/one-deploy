@@ -1,0 +1,14 @@
+---
+- name: Install extra Ceph dependencies
+  ansible.builtin.package:
+    name: "{{ _common + _specific[ansible_os_family] }}"
+  vars:
+    _common: []
+    _specific:
+      Debian: [qemu-utils]
+      RedHat: [qemu-img]
+  register: package
+  until: package is success
+  retries: 12
+  delay: 5
+  tags: [package-install]
