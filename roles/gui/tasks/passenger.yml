@@ -33,7 +33,11 @@
         get_mime: false
       register: stat
 
-    - when: stat.stat.exists is false
+    # NOTE: GPG keys are downloaded when any of them is missing on any of the play hosts.
+    #       That way we make sure:
+    #       - the key is downloaded only once and only when necessary
+    #       - keys are identical everywhere
+    - when: ansible_play_hosts | map('extract', hostvars, ['stat', 'stat', 'exists']) is not all
       block:
         - name: Download Phusion Passenger GPG key (once)
           ansible.builtin.uri:

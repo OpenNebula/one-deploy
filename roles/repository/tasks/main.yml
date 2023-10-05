@@ -12,7 +12,13 @@
       RedHat: "/etc/pki/rpm-gpg/RPM-GPG-KEY-{{ item.name }}"
   register: stat
 
-- when: stat.results | map(attribute='stat.exists') is not all
+# NOTE: GPG keys are downloaded when any of them is missing on any of the play hosts.
+#       That way we make sure:
+#       - each key is downloaded only once and only when necessary
+#       - all keys are identical everywhere
+- when: ansible_play_hosts | map('extract', hostvars, ['stat', 'results'])
+                           | flatten
+                           | map(attribute='stat.exists') is not all
   block:
     - name: Download OpenNebula GPG keys (once)
       ansible.builtin.uri:
