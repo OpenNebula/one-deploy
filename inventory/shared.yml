@@ -12,7 +12,7 @@ all:
           path: /mnt/0
         - type: image
           path: /mnt/1
-        - type: files
+        - type: file
           path: /mnt/2
     vn:
       admin_net:
