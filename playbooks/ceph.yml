@@ -22,6 +22,8 @@
 - hosts: "{{ mgr_group_name | d('mgrs') }}"
   roles:
     - role: ceph-defaults
+    - role: ceph-facts
+    - role: ceph-handler
     - role: ceph-common
     - role: ceph-config
     - role: ceph-mgr
