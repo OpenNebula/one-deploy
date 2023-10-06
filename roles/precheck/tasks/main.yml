@@ -1,12 +1,13 @@
 ---
 - name: Check if one_vip/force_ha settings are valid
   ansible.builtin.assert:
-    that: (one_vip is undefined)
+    that: ((one_vip is defined) and ((_frontend_count | int > 1) or (_force_ha is true)))
           or
-          (groups[frontend_group | d('frontend')] | length > 1)
-          or
-          (force_ha | d(false) | bool is true)
+          ((one_vip is undefined) and ((_frontend_count | int == 1) and (_force_ha is false)))
     msg: Please either define one_vip in the inventory, add more Frontends or enable force_ha.
+  vars:
+    _frontend_count: "{{ groups[frontend_group | d('frontend')] | count }}"
+    _force_ha: "{{ force_ha | d(false) | bool }}"
   run_once: true
 
 - name: Check if all vip related settings are provided

@@ -56,3 +56,8 @@
     _followers: >-
       {{ ansible_play_hosts_all | difference([leader]) }}
   when: inventory_hostname == leader
+
+# Wait for the leader to become available (if only a single one is defined).
+- ansible.builtin.include_role:
+    name: opennebula/leader
+  when: ansible_play_hosts_all | count == 1
