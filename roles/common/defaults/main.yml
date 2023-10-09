@@ -13,6 +13,7 @@ ceph_defaults:
        if groups[mon_group_name | d('mons')] is defined else
        [] }}
   uuid: null
+  repo: distro
 
 # We define it here, because it's used in both opennebula/* and gate/* roles.
 gate_endpoint: >-

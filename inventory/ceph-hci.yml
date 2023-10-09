@@ -57,6 +57,7 @@ ceph:
       osd:
         ? osd memory target
         : "{{ osd_memory_target | int }}"
+    osd_auto_discovery: true
 
 mons:
   hosts:

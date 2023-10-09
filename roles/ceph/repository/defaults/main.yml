@@ -1,0 +1,16 @@
+---
+ceph_repo_key_path:
+  Debian: /etc/apt/trusted.gpg.d/ceph.asc
+  RedHat: /etc/pki/rpm-gpg/RPM-GPG-KEY-ceph
+
+ceph_repo_key_url:
+  Debian: https://download.ceph.com/keys/release.asc
+  RedHat: https://download.ceph.com/keys/release.asc
+
+ceph_repo_path:
+  Debian: /etc/apt/sources.list.d/ceph.list
+  RedHat: /etc/yum.repos.d/ceph.repo
+
+ceph_repo_url:
+  Debian: https://download.ceph.com/debian-quincy
+  RedHat: https://download.ceph.com/rpm-quincy

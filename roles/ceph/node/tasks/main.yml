@@ -1,4 +1,7 @@
 ---
+- ansible.builtin.include_role:
+    name: ceph/repository
+
 - name: Install extra Ceph dependencies
   ansible.builtin.package:
     name: "{{ _common + _specific[ansible_os_family] }}"

@@ -85,14 +85,25 @@
       ansible.builtin.shell:
         cmd: |
           set -o errexit
-          dnf config-manager -y --enable epel
-          if ! dnf config-manager -y --enable crb highavailability; then
-            RELEASE=$(rpm -q redhat-release | awk -F '[-.]' '{print $3}')
-            subscription-manager repos --enable codeready-builder-for-rhel-$RELEASE-x86_64-rpms \
-                                       --enable rhel-$RELEASE-for-x86_64-highavailability-rpms
-          fi
+          {{ _script[ansible_distribution][ansible_distribution_major_version] }}
         executable: /bin/bash
       changed_when: false
+      vars:
+        _script:
+          AlmaLinux:
+            '8': |
+              dnf config-manager -y --enable epel powertools ha
+            '9': |
+              dnf config-manager -y --enable epel crb highavailability
+          RedHat:
+            '8': |
+              dnf config-manager -y --enable epel
+              subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-rpms \
+                                         --enable rhel-8-for-x86_64-highavailability-rpms
+            '9': |
+              dnf config-manager -y --enable epel
+              subscription-manager repos --enable codeready-builder-for-rhel-9-x86_64-rpms \
+                                         --enable rhel-9-for-x86_64-highavailability-rpms
 
     - name: Update DNF cache
       ansible.builtin.dnf:

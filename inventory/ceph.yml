@@ -40,7 +40,8 @@ ceph:
     ? mons
     ? mgrs
     ? osds
-  vars: {}
+  vars:
+    osd_auto_discovery: true
 
 mons:
   hosts:
