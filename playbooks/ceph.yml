@@ -9,6 +9,7 @@
     - role: helper/facts
       facts_subset: ['all', '!facter', '!ohai']
       tags: [always]
+    - role: ceph/repository
 
 - hosts: "{{ mon_group_name | d('mons') }}"
   roles:
@@ -36,9 +37,3 @@
     - role: ceph-common
     - role: ceph-config
     - role: ceph-osd
-
-- hosts: "{{ mon_group_name | d('mons') }}"
-  collections:
-    - opennebula.deploy
-  roles:
-    - role: ceph/mon

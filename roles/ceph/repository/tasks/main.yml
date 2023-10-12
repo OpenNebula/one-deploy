@@ -1,0 +1,103 @@
+---
+- when:
+    - ceph.repo is defined
+    - ceph.repo == 'distro'
+  tags: [preinstall]
+  block:
+    - name: Install extra Ceph/OpenNebula dependencies
+      ansible.builtin.package:
+        name: "{{ _common + _specific[ansible_os_family] }}"
+      vars:
+        _common: []
+        _specific:
+          Debian: [qemu-utils]
+          RedHat: [qemu-img, centos-release-ceph-quincy]
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+- when:
+    - ceph.repo is defined
+    - ceph.repo == 'community'
+  tags: [preinstall]
+  block:
+    - name: Check if Ceph GPG key is installed
+      ansible.builtin.stat:
+        path: "{{ ceph_repo_key_path[ansible_os_family] }}"
+        get_attributes: false
+        get_checksum: false
+        get_mime: false
+      register: stat
+
+    # NOTE: GPG keys are downloaded when any of them is missing on any of the play hosts.
+    #       That way we make sure:
+    #       - the key is downloaded only once and only when necessary
+    #       - keys are identical everywhere
+    - when: ansible_play_hosts | map('extract', hostvars, ['stat', 'stat', 'exists']) is not all
+      block:
+        - name: Download Ceph GPG key (once)
+          ansible.builtin.uri:
+            url: "{{ ceph_repo_key_url[ansible_os_family] }}"
+            return_content: true
+          run_once: true
+          register: uri
+
+        - name: Install Ceph GPG key
+          ansible.builtin.copy:
+            dest: "{{ ceph_repo_key_path[ansible_os_family] }}"
+            mode: u=rw,go=r
+            content: "{{ uri.content }}"
+
+    - name: Install Ceph package source
+      ansible.builtin.copy:
+        dest: "{{ ceph_repo_path[ansible_os_family] }}"
+        mode: u=rw,go=r
+        content: "{{ _content[ansible_os_family] }}"
+      vars:
+        _content:
+          Debian: |
+            deb {{ ceph_repo_url.Debian }} {{ ansible_distribution_release }} main
+          RedHat: |
+            [ceph_stable]
+            name=ceph_stable
+            baseurl={{ ceph_repo_url.RedHat }}/el{{ ansible_distribution_major_version }}/$basearch
+            priority=2
+            enabled=1
+            gpgkey=file://{{ ceph_repo_key_path.RedHat }}
+            gpgcheck=1
+            [ceph_stable_noarch]
+            name=ceph_stable_noarch
+            baseurl={{ ceph_repo_url.RedHat }}/el{{ ansible_distribution_major_version }}/noarch
+            priority=2
+            enabled=1
+            gpgkey=file://{{ ceph_repo_key_path.RedHat }}
+            gpgcheck=1
+      register: copy
+
+    - when: ansible_pkg_mgr == 'apt'
+      block:
+        - name: Update APT cache
+          ansible.builtin.apt:
+            update_cache: true
+          when: copy is changed
+
+    - when: ansible_pkg_mgr == 'dnf'
+      block:
+        - name: Update DNF cache
+          ansible.builtin.dnf:
+            update_cache: true
+          when: copy is changed
+
+    - name: Install extra Ceph/OpenNebula dependencies
+      ansible.builtin.package:
+        name: "{{ _common + _specific[ansible_os_family] }}"
+      vars:
+        _common: []
+        _specific:
+          Debian: [qemu-utils]
+          RedHat: [qemu-img]
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5

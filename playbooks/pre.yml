@@ -8,14 +8,21 @@
       become: false
       tags: [bastion]
 
-- hosts: "{{ frontend_group | d('frontend') }}:{{ node_group | d('node') }}"
+- hosts:
+    - "{{ frontend_group | d('frontend') }}"
+    - "{{ node_group | d('node') }}"
+    - "{{ mon_group_name | d('mons') }}"
+    - "{{ mgr_group_name | d('mgrs') }}"
+    - "{{ osd_group_name | d('osds') }}"
   strategy: linear
   collections:
     - opennebula.deploy
   roles:
     - role: helper/python3
 
-- hosts: "{{ frontend_group | d('frontend') }}:{{ node_group | d('node') }}"
+- hosts:
+    - "{{ frontend_group | d('frontend') }}"
+    - "{{ node_group | d('node') }}"
   collections:
     - opennebula.deploy
   roles:
