@@ -41,7 +41,7 @@
           set +o errexit
           TEMPLATE="$(mktemp)"
           tee "$TEMPLATE"
-          onedatastore update '{{ ds_dict[item].id }}' "$TEMPLATE"; RC="$?"
+          cat "$TEMPLATE" | onedatastore update '{{ ds_dict[item].id }}' "$TEMPLATE"; RC="$?"
           rm -f "$TEMPLATE"
           exit "$RC"
         stdin: |
@@ -63,7 +63,7 @@
           set +o errexit
           TEMPLATE="$(mktemp)"
           tee "$TEMPLATE"
-          onedatastore create "$TEMPLATE"; RC="$?"
+          cat "$TEMPLATE" | onedatastore create "$TEMPLATE"; RC="$?"
           rm -f "$TEMPLATE"
           exit "$RC"
         stdin: |

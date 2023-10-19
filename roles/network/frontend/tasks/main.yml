@@ -54,7 +54,7 @@
           set +o errexit
           TEMPLATE="$(mktemp)"
           tee "$TEMPLATE"
-          onevnet update '{{ item }}' "$TEMPLATE"; RC="$?"
+          cat "$TEMPLATE" | onevnet update '{{ item }}' "$TEMPLATE"; RC="$?"
           rm -f "$TEMPLATE"
           exit "$RC"
         stdin: |
@@ -78,7 +78,7 @@
           set +o errexit
           TEMPLATE="$(mktemp)"
           tee "$TEMPLATE"
-          onevnet create "$TEMPLATE"; RC="$?"
+          cat "$TEMPLATE" | onevnet create "$TEMPLATE"; RC="$?"
           rm -f "$TEMPLATE"
           exit "$RC"
         stdin: |
@@ -95,7 +95,7 @@
           set +o errexit
           TEMPLATE="$(mktemp)"
           tee "$TEMPLATE"
-          onevnet updatear '{{ item.0 }}' '{{ item.1 }}' "$TEMPLATE"; RC="$?"
+          cat "$TEMPLATE" | onevnet updatear '{{ item.0 }}' '{{ item.1 }}' "$TEMPLATE"; RC="$?"
           rm -f "$TEMPLATE"
           exit "$RC"
         stdin: |
@@ -117,7 +117,7 @@
           set +o errexit
           TEMPLATE="$(mktemp)"
           tee "$TEMPLATE"
-          onevnet addar '{{ item.0 }}' "$TEMPLATE"; RC="$?"
+          cat "$TEMPLATE" | onevnet addar '{{ item.0 }}' "$TEMPLATE"; RC="$?"
           rm -f "$TEMPLATE"
           exit "$RC"
         stdin: |

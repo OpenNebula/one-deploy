@@ -2,7 +2,7 @@
 all:
   vars:
     ansible_user: root
-    one_version: '6.6'
+    one_version: '6.8'
     one_pass: opennebulapass
     ds:
       mode: shared

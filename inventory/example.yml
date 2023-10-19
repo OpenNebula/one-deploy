@@ -4,7 +4,7 @@ all:
     env_name: example
     ansible_user: example
     ensure_keys_for: [example, root]
-    one_version: '6.6'
+    one_version: '6.8'
     one_token: example:example
     features:
       gateproxy: true
