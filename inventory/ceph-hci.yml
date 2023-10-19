@@ -4,7 +4,7 @@ all:
     ansible_user: ubuntu
     ensure_keys_for: [ubuntu, root]
     one_pass: opennebulapass
-    one_version: '6.6'
+    one_version: '6.8'
     features:
       # Enable the "ceph" feature in one-deploy.
       ceph: true

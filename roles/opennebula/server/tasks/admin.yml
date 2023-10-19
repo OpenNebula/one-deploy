@@ -20,7 +20,7 @@
           set +o errexit
           TEMPLATE="$(mktemp)"
           tee "$TEMPLATE"
-          oneuser update oneadmin "$TEMPLATE"; RC="$?"
+          cat "$TEMPLATE" | oneuser update oneadmin "$TEMPLATE"; RC="$?"
           rm -f "$TEMPLATE"
           exit "$RC"
         stdin: |

@@ -79,7 +79,9 @@
 
 - name: Check if Ceph feature is supported for current distro family
   ansible.builtin.assert:
-    that: (features.ceph | bool is false)
+    that: (features.ceph is undefined)
+          or
+          (features.ceph | bool is false)
           or
           (inventory_hostname not in _hosts)
           or

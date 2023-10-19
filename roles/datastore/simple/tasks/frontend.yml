@@ -53,7 +53,7 @@
       set +o errexit
       TEMPLATE="$(mktemp)"
       tee "$TEMPLATE"
-      onedatastore update '{{ _id }}' "$TEMPLATE"; RC="$?"
+      cat "$TEMPLATE" | onedatastore update '{{ _id }}' "$TEMPLATE"; RC="$?"
       rm -f "$TEMPLATE"
       exit "$RC"
     stdin: |
