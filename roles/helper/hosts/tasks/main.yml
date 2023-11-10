@@ -1,0 +1,43 @@
+---
+- when: ensure_hostname | bool is true
+  block:
+    - name: Set hostname
+      ansible.builtin.hostname:
+        name: "{{ inventory_hostname }}"
+
+- when: ensure_hosts | bool is true
+  block:
+    - name: Slurp /etc/hosts
+      ansible.builtin.slurp:
+        path: /etc/hosts
+      register: slurp
+
+    - name: Populate /etc/hosts
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: '{{ _addr }} {{ _host }}'
+      when:
+        - _host is truthy
+        - _addr is truthy
+        - _host not in _words
+        - _addr not in _words
+      vars:
+        # Split /etc/hosts into lines.
+        _lines: >-
+          {{ (slurp.content | b64decode).splitlines() }}
+        # Remove comments, empty lines and "loopback"-related entries.
+        _cleaned: >-
+          {{ _lines | map('regex_replace', '#.*', '')
+                    | map('regex_replace', '^(127\.0\.\d+\.\d+|::\d+)\s.*', '')
+                    | map('trim')
+                    | select }}
+        # Split all lines into words, remove empty strings.
+        _words: >-
+          {{ _cleaned | map('split')
+                      | flatten
+                      | map('trim')
+                      | select
+                      | list }}
+        _host: "{{ item }}"
+        _addr: "{{ hostvars[_host].ansible_host | d() }}"
+      loop: "{{ ansible_play_hosts_all }}"

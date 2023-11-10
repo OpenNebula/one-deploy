@@ -31,5 +31,8 @@
 
     - role: precheck
 
+    - role: helper/hosts
+      tags: [hosts]
+
     - role: helper/keys
       tags: [keys]
