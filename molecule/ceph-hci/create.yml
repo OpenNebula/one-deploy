@@ -1,0 +1,39 @@
+---
+- hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  collections:
+    - opennebula.deploy
+  tasks:
+    - name: Create instances
+      opennebula.deploy.named_vm:
+        name: "{{ item.name }}"
+        state: present
+        template: "{{ item.template }}"
+        datablocks: "{{ item.datablocks | d([]) }}"
+        auth: "{{ item.auth }}"
+      loop: "{{ molecule_yml.platforms }}"
+      register: server
+
+    - name: Dump instance config
+      ansible.builtin.copy:
+        dest: "{{ molecule_instance_config }}"
+        mode: u=rw,go=
+        content: |
+          {{ _instance_conf | to_yaml }}
+      vars:
+        _instance_conf: >-
+          {%- set output = [] -%}
+          {%- for item in server.results -%}
+          {{-
+              output.append({
+                "instance": item.params.name,
+                "address": ([item.template.NIC] | flatten | first).IP,
+                "user": "root",
+                "port": 22,
+              })
+          -}}
+          {%- endfor -%}
+          {{- output -}}
+      when: server is changed
