@@ -1,0 +1,33 @@
+---
+# Copyright: OpenNebula Project, OpenNebula Systems
+# Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+DOCUMENTATION:
+  name: to_one
+  short_description: Convert dictionary to OpenNebula template
+  description:
+    - Convert any dictionary to OpenNebula template format.
+  options:
+    _input:
+      description:
+        - Dictionary to convert.
+      type: dict
+      required: true
+  author:
+    - Michal Opala (@sk4zuzu)
+
+EXAMPLES: |
+  - name: Multiple NIC conversion example
+    ansible.builtin.debug:
+      msg: >-
+        {{ _template | opennebula.deploy.to_one }}
+    vars:
+      _template:
+        NIC:
+          - NETWORK: public
+          - NETWORK: private
+
+RETURN:
+  _value:
+    description: OpenNebula-formatted template.
+    type: str

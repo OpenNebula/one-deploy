@@ -8,6 +8,7 @@
   roles:
     - role: helper/facts
       facts_subset: ['all', '!facter', '!ohai']
+      _force: true
       tags: [always]
     - role: ceph/repository
 

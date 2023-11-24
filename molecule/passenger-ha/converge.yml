@@ -1,0 +1,9 @@
+---
+- hosts: all
+  gather_facts: false
+  any_errors_fatal: true
+  tasks:
+    - ansible.builtin.wait_for_connection:
+        timeout: 120
+
+- ansible.builtin.import_playbook: opennebula.deploy.main

@@ -30,10 +30,17 @@ pre ceph site main: _VERBOSE   := $(if $(VERBOSE),-$(VERBOSE),)
 pre ceph site main:
 	cd $(SELF)/ && ansible-playbook $(_VERBOSE) -i $(INVENTORY) $(_TAGS) $(_SKIP_TAGS) opennebula.deploy.$@
 
-.PHONY: requirements build publish
+.PHONY: requirements requirements-python requirements-galaxy
 
-requirements: $(SELF)/requirements.yml
+requirements: requirements-python requirements-galaxy
+
+requirements-python: $(SELF)/requirements.txt
+	pip3 install --requirement $<
+
+requirements-galaxy: $(SELF)/requirements.yml
 	ansible-galaxy collection install --requirements-file $<
+
+.PHONY: build publish
 
 build:
 	ansible-galaxy collection build --force --verbose

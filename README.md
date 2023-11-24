@@ -17,6 +17,7 @@ The documentation is organized based on three distinct architectures. We will st
     * [Other configurations](../../wiki/arch_other)
 * [Verifying the installation](../../wiki/sys_verify)
 * [Playbook reference](../../wiki/sys_reference)
+* [Molecule testing](../../wiki/test_molecule)
 
 ## License
 
