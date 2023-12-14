@@ -39,15 +39,3 @@ requirements-python: $(SELF)/requirements.txt
 
 requirements-galaxy: $(SELF)/requirements.yml
 	ansible-galaxy collection install --requirements-file $<
-
-.PHONY: build publish
-
-build:
-	ansible-galaxy collection build --force --verbose
-
-publish: build
-	shopt -qs failglob && \
-	ansible-galaxy collection publish \
-	"$$(ls -1 $(SELF)/opennebula-deploy-[0-9].[0-9].[0-9].tar.gz | sort --version-sort | tail -n1)" \
-	--server="$$(cat $(SELF)/.galaxy-server)" \
-	--token="$$(cat $(SELF)/.galaxy-key)"

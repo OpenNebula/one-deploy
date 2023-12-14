@@ -25,7 +25,6 @@ issues: https://github.com/OpenNebula/one-deploy/issues
 
 build_ignore:
 - .gitignore
-- .galaxy-key
-- .galaxy-server
+- .env.yml
 - inventory
 - ansible_collections
