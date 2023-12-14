@@ -7,6 +7,7 @@ The documentation is organized based on three distinct architectures. We will st
 ## Contents
 
 * [Requirements & Platform Notes](../../wiki/sys_reqs)
+* [Release Notes](https://github.com/OpenNebula/one-deploy/releases)
 * [Using the playbooks](../../wiki/sys_use)
 * Deployments
     * [Local storage](../../wiki/arch_single_local)
