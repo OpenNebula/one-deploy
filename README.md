@@ -20,6 +20,17 @@ The documentation is organized based on three distinct architectures. We will st
 * [Playbook reference](../../wiki/sys_reference)
 * [Molecule testing](../../wiki/test_molecule)
 
+## Contributing
+
+* Guidelines
+* [Development and issue tracking](https://github.com/OpenNebula/one-deploy/issues).
+* [Community Forum](https://forum.opennebula.io).
+
+## Contact Information
+
+* [OpenNebula web site](https://opennebula.io).
+* [Enterprise Services](https://opennebula.io/enterprise).
+  
 ## License
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
