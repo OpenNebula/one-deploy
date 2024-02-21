@@ -1,0 +1,57 @@
+---
+all:
+  vars:
+    ansible_user: root
+    ensure_keys_for: [root]
+    ensure_hosts: true
+    one_pass: opennebula
+    one_version: '6.8'
+    ds: { mode: ssh }
+    vn:
+      service:
+        managed: true
+        template:
+          VN_MAD: bridge
+          BRIDGE: br0
+          AR:
+            TYPE: IP4
+            IP: 10.2.50.200
+            SIZE: 48
+          NETWORK_ADDRESS: 10.2.50.0
+          NETWORK_MASK: 255.255.255.0
+          GATEWAY: 10.2.50.1
+          DNS: 10.2.50.1
+    one_vip: 10.2.50.86
+    one_vip_cidr: 24
+    one_vip_if: eth0
+
+infra:
+  vars:
+    os_image_url: https://d24fmfybwxpuhu.cloudfront.net/ubuntu2204-6.8.1-1-20240131.qcow2
+    os_image_size: 20G
+    infra_bridge: br0
+  hosts:
+    n1a1: { ansible_host: 10.2.50.10 }
+    n1a2: { ansible_host: 10.2.50.11 }
+
+frontend:
+  vars:
+    context:
+      ETH0_DNS: 10.2.50.1
+      ETH0_GATEWAY: 10.2.50.1
+      ETH0_MASK: 255.255.255.0
+      ETH0_NETWORK: 10.2.50.0
+      ETH0_IP: "{{ ansible_host }}"
+      PASSWORD: opennebula
+      SSH_PUBLIC_KEY: |
+        ssh-rsa AAA... mopala@opennebula.io
+        ssh-rsa AAA... sk4zuzu@gmail.com
+  # NOTE: Must use IPv4 addresses for ansible_host vars.
+  hosts:
+    f1: { ansible_host: 10.2.50.100, infra_hostname: n1a1 }
+    f2: { ansible_host: 10.2.50.101, infra_hostname: n1a2 }
+
+node:
+  hosts:
+    n1a1: { ansible_host: 10.2.50.10 }
+    n1a2: { ansible_host: 10.2.50.11 }

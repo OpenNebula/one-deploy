@@ -1,0 +1,8 @@
+---
+- hosts: "{{ infra_group | d('infra') }}"
+  tags: [infra]
+  roles:
+    - role: helper/facts
+      tags: [always]
+
+    - role: infra
