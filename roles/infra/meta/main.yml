@@ -1,0 +1,5 @@
+---
+collections:
+  - opennebula.deploy
+  - community.general
+  - community.libvirt

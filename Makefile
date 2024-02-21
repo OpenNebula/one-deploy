@@ -22,12 +22,12 @@ unexport $(filter ANSIBLE_%,$(.VARIABLES))
 
 all: main
 
-.PHONY: pre ceph site main
+.PHONY: infra pre ceph site main
 
-pre ceph site main: _TAGS      := $(if $(TAGS),-t $(TAGS),)
-pre ceph site main: _SKIP_TAGS := $(if $(SKIP_TAGS),--skip-tags $(SKIP_TAGS),)
-pre ceph site main: _VERBOSE   := $(if $(VERBOSE),-$(VERBOSE),)
-pre ceph site main:
+infra pre ceph site main: _TAGS      := $(if $(TAGS),-t $(TAGS),)
+infra pre ceph site main: _SKIP_TAGS := $(if $(SKIP_TAGS),--skip-tags $(SKIP_TAGS),)
+infra pre ceph site main: _VERBOSE   := $(if $(VERBOSE),-$(VERBOSE),)
+infra pre ceph site main:
 	cd $(SELF)/ && ansible-playbook $(_VERBOSE) -i $(INVENTORY) $(_TAGS) $(_SKIP_TAGS) opennebula.deploy.$@
 
 .PHONY: requirements requirements-python requirements-galaxy

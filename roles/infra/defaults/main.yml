@@ -1,0 +1,8 @@
+---
+runtime_dir: /var/one-deploy/
+os_image_url: https://d24fmfybwxpuhu.cloudfront.net/ubuntu2204-6.8.1-1-20240131.qcow2
+os_image_size: 20G
+memory_KiB: 2097152 # 2 GiB
+vcpu_static: 1
+vnc_max_port: 65535
+infra_bridge: br0
