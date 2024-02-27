@@ -7,6 +7,9 @@ dependency:
 
 provisioner:
   name: ansible
+  playbooks:
+    create:  ../resources/playbooks/common/create.yml
+    destroy: ../resources/playbooks/common/destroy.yml
   env:
     ANSIBLE_COLLECTIONS_PATHS: ../../
     ANSIBLE_COLLECTIONS_PATH:  ../../
@@ -34,7 +37,6 @@ provisioner:
             managed: true
             template:
               VN_MAD: bridge
-              PHYDEV: eth0
               BRIDGE: br0
               AR:
                 TYPE: IP4
@@ -73,6 +75,12 @@ platforms:
     template:
       name: ubuntu2004
       content: &content
+        CONTEXT:
+          GROW_FS: /
+          NETCFG_TYPE: networkd
+          PASSWORD: asd
+        DISK:
+          SIZE: 20480
         MEMORY: 4096
         NIC:
           NETWORK: ${ONE_VNET}

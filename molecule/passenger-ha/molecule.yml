@@ -7,6 +7,9 @@ dependency:
 
 provisioner:
   name: ansible
+  playbooks:
+    create:  ../resources/playbooks/common/create.yml
+    destroy: ../resources/playbooks/common/destroy.yml
   env:
     ANSIBLE_COLLECTIONS_PATHS: ../../
     ANSIBLE_COLLECTIONS_PATH:  ../../
@@ -23,14 +26,13 @@ provisioner:
         features: { passenger: true }
         one_vip: "{{ '${ONE_RANGE2}'.split()[0] | ansible.utils.ipmath('${ONE_RANGE2}'.split()[1]|int - 1) }}"
         one_vip_cidr: "{{ '${ONE_SUBNET}' | ansible.utils.ipaddr('prefix') }}"
-        one_vip_if: eth0
+        one_vip_if: br0
         ds: { mode: ssh }
         vn:
           service:
             managed: true
             template:
               VN_MAD: bridge
-              PHYDEV: eth0
               BRIDGE: br0
               AR:
                 TYPE: IP4
@@ -62,6 +64,12 @@ platforms:
     template:
       name: ubuntu2204
       content: &content
+        CONTEXT:
+          GROW_FS: /
+          NETCFG_TYPE: networkd
+          PASSWORD: asd
+        DISK:
+          SIZE: 20480
         MEMORY: 2048
         NIC:
           NETWORK: ${ONE_VNET}

@@ -1,0 +1,7 @@
+---
+- hosts: all
+  gather_facts: false
+  any_errors_fatal: true
+  pre_tasks:
+    - ansible.builtin.wait_for_connection:
+        timeout: 120

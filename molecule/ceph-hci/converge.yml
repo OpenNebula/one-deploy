@@ -1,11 +1,6 @@
 ---
-- hosts: all
-  gather_facts: false
-  any_errors_fatal: true
-  tasks:
-    - ansible.builtin.wait_for_connection:
-        timeout: 120
-
+- ansible.builtin.import_playbook: ../resources/playbooks/common/wait-all.yml
+- ansible.builtin.import_playbook: ../resources/playbooks/common/node-br0-fixup.yml
 - ansible.builtin.import_playbook: opennebula.deploy.pre
 - ansible.builtin.import_playbook: opennebula.deploy.ceph
 - ansible.builtin.import_playbook: opennebula.deploy.site
