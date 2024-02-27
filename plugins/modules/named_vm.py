@@ -154,8 +154,11 @@ params:
 
 from ansible.module_utils.basic import AnsibleModule
 
+import copy
 import time
 import traceback
+
+from ansible.module_utils.common.dict_transformations import dict_merge
 
 from ansible_collections.opennebula.deploy.plugins.module_utils.main import (flatten,
                                                                              to_one,
@@ -219,11 +222,17 @@ def _create_vm(params, one):
 def _instantiate_template(template, params, one):
     _create_datablocks(params, one)
 
-    content = params["template"].get("content") or {}
+    # NOTE: OpenNebula does not merge vectors, we do that ourselves.
+    #       This is *not* a complete solution though, it works only for
+    #       the first vector (like a *single* DISK={}, NIC={} or CONTEXT={}).
+    document = dict_merge(
+        copy.deepcopy(template.TEMPLATE) or {},
+        params["template"].get("content") or {},
+    )
 
     # Append datablock(s) if present.
-    content["DISK"] = flatten(
-        [template.TEMPLATE.get("DISK", [])] + [
+    document["DISK"] = flatten(
+        [document.get("DISK", [])] + [
             { "IMAGE_ID": image.ID }
             for image in get_datablocks(params, one=one)
         ],
@@ -233,7 +242,7 @@ def _instantiate_template(template, params, one):
     one.template.instantiate(template.ID,
                              params["name"],
                              False,
-                             to_one(content))
+                             to_one(document))
     return True
 
 

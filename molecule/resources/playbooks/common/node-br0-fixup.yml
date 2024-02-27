@@ -1,0 +1,50 @@
+---
+- hosts: node
+  any_errors_fatal: true
+  roles:
+    - role: opennebula.deploy.helper.python3
+  post_tasks:
+    - ansible.builtin.copy:
+        dest: /etc/one-context.d/net-98.1-one-deploy
+        owner: 0
+        group: 0
+        mode: u=rwx,g=rx
+        content: |
+          #!/usr/bin/env python3
+
+          import ipaddress, os, textwrap
+
+          prefixlen = ipaddress.IPv4Network(f"0.0.0.0/{os.getenv('ETH0_MASK', '255.255.255.0')}").prefixlen
+
+          open('/etc/systemd/network/br0.netdev', 'w').write(textwrap.dedent(f"""
+              [NetDev]
+              Kind=bridge
+              Name=br0"""))
+
+          open('/etc/systemd/network/br0.network', 'w').write(textwrap.dedent(f"""
+              [Match]
+              Name=br0
+              [Link]
+              ActivationPolicy=always-up
+              [Network]
+              Address={os.getenv('ETH0_IP')}/{prefixlen}
+              ConfigureWithoutCarrier=yes
+              DNS={os.getenv('ETH0_DNS')}
+              IPForward=ipv4
+              IPMasquerade=no
+              [Route]
+              Gateway={os.getenv('ETH0_GATEWAY')}"""))
+
+          open('/etc/systemd/network/eth0.network', 'w').write(textwrap.dedent(f"""
+              [Match]
+              Name=eth0
+              [Network]
+              Bridge=br0"""))
+
+          os.system('systemctl restart systemd-networkd.service')
+          os.system('systemctl mask systemd-networkd-wait-online.service')
+      register: copy
+
+    - ansible.builtin.shell:
+        cmd: . /run/one-context/one_env && /etc/one-context.d/net-98.1-one-deploy
+      when: copy is changed
