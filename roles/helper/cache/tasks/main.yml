@@ -1,0 +1,5 @@
+---
+- name: Update package cache
+  ansible.builtin.package:
+    update_cache: true
+  when: update_pkg_cache | bool is true

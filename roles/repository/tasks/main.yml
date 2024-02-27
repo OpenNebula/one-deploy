@@ -72,13 +72,6 @@
         repo_gpgcheck=1
   register: copy
 
-- when: ansible_pkg_mgr == 'apt'
-  block:
-    - name: Update APT cache
-      ansible.builtin.apt:
-        update_cache: true
-      when: copy is changed
-
 - when: ansible_pkg_mgr == 'dnf'
   block:
     - name: Enable required DNF extra repos
@@ -105,7 +98,6 @@
               subscription-manager repos --enable codeready-builder-for-rhel-9-x86_64-rpms \
                                          --enable rhel-9-for-x86_64-highavailability-rpms
 
-    - name: Update DNF cache
-      ansible.builtin.dnf:
-        update_cache: true
-      when: copy is changed
+- name: Update package manager cache
+  ansible.builtin.package:
+    update_cache: "{{ copy is changed }}"
