@@ -18,6 +18,7 @@ provisioner:
         ensure_keys_for: [root]
         ensure_hostname: true
         ensure_hosts: true
+        update_pkg_cache: true
         one_pass: opennebula
         one_version: '6.8'
         one_token: ${ONE_TOKEN}

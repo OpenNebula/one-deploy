@@ -73,23 +73,10 @@
             sslcacert=/etc/pki/tls/certs/ca-bundle.crt
       register: copy
 
-    - when: ansible_pkg_mgr == 'apt'
-      block:
-        - name: Update APT cache
-          ansible.builtin.apt:
-            update_cache: true
-          when: copy is changed
-
-    - when: ansible_pkg_mgr == 'dnf'
-      block:
-        - name: Update DNF cache
-          ansible.builtin.dnf:
-            update_cache: true
-          when: copy is changed
-
     - name: Install Phusion Passenger
       ansible.builtin.package:
         name: "{{ _common + _specific[ansible_os_family] }}"
+        update_cache: "{{ copy is changed }}"
       vars:
         _common: []
         _specific:
