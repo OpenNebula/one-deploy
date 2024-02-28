@@ -11,9 +11,11 @@
       Debian:
         MariaDB: [mariadb-server]
         PostgreSQL: [postgresql]
+        SQLite: [sqlite]
       RedHat:
         MariaDB: [mariadb-server]
         PostgreSQL: [postgresql-server]
+        SQLite: [sqlite]
   register: package
   until: package is success
   retries: 12
@@ -50,6 +52,7 @@
       RedHat:
         MariaDB: mariadb
         PostgreSQL: postgresql
+  when: db_backend != 'SQLite'
 
 - name: Create DB instance for OpenNebula
   ansible.builtin.shell:
@@ -75,3 +78,4 @@
       MariaDB: root
       PostgreSQL: postgres
   changed_when: false
+  when: db_backend != 'SQLite'
