@@ -112,7 +112,7 @@
   ansible.builtin.assert:
     that: ((_frontend_count | int == 1) and (_force_ha is false))
           or
-          (db_backend != 'SQLite')
+          (db_backend | d('MariaDB') != 'SQLite')
     msg: Please use either PostgreSQL or MariaDB as DB backend for HA setup.
   vars:
     _frontend_count: "{{ groups[frontend_group | d('frontend')] | count }}"
