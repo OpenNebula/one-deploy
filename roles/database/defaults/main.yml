@@ -2,10 +2,12 @@
 db_supported_backends:
   - MariaDB
   - PostgreSQL
+  - SQLite
 
 db_backend_types:
   MariaDB: mysql
   PostgreSQL: postgresql
+  SQLite: sqlite
 
 db_backend: MariaDB
 

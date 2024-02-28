@@ -20,7 +20,7 @@ Role Variables
 | `one_vip`           | `str`  | undefined    | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader.                                                          |
 | `one_vip_if`        | `str`  | undefined    | `eth0`        | NIC device to assign the `one_vip` address to (on Frontends).                                                   |
 | `one_vip_cidr`      | `int`  | undefined    | `24`          | CIDR prefix of the subnet `one_vip` is allocated in.                                                            |
-| `db_backend`        | `str`  | `MariaDB`    |               | Can be `MariaDB` or `PostgreSQL`.                                                                               |
+| `db_backend`        | `str`  | `MariaDB`    |               | Can be `MariaDB`, `PostgreSQL` or `SQLite`.                                                                     |
 | `db_name`           | `str`  | `opennebula` |               | Name of the database/schema used by OpenNebula.                                                                 |
 | `db_owner`          | `str`  | `oneadmin`   |               | User used by OpenNebula to access the database.                                                                 |
 | `db_password`       | `str`  | `opennebula` |               | Password used by OpenNebula to authenticate the user.                                                           |
