@@ -107,3 +107,13 @@
       - "{{ groups[node_group | d('node')] if groups[node_group | d('node')] is defined else [] }}"
     _hosts: "{{ _tmp | flatten | unique }}"
   tags: [preinstall]
+
+- name: Check if DB backend is supported for the HA setup
+  ansible.builtin.assert:
+    that: ((_frontend_count | int == 1) and (_force_ha is false))
+          or
+          (db_backend != 'SQLite')
+    msg: Please use either PostgreSQL or MariaDB as DB backend for HA setup.
+  vars:
+    _frontend_count: "{{ groups[frontend_group | d('frontend')] | count }}"
+    _force_ha: "{{ force_ha | d(false) | bool }}"
