@@ -1,0 +1,147 @@
+---
+prerun: false
+
+dependency:
+  name: galaxy
+  enabled: false
+
+provisioner:
+  name: ansible
+  playbooks:
+    create:  ../resources/playbooks/common/create.yml
+    destroy: ../resources/playbooks/common/destroy.yml
+  env:
+    ANSIBLE_COLLECTIONS_PATHS: ../../
+    ANSIBLE_COLLECTIONS_PATH:  ../../
+  inventory:
+    group_vars:
+      all:
+        env_name: federation
+        ansible_user: root
+        ensure_keys_for: [root]
+        ensure_hostname: true
+        ensure_hosts: true
+        update_pkg_cache: true
+        one_pass: asd
+        one_version: '6.8'
+        features: { passenger: true }
+    hosts:
+      _0:
+        children:
+          ? frontend0
+          ? node0
+        vars:
+          zone_name: OpenNebula
+          vn:
+            service:
+              managed: true
+              template:
+                VN_MAD: bridge
+                BRIDGE: br0
+                AR:
+                  TYPE: IP4
+                  IP: "{{ '${ONE_RANGE1}'.split()[0] }}"
+                  SIZE: "{{ '${ONE_RANGE1}'.split()[1] }}"
+                NETWORK_ADDRESS: "{{ '${ONE_SUBNET}' | ansible.utils.nthhost(0) }}"
+                NETWORK_MASK: "{{ '${ONE_SUBNET}' | ansible.utils.ipaddr('netmask') }}"
+                GATEWAY: "{{ '${ONE_SUBNET}' | ansible.utils.nthhost(1) }}"
+                DNS: 1.1.1.1 8.8.8.8
+      _1:
+        children:
+          ? frontend1
+          ? node1
+        vars:
+          zone_name: Frontend1
+          vn:
+            service:
+              managed: true
+              template:
+                VN_MAD: bridge
+                BRIDGE: br0
+                AR:
+                  TYPE: IP4
+                  IP: "{{ '${ONE_RANGE2}'.split()[0] }}"
+                  SIZE: "{{ '${ONE_RANGE2}'.split()[1] }}"
+                NETWORK_ADDRESS: "{{ '${ONE_SUBNET}' | ansible.utils.nthhost(0) }}"
+                NETWORK_MASK: "{{ '${ONE_SUBNET}' | ansible.utils.ipaddr('netmask') }}"
+                GATEWAY: "{{ '${ONE_SUBNET}' | ansible.utils.nthhost(1) }}"
+                DNS: 1.1.1.1 8.8.8.8
+      _2:
+        children:
+          ? frontend2
+          ? node2
+        vars:
+          zone_name: Frontend2
+          vn:
+            service:
+              managed: true
+              template:
+                VN_MAD: bridge
+                BRIDGE: br0
+                AR:
+                  TYPE: IP4
+                  IP: "{{ '${ONE_RANGE3}'.split()[0] }}"
+                  SIZE: "{{ '${ONE_RANGE3}'.split()[1] }}"
+                NETWORK_ADDRESS: "{{ '${ONE_SUBNET}' | ansible.utils.nthhost(0) }}"
+                NETWORK_MASK: "{{ '${ONE_SUBNET}' | ansible.utils.ipaddr('netmask') }}"
+                GATEWAY: "{{ '${ONE_SUBNET}' | ansible.utils.nthhost(1) }}"
+                DNS: 1.1.1.1 8.8.8.8
+      frontend:
+        children:
+          ? frontend0
+          ? frontend1
+          ? frontend2
+      node:
+        children:
+          ? node0
+          ? node1
+          ? node2
+  config_options:
+    defaults:
+      gathering: explicit
+      host_key_checking: false
+      display_skipped_hosts: true
+      retry_files_enabled: false
+      any_errors_fatal: true
+      callbacks_enabled: profile_tasks
+      stdout_callback: yaml
+    privilege_escalation:
+      become: true
+      become_user: root
+    ssh_connection:
+      pipelining: true
+      ssh_args: -q -o ControlMaster=auto -o ControlPersist=60s
+
+platforms:
+  - name: federation-f1
+    groups: [frontend0, node0]
+    template:
+      name: ubuntu2204
+      content: &content
+        CONTEXT:
+          GROW_FS: /
+          NETCFG_TYPE: networkd
+          PASSWORD: asd
+        DISK:
+          SIZE: 20480
+        MEMORY: 3072
+        NIC:
+          NETWORK: ${ONE_VNET}
+    auth: &auth
+      host: ${ONE_HOST}
+      user: ${ONE_USER}
+      pswd: ${ONE_PSWD}
+
+  - name: federation-f2
+    groups: [frontend1, node1]
+    template:
+      name: alma9
+      content: *content
+    auth: *auth
+
+  - name: federation-f3
+    groups: [frontend2, node2]
+    template:
+      name: ubuntu2004
+      content: *content
+    auth: *auth

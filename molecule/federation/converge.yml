@@ -1,0 +1,5 @@
+---
+- ansible.builtin.import_playbook: ../resources/playbooks/common/wait-all.yml
+- ansible.builtin.import_playbook: ../resources/playbooks/common/apt-fixup.yml
+- ansible.builtin.import_playbook: ../resources/playbooks/common/node-br0-fixup.yml
+- ansible.builtin.import_playbook: opennebula.deploy.main
