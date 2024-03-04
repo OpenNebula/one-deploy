@@ -1,15 +1,5 @@
 ---
-- when: ensure_keys_for is sequence and ensure_keys_for | length > 0
-  vars:
-    # Skip creating keypairs on hypervisor nodes as they are unneeded/unused (non-HCI).
-    _groups: >-
-      {{ groups.keys() | difference([node_group | d('node'), 'all', 'ungrouped']) }}
-    # Extract all hosts selected for private key generation.
-    _hosts: >-
-      {{ _groups | map('extract', groups)
-                 | flatten
-                 | unique
-                 | intersect(ansible_play_hosts) }}
+- when: ensure_keys_for is sequence and ensure_keys_for | count > 0
   block:
     - name: Create id_rsa/.pub keypairs
       community.crypto.openssh_keypair:
@@ -23,7 +13,7 @@
       loop: >-
         {{ [inventory_hostname] | product(ensure_keys_for) }}
       when:
-        - inventory_hostname in _hosts
+        - inventory_hostname in federation.groups.frontend
       register: keypair
 
     - name: Add authorized keys
@@ -33,9 +23,27 @@
       loop: "{{ _items }}"
       vars:
         _results: >-
-          {{ _hosts | map('extract', hostvars, ['keypair', 'results']) | flatten }}
+          {{ federation.groups.frontend | map('extract', hostvars, ['keypair', 'results']) | flatten }}
         _items: >-
           {{ _results | map('dict2items')
                       | map('selectattr', 'key', 'in', ['item', 'public_key'])
                       | map('items2dict')
                       | list }}
+
+    # NOTE: This helps to enable AUTH and DB data federation sync without manual interventions.
+    - when:
+        - federation.role == 'SLAVE'
+        - inventory_hostname in federation.groups.frontend # exclude nodes
+      block:
+        - name: Slurp public keys from the master Front-end
+          ansible.builtin.slurp:
+            path: "~{{ item }}/.ssh/id_rsa.pub"
+          delegate_to: "{{ federation.master }}"
+          loop: "{{ ensure_keys_for }}"
+          register: slurp
+
+        - name: Add authorized keys (from the master Front-end)
+          ansible.posix.authorized_key:
+            user: "{{ slurp.results[item].item }}"
+            key: "{{ slurp.results[item].content | b64decode | trim }}"
+          loop: "{{ range(slurp.results | count) }}"
