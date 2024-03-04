@@ -13,7 +13,16 @@
   ansible.builtin.lineinfile:
     path: /etc/one/oned.conf
     regexp: '^[#\s]*ONEGATE_ENDPOINT\s*=.*$'
-    line: 'ONEGATE_ENDPOINT = "{{ gate_endpoint }}"'
+    line: 'ONEGATE_ENDPOINT = "{{ _endpoint }}"'
+  vars:
+    _endpoint: >-
+      {{ gate_endpoint | d(_default) }}
+    _default: >-
+      {{ 'http://169.254.16.9:5030'
+         if (features.gateproxy | bool is true) else
+         'http://' ~ (one_vip | d(_host)) ~ ':5030' }}
+    _host: >-
+      {{ hostvars[federation.groups.frontend[0]].ansible_host }}
   notify:
     - Restart OpenNebula
 
