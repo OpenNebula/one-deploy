@@ -47,32 +47,32 @@
   failed_when:
     - shell.rc != 0 and shell.rc != 78
 
-- name: Update Datastores
-  ansible.builtin.shell:
-    cmd: |
-      set +o errexit
-      TEMPLATE="$(mktemp)"
-      tee "$TEMPLATE"
-      cat "$TEMPLATE" | onedatastore update '{{ _id }}' "$TEMPLATE"; RC="$?"
-      rm -f "$TEMPLATE"
-      exit "$RC"
-    stdin: |
-      {{ _combined | opennebula.deploy.to_one }}
-    executable: /bin/bash
-  when: _combined | opennebula.deploy.to_one != _template | opennebula.deploy.to_one
-  loop: "{{ _datastores }}"
-  vars:
-    _datastores: >-
-      {{ ds_items.values() | flatten(levels=1)
-                           | map(attribute=1)
-                           | list }}
-    _id: >-
-      {{ item.ID }}
-    _template: >-
-      {{ item.TEMPLATE }}
-    _type: >-
-      {{ _template.TYPE }}
-    _combined: >-
-      {{ _template | combine(ds_defaults[ds.mode][_type].template, recursive=true) }}
-  run_once: true
-  delegate_to: "{{ leader }}"
+- when: inventory_hostname == leader
+  block:
+    - name: Update Datastores
+      ansible.builtin.shell:
+        cmd: |
+          set +o errexit
+          TEMPLATE="$(mktemp)"
+          tee "$TEMPLATE"
+          cat "$TEMPLATE" | onedatastore update '{{ _id }}' "$TEMPLATE"; RC="$?"
+          rm -f "$TEMPLATE"
+          exit "$RC"
+        stdin: |
+          {{ _combined | opennebula.deploy.to_one }}
+        executable: /bin/bash
+      when: _combined | opennebula.deploy.to_one != _template | opennebula.deploy.to_one
+      loop: "{{ _datastores }}"
+      vars:
+        _datastores: >-
+          {{ ds_items.values() | flatten(levels=1)
+                               | map(attribute=1)
+                               | list }}
+        _id: >-
+          {{ item.ID }}
+        _template: >-
+          {{ item.TEMPLATE }}
+        _type: >-
+          {{ _template.TYPE }}
+        _combined: >-
+          {{ _template | combine(ds_defaults[ds.mode][_type].template, recursive=true) }}

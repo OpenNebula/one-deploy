@@ -2,20 +2,13 @@
 - name: Guess the Leader
   ansible.builtin.set_fact:
     leader: >-
-      {{ one_vip | d(_frontend | random)
-         if _frontend | length > 1 else
-         _frontend[0] }}
-  vars:
-    _frontend: >-
-      {{ groups[frontend_group | d('frontend')] }}
-  run_once: true
+      {{ one_vip | d(federation.groups.frontend[0]) }}
 
-- run_once: true
-  block:
+- block:
     - name: Decrement the retry counter
       ansible.builtin.set_fact:
         retry_no: >-
-          {{ retry_no | default(6, true) | int - 1 }}
+          {{ retry_no | d(6, true) | int - 1 }}
 
     # When delegate_to's argument is unreachable, then a fatal error
     # is thrown. It seems this error cannot be rescued in block/rescue/always,
@@ -27,13 +20,13 @@
         timeout: 10
 
     # NOTE: This check makes sense only when HA mode is enabled.
-    - when: (groups[frontend_group | d('frontend')] | length > 1)
+    - when: (federation.groups.frontend | count > 1)
             or
             (force_ha | bool is true)
       block:
-        - name: Get Zone 0
+        - name: Get Zone
           ansible.builtin.shell:
-            cmd: onezone show 0 --json
+            cmd: onezone show '{{ zone_name }}' --json
             executable: /bin/bash
           register: shell
           changed_when: false

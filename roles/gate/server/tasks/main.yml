@@ -25,8 +25,7 @@
     name: opennebula-gate
     enabled: true
 
-- delegate_to: "{{ leader }}"
-  run_once: true
+- when: inventory_hostname == leader
   block:
     - name: Start OneGate Server (NOW)
       ansible.builtin.service:

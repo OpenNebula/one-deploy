@@ -11,7 +11,7 @@ N/A
 Role Variables
 --------------
 
-| Name                | Type   | Default      | Example       | Description                                                                                         |
+| Name                | Type   | Default      | Example       | Description                                                                                                     |
 |---------------------|--------|--------------|---------------|-----------------------------------------------------------------------------------------------------------------|
 | `one_pass`          | `str`  | `null`       | `asd123`      | Use specific password for the `oneadmin` user.                                                                  |
 | `force_ha`          | `bool` | `false`      |               | Deploy OpenNebula in HA mode even with a single Frontend.                                                       |

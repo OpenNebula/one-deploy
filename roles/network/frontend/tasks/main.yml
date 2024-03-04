@@ -3,8 +3,7 @@
     name: opennebula/leader
   when: leader is undefined
 
-- delegate_to: "{{ leader }}"
-  run_once: true
+- when: inventory_hostname == leader
   block:
     - name: Get VNETs
       ansible.builtin.shell:
@@ -13,41 +12,43 @@
       register: shell
       changed_when: false
 
-    - name: Parse VNETs
-      ansible.builtin.set_fact:
-        vn_names_parsed: >-
-          {{ _vnets | map(attribute='NAME') | default([]) | list }}
-        vn_templates_parsed: >-
-          {{ _vnets | map(attribute='TEMPLATE') | default([]) | list }}
-        ar_keys_parsed: >-
-          {%- set output = [] -%}
-          {%- for item in _ar_dict_parsed | dict2items -%}
-            {%- for key in item.value.keys() -%}
-              {{- output.append([item.key, key]) -}}
-            {%- endfor -%}
-          {%- endfor -%}
-          {{- output -}}
-        ar_dict_parsed: >-
-          {{ _ar_dict_parsed }}
-      vars:
-        _document: >-
-          {{ shell.stdout | from_json }}
-        _vnets: >-
-          {{ [_document.VNET_POOL.VNET | default([])] | flatten | list }}
-        _ar_dict_parsed: >-
-          {%- set output = [] -%}
-          {%- for item in _vnets -%}
-            {%- set address_ranges = [item.AR_POOL.AR | default([])] | flatten | list -%}
-            {{-
-                output.append({
-                  "key": item.NAME,
-                  "value": range(address_ranges | length) | zip(address_ranges)
-                                                          | items2dict(key_name=0, value_name=1)
-                })
-            -}}
-          {%- endfor -%}
-          {{- output | items2dict -}}
+- name: Parse VNETs
+  ansible.builtin.set_fact:
+    vn_names_parsed: >-
+      {{ _vnets | map(attribute='NAME') | default([]) | list }}
+    vn_templates_parsed: >-
+      {{ _vnets | map(attribute='TEMPLATE') | default([]) | list }}
+    ar_keys_parsed: >-
+      {%- set output = [] -%}
+      {%- for item in _ar_dict_parsed | dict2items -%}
+        {%- for key in item.value.keys() -%}
+          {{- output.append([item.key, key]) -}}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{- output -}}
+    ar_dict_parsed: >-
+      {{ _ar_dict_parsed }}
+  vars:
+    _document: >-
+      {{ shell.stdout | from_json }}
+    _vnets: >-
+      {{ [_document.VNET_POOL.VNET | default([])] | flatten | list }}
+    _ar_dict_parsed: >-
+      {%- set output = [] -%}
+      {%- for item in _vnets -%}
+        {%- set address_ranges = [item.AR_POOL.AR | default([])] | flatten | list -%}
+        {{-
+            output.append({
+              "key": item.NAME,
+              "value": range(address_ranges | length) | zip(address_ranges)
+                                                      | items2dict(key_name=0, value_name=1)
+            })
+        -}}
+      {%- endfor -%}
+      {{- output | items2dict -}}
 
+- when: inventory_hostname == leader
+  block:
     - name: Update VNETs
       ansible.builtin.shell:
         cmd: |

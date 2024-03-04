@@ -12,9 +12,10 @@
           ((one_vip is undefined) and ((_frontend_count | int == 1) and (_force_ha is false)))
     msg: Please either define one_vip in the inventory, add more Frontends or enable force_ha.
   vars:
-    _frontend_count: "{{ groups[frontend_group | d('frontend')] | count }}"
-    _force_ha: "{{ force_ha | d(false) | bool }}"
-  run_once: true
+    _frontend_count: >-
+      {{ federation.groups.frontend | count }}
+    _force_ha: >-
+      {{ force_ha | d(false) | bool }}
 
 - name: Check if all vip related settings are provided
   ansible.builtin.assert:
@@ -22,7 +23,6 @@
           or
           ((one_vip is undefined) and (one_vip_cidr is undefined) and (one_vip_if is undefined))
     msg: Please either define all or undefine all one_vip, one_vip_cidr, one_vip_if vars.
-  run_once: true
 
 - name: Check if Prometheus can be enabled (one_token)
   ansible.builtin.assert:
@@ -39,6 +39,22 @@
           (one_version is version('6.6', '>='))
     msg: Please either disable the Prometheus feature or use OpenNebula version >= 6.6.
   run_once: true
+
+- name: Check if Prometheus can be enabled (federation)
+  ansible.builtin.assert:
+    that: (features.prometheus | bool is false)
+          or
+          (one_version is version('6.8.2', '>'))
+          or
+          ((groups[_federation_group] is undefined)
+          and
+          (groups[_frontend_group ~ '0'] is undefined)
+          and
+          ((force_master is undefined) or (force_master | bool is false)))
+    msg: Prometheus provisioning has been *temporarily* disabled for federated environments.
+  vars:
+    _federation_group: "{{ federation_group | d('federation') }}"
+    _frontend_group: "{{ frontend_group | d('frontend') }}"
 
 - name: Check if OneGate Proxy can be enabled (one_version)
   ansible.builtin.assert:
@@ -103,10 +119,20 @@
       RedHat:
         '8': [community]
         '9': []
-    _tmp:
-      - "{{ groups[node_group | d('node')] if groups[node_group | d('node')] is defined else [] }}"
-    _hosts: "{{ _tmp | flatten | unique }}"
+    _hosts: "{{ federation.groups.node | d([]) | unique }}"
   tags: [preinstall]
+
+- name: Prevent Ceph deployment in the parallel federation deployment mode
+  ansible.builtin.assert:
+    that: (features.ceph is undefined)
+          or
+          (features.ceph | bool is false)
+          or
+          (groups[_frontend_group ~ '0'] is undefined)
+    msg: Please use sequential federation deployment mode if you want to deploy Ceph.
+  vars:
+    _frontend_group: "{{ frontend_group | d('frontend') }}"
+  run_once: true
 
 - name: Check if DB backend is supported for the HA setup
   ansible.builtin.assert:
@@ -115,5 +141,5 @@
           (db_backend | d('MariaDB') != 'SQLite')
     msg: Please use either PostgreSQL or MariaDB as DB backend for HA setup.
   vars:
-    _frontend_count: "{{ groups[frontend_group | d('frontend')] | count }}"
+    _frontend_count: "{{ federation.groups.frontend | count }}"
     _force_ha: "{{ force_ha | d(false) | bool }}"

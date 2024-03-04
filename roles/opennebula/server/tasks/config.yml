@@ -36,7 +36,16 @@
   ansible.builtin.lineinfile:
     path: /etc/one/oned.conf
     regexp: '^[#\s]*ONEGATE_ENDPOINT\s*=.*$'
-    line: 'ONEGATE_ENDPOINT = "{{ gate_endpoint }}"'
+    line: 'ONEGATE_ENDPOINT = "{{ _endpoint }}"'
+  vars:
+    _endpoint: >-
+      {{ gate_endpoint | d(_default) }}
+    _default: >-
+      {{ 'http://169.254.16.9:5030'
+         if (features.gateproxy | bool is true) else
+         'http://' ~ (one_vip | d(_host)) ~ ':5030' }}
+    _host: >-
+      {{ hostvars[federation.groups.frontend[0]].ansible_host }}
   notify:
     - Restart OpenNebula
 
@@ -53,7 +62,7 @@
   ansible.builtin.lineinfile:
     path: /var/lib/one/remotes/etc/vnm/OpenNebulaNetwork.conf
     regexp: '^:keep_empty_bridge:.*$'
-    line: ':keep_empty_bridge: {{ "true" if keep_empty_bridge | bool is true else "false" }}'
+    line: ':keep_empty_bridge: {{ "true" if (keep_empty_bridge | bool is true) else "false" }}'
   notify:
     - Sync Remotes
 
@@ -62,10 +71,10 @@
     - name: Configure oned (RAFT_LEADER_HOOK)
       ansible.builtin.replace:
         path: /etc/one/oned.conf
-        after: "{{ item.after | default(omit) }}"
-        regexp: "{{ item.regexp | default(omit) }}"
-        before: "{{ item.before | default(omit) }}"
-        replace: "{{ item.replace | default(omit) }}"
+        after: "{{ item.after | d(omit) }}"
+        regexp: "{{ item.regexp | d(omit) }}"
+        before: "{{ item.before | d(omit) }}"
+        replace: "{{ item.replace | d(omit) }}"
       loop:
         # Uncomment existing line.
         - regexp: '^# *(RAFT_LEADER_HOOK *=.*)$'
@@ -87,10 +96,10 @@
     - name: Configure oned (RAFT_FOLLOWER_HOOK)
       ansible.builtin.replace:
         path: /etc/one/oned.conf
-        after: "{{ item.after | default(omit) }}"
-        regexp: "{{ item.regexp | default(omit) }}"
-        before: "{{ item.before | default(omit) }}"
-        replace: "{{ item.replace | default(omit) }}"
+        after: "{{ item.after | d(omit) }}"
+        regexp: "{{ item.regexp | d(omit) }}"
+        before: "{{ item.before | d(omit) }}"
+        replace: "{{ item.replace | d(omit) }}"
       loop:
         # Uncomment existing line.
         - regexp: '^# *(RAFT_FOLLOWER_HOOK *=.*)$'

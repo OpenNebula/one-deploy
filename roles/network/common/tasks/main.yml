@@ -40,4 +40,3 @@
         -}}
       {%- endfor -%}
       {{- output | items2dict -}}
-  run_once: true

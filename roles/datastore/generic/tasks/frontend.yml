@@ -6,8 +6,7 @@
     name: opennebula/leader
   when: leader is undefined
 
-- delegate_to: "{{ leader }}"
-  run_once: true
+- when: inventory_hostname == leader
   block:
     - name: Get Datastores
       ansible.builtin.shell:
@@ -16,20 +15,22 @@
       register: shell
       changed_when: false
 
-    - name: Parse Datastores
-      ansible.builtin.set_fact:
-        ds_names_parsed: >-
-          {{ _names }}
-        ds_dict_parsed: >-
-          {{ dict(_names | zip(_datastores)) }}
-      vars:
-        _document: >-
-          {{ shell.stdout | from_json }}
-        _datastores: >-
-          {{ [_document.DATASTORE_POOL.DATASTORE | default([])] | flatten | list }}
-        _names: >-
-          {{ _datastores | map(attribute='NAME') | default([]) | list }}
+- name: Parse Datastores
+  ansible.builtin.set_fact:
+    ds_names_parsed: >-
+      {{ _names }}
+    ds_dict_parsed: >-
+      {{ dict(_names | zip(_datastores)) }}
+  vars:
+    _document: >-
+      {{ shell.stdout | from_json }}
+    _datastores: >-
+      {{ [_document.DATASTORE_POOL.DATASTORE | default([])] | flatten | list }}
+    _names: >-
+      {{ _datastores | map(attribute='NAME') | default([]) | list }}
 
+- when: inventory_hostname == leader
+  block:
     # NOTE: Only "system" datastores can be enabled or disabled.
     - name: Update Datastores
       ansible.builtin.shell:

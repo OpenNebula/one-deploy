@@ -15,7 +15,6 @@
              | flatten
              | selectattr('value.managed', 'true')
              | list }}
-  run_once: true
 
 - name: Ensure /var/lib/one/datastores/ exists
   ansible.builtin.file:

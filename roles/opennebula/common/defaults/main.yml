@@ -1,6 +1,8 @@
 ---
 one_pass: null
 force_ha: false
+force_master: false
 unsafe_migrations: true
 keep_empty_bridge: true
 admin_pubkey: "{{ _admin_pubkey_loaded }}"
+zone_name: "{{ 'OpenNebula' if (federation.role != 'SLAVE') else federation.group_name }}"

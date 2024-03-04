@@ -1,0 +1,134 @@
+---
+- when: inventory_hostname == federation.groups.frontend[0] # instead of `run_once: true`
+  block:
+    - name: Stat /var/lib/one/.one/*_auth (fed)
+      ansible.builtin.stat:
+        path: "{{ item.0 }}"
+        get_attributes: false
+        get_checksum: true
+        get_mime: false
+      delegate_to: "{{ item.1 }}"
+      loop: "{{ _paths | product(_hosts) }}"
+      vars:
+        _paths: &_paths
+          - /var/lib/one/.one/one_auth
+          - /var/lib/one/.one/oneflow_auth
+          - /var/lib/one/.one/onegate_auth
+          - /var/lib/one/.one/sunstone_auth
+        _hosts:
+          - "{{ federation.master }}"
+          - "{{ inventory_hostname }}"
+      register: stat
+
+    - name: Detect if AUTH info has been replicated (fed)
+      ansible.builtin.set_fact:
+        auth_ok: >-
+          {{ _exist_ok and _cksum_ok }}
+      vars:
+        _exist_ok: >-
+          {{ stat.results | map(attribute='stat.exists') | list is all }}
+        _cksum_ok: >-
+          {{ stat.results | map(attribute='stat')
+                          | selectattr('path', 'defined')
+                          | map('dict2items')
+                          | map('selectattr', 'key', 'in', ['checksum', 'path'])
+                          | map('items2dict')
+                          | groupby('path')
+                          | map('last')
+                          | map('unique')
+                          | map('count')
+                          | unique == [1] }}
+
+    - when: not auth_ok
+      block:
+        - delegate_to: "{{ federation.master }}"
+          block:
+            - name: Archive AUTH data (fed)
+              ansible.builtin.archive:
+                dest: &master_tar_gz "/var/tmp/master-{{ inventory_hostname }}.tar.gz"
+                path: *_paths
+                format: gz
+                remove: false
+
+            # NOTE: Artifacts are copied from Front-end to Front-end via RSYNC/SSH *directly*,
+            #       please make sure SSH/RSA keys are distributed accordingly (password-less login).
+            - name: Distribute AUTH data (fed)
+              ansible.posix.synchronize:
+                dest: *master_tar_gz
+                src: *master_tar_gz
+                mode: push
+              become: false
+
+        - name: Unarchive AUTH data into /var/lib/one/.one/ (fed)
+          ansible.builtin.unarchive:
+            dest: /var/lib/one/.one/
+            src: *master_tar_gz
+            remote_src: true
+
+    - name: Get DB version info (fed)
+      ansible.builtin.shell:
+        cmd: |
+          onedb version -t '{{ db_backend_types[db_backend] }}' \
+                        -u '{{ db_owner }}' \
+                        -p '{{ db_password }}' \
+                        -d '{{ db_name }}'
+        executable: /bin/bash
+      register: shell
+      changed_when: false
+      ignore_errors: true
+
+    - name: Detect if DB has been replicated (fed)
+      ansible.builtin.set_fact:
+        db_ok: >-
+          {{ shell is success }}
+
+    - when: not db_ok
+      block:
+        - name: Init OpenNebula DB (fed)
+          ansible.builtin.shell:
+            cmd: /usr/bin/oned --init-db
+            executable: /bin/bash
+          become_user: oneadmin
+
+        - delegate_to: "{{ federation.master }}"
+          block:
+            - name: Create DB backup (fed)
+              ansible.builtin.shell:
+                cmd: |
+                  onedb backup -f --federated \
+                                  -t '{{ db_backend_types[db_backend] }}' \
+                                  -u '{{ db_owner }}' \
+                                  -p '{{ db_password }}' \
+                                  -d '{{ db_name }}' '/var/tmp/db_master-{{ inventory_hostname }}.sql'
+                executable: /bin/bash
+
+            - name: Compress DB backup (fed)
+              ansible.builtin.archive:
+                dest: &db_master_sql_gz "/var/tmp/db_master-{{ inventory_hostname }}.sql.gz"
+                path: "/var/tmp/db_master-{{ inventory_hostname }}.sql"
+                format: gz
+                remove: true
+
+        - block:
+            # NOTE: Artifacts are copied from Front-end to Front-end via RSYNC/SSH *directly*,
+            #       please make sure SSH/RSA keys are distributed accordingly (password-less login).
+            - name: Distribute DB backup (fed)
+              ansible.posix.synchronize:
+                dest: *db_master_sql_gz
+                src: *db_master_sql_gz
+                mode: push
+              delegate_to: "{{ federation.master }}"
+              become: false
+
+            - name: Restore DB backup (fed)
+              ansible.builtin.shell:
+                cmd: |
+                  set -o errexit -o pipefail
+                  zcat '{{ _db_master_sql_gz }}' | onedb restore --federated \
+                                                                 -t '{{ db_backend_types[db_backend] }}' \
+                                                                 -u '{{ db_owner }}' \
+                                                                 -p '{{ db_password }}' \
+                                                                 -d '{{ db_name }}' /dev/fd/0
+                executable: /bin/bash
+              vars:
+                _db_master_sql_gz: *db_master_sql_gz

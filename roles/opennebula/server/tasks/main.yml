@@ -13,21 +13,21 @@
   delay: 5
   tags: [preinstall]
 
-- name: Decide if Frontend should be HA
+- name: Decide if Front-end should be HA / Sort-out Federation membership
   ansible.builtin.set_fact:
     use_ha: >-
-      {{ (force_ha | bool is true) or (ansible_play_hosts_all | length > 1) }}
+      {{ (force_ha | bool is true) or (federation.groups.frontend | count > 1) }}
 
 - ansible.builtin.import_tasks:
     file: "{{ role_path }}/tasks/config.yml"
 
 - ansible.builtin.include_tasks:
-    file: "{{ role_path }}/tasks/ha.yml"
-  when: use_ha is true
-
-- ansible.builtin.include_tasks:
-    file: "{{ role_path }}/tasks/solo.yml"
-  when: use_ha is false
+    file: "{{ _tasks[federation.role] }}"
+  vars:
+    _tasks:
+      STANDALONE: "{{ role_path }}/tasks/standalone.yml"
+      MASTER: "{{ role_path }}/tasks/master.yml"
+      SLAVE: "{{ role_path }}/tasks/slave.yml"
 
 - ansible.builtin.import_tasks:
     file: "{{ role_path }}/tasks/admin.yml"

@@ -1,0 +1,77 @@
+---
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/ha.yml"
+  when: use_ha is true
+
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/solo.yml"
+  when: use_ha is false
+
+- ansible.builtin.include_role:
+    name: opennebula/leader
+
+- name: Get Zone
+  ansible.builtin.shell:
+    cmd: onezone show '{{ zone_name }}' --json
+    executable: /bin/bash
+  register: shell
+  changed_when: false
+
+- name: Get ZONE_ID of this Front-end
+  ansible.builtin.set_fact:
+    zone_id: >-
+      {{ _document.ZONE.ID }}
+  vars:
+    _document: >-
+      {{ shell.stdout | from_json }}
+
+- name: Update Zone Endpoint
+  ansible.builtin.shell:
+    cmd: |
+      set +o errexit
+      TEMPLATE="$(mktemp)"
+      tee "$TEMPLATE"
+      cat "$TEMPLATE" | onezone update '{{ zone_name }}' -a "$TEMPLATE"; RC="$?"
+      rm -f "$TEMPLATE"
+      exit "$RC"
+    stdin: |
+      {{ _update | opennebula.deploy.to_one }}
+    executable: /bin/bash
+  when:
+    - _update | opennebula.deploy.to_one
+      !=
+      _template | opennebula.deploy.to_one
+  vars:
+    _document: >-
+      {{ shell.stdout | from_json }}
+    _template: >-
+      {{ _document.ZONE.TEMPLATE }}
+    _update:
+      ENDPOINT: >-
+        http://{{ one_vip | d(hostvars[leader].ansible_host) }}:2633/RPC2
+
+- name: Configure oned (FEDERATION/MODE,ZONE_ID)
+  ansible.builtin.replace:
+    path: /etc/one/oned.conf
+    after: '\nFEDERATION *= *\[' # find the start
+    regexp: "{{ item.regexp }}"  # match the option
+    before: '\] *\n'             # find the end
+    replace: "{{ item.replace }}"
+  loop:
+    - regexp: 'MODE( *)= *.*([,\s])$'
+      replace: >-
+        MODE\g<1>= "MASTER"\g<2>
+    - regexp: 'ZONE_ID( *)= *.*([,\s])$'
+      replace: >-
+        ZONE_ID\g<1>= {{ zone_id }}\g<2>
+  register: replace
+
+- when: replace is changed
+  block:
+    - name: Restart OpenNebula (NOW)
+      ansible.builtin.service:
+        name: opennebula
+        state: restarted
+
+    - ansible.builtin.include_role:
+        name: opennebula/leader
