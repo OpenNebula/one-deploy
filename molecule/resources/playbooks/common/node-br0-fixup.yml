@@ -14,7 +14,8 @@
 
           import ipaddress, os, textwrap
 
-          prefixlen = ipaddress.IPv4Network(f"0.0.0.0/{os.getenv('ETH0_MASK', '255.255.255.0')}").prefixlen
+          eth0_mask = os.getenv('ETH0_MASK') or '255.255.255.0'
+          prefixlen = ipaddress.IPv4Network(f"0.0.0.0/{eth0_mask}").prefixlen
 
           open('/etc/systemd/network/br0.netdev', 'w').write(textwrap.dedent(f"""
               [NetDev]
