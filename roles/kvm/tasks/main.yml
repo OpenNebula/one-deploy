@@ -25,7 +25,6 @@
   ansible.builtin.slurp:
     path: /var/lib/one/.ssh/id_rsa.pub
   register: slurp
-  run_once: true
   delegate_to: "{{ leader }}"
 
 - name: Add oneadmin's pubkey to authorized keys
@@ -41,7 +40,6 @@
         executable: /bin/bash
       register: shell
       changed_when: false
-      run_once: true
 
     - name: Add this KVM Node to OpenNebula
       ansible.builtin.shell:
