@@ -38,6 +38,6 @@
                       | map('trim')
                       | select
                       | list }}
-        _host: "{{ item }}"
         _addr: "{{ hostvars[_host].ansible_host | d() }}"
-      loop: "{{ ansible_play_hosts_all }}"
+        _host: "{{ item }}"
+      loop: "{{ federation.groups.all }}"
