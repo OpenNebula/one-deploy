@@ -1,28 +1,27 @@
 ---
-- name: Get Zone 0
+- name: Get Zone
   ansible.builtin.shell:
-    cmd: onezone show 0 --json
+    cmd: onezone show '{{ zone_name }}' --json
     executable: /bin/bash
   register: shell
   changed_when: false
   ignore_errors: true
 
 - name: Detect or select a Leader
-  run_once: true
   ansible.builtin.set_fact:
-    # If we cannot detect anything, we default to the first play host.
+    # If we cannot detect anything, we default to the first host from the current Federation group.
     leader: >-
-      {{ ansible_play_hosts_all[0] if _running is falsy else _leader }}
+      {{ federation.groups.frontend[0] if _running is falsy else _leader }}
     # This fact is used to prevent extra/unneeded restart of OpenNebula (triggered via handlers)
-    # during initial deployment of a Frontend.
+    # during initial deployment of a Front-end.
     oned_no_restart: >-
-      {{ ansible_play_hosts_all
+      {{ federation.groups.frontend
          if _running is falsy else
-         ansible_play_hosts_all | difference(_peer_names) }}
+         federation.groups.frontend | difference(_peer_names) }}
   vars:
-    # We process shell results from all Frontends at once.
+    # We process shell results from all Front-ends at once.
     _results: >-
-      {{ ansible_play_hosts_all | map('extract', hostvars, ['shell']) | list }}
+      {{ federation.groups.frontend | map('extract', hostvars, ['shell']) | list }}
     _running: >-
       {{ _results | selectattr('failed', 'false') | list }}
     _documents: >-
@@ -41,11 +40,10 @@
   when: inventory_hostname == leader
 
 - ansible.builtin.include_tasks:
-    file: "{{ role_path }}/tasks/sync.yml"
-  when: inventory_hostname != leader
+    file: "{{ role_path }}/tasks/sync_ha.yml"
 
-# NOTE: We emulate here `serial: 1` using `loop:` + `delegate_to:` as HA Frontends
-# *MUST* be joined strictly sequentially.
+# NOTE: We emulate here `serial: 1` using `loop:` + `delegate_to:` as HA Front-ends
+#       *MUST* be joined strictly sequentially.
 - ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/join.yml"
     apply:
@@ -54,10 +52,5 @@
   loop_control: { loop_var: follower }
   vars:
     _followers: >-
-      {{ ansible_play_hosts_all | difference([leader]) }}
+      {{ federation.groups.frontend | difference([leader]) }}
   when: inventory_hostname == leader
-
-# Wait for the leader to become available (if only a single one is defined).
-- ansible.builtin.include_role:
-    name: opennebula/leader
-  when: ansible_play_hosts_all | count == 1

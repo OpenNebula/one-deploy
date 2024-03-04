@@ -1,0 +1,151 @@
+---
+- name: Stat /var/lib/one/.one/one_auth (ha)
+  ansible.builtin.stat:
+    path: /var/lib/one/.one/one_auth
+    get_attributes: false
+    get_checksum: true
+    get_mime: false
+  register: stat
+
+- name: Detect if AUTH info has been replicated (ha)
+  ansible.builtin.set_fact:
+    auth_ok: >-
+      {{ _exist_ok and _cksum_ok }}
+  vars:
+    _exist_ok: >-
+      {{ _stat | map(attribute='exists') | list is all }}
+    _cksum_ok: >-
+      {{ _stat | map(attribute='checksum') | list | unique | count == 1 }}
+    _stat: >-
+      {{ [inventory_hostname, leader] | map('extract', hostvars, ['stat', 'stat']) | list }}
+  when: inventory_hostname != leader
+
+- name: Stat /var/lib/one/.ssh/id_rsa (ha)
+  ansible.builtin.stat:
+    path: /var/lib/one/.ssh/id_rsa
+    get_attributes: false
+    get_checksum: true
+    get_mime: false
+  register: stat
+
+- name: Detect if SSH key has been replicated (ha)
+  ansible.builtin.set_fact:
+    key_ok: >-
+      {{ _exist_ok and _cksum_ok }}
+  vars:
+    _exist_ok: >-
+      {{ _stat | map(attribute='exists') | list is all }}
+    _cksum_ok: >-
+      {{ _stat | map(attribute='checksum') | list | unique | count == 1 }}
+    _stat: >-
+      {{ [inventory_hostname, leader] | unique | map('extract', hostvars, ['stat', 'stat']) | list }}
+  when: inventory_hostname != leader
+
+- name: Get DB version info (ha)
+  ansible.builtin.shell:
+    cmd: |
+      onedb version -t '{{ db_backend_types[db_backend] }}' \
+                    -u '{{ db_owner }}' \
+                    -p '{{ db_password }}' \
+                    -d '{{ db_name }}'
+    executable: /bin/bash
+  register: shell
+  changed_when: false
+  ignore_errors: true
+
+- name: Detect if DB has been replicated (ha)
+  ansible.builtin.set_fact:
+    db_ok: >-
+      {{ shell is success }}
+
+- name: Combine all results (ha)
+  ansible.builtin.set_fact:
+    all_key_ok: >-
+      {{ _followers | map('extract', hostvars, ['key_ok']) is all }}
+    all_auth_ok: >-
+      {{ _followers | map('extract', hostvars, ['auth_ok']) is all }}
+    all_db_ok: >-
+      {{ _followers | map('extract', hostvars, ['db_ok']) is all }}
+  vars:
+    _followers: >-
+      {{ federation.groups.frontend | difference([leader]) }}
+  when: inventory_hostname == leader
+
+- when:
+    - inventory_hostname == leader
+    - not (all_auth_ok and all_key_ok)
+  block:
+    - name: Archive AUTH and SSH data (ha)
+      ansible.builtin.archive:
+        dest: &leader_tar_gz /var/tmp/leader.tar.gz
+        path:
+          - /var/lib/one/.one
+          - /var/lib/one/.ssh
+        format: gz
+        remove: false
+
+- when:
+    - inventory_hostname != leader
+    - not (auth_ok and key_ok)
+  block:
+    # NOTE: Artifacts are copied from Front-end to Front-end via RSYNC/SSH *directly*,
+    #       please make sure SSH/RSA keys are distributed accordingly (password-less login).
+    - name: Distribute AUTH and SSH data (ha)
+      ansible.posix.synchronize:
+        dest: *leader_tar_gz
+        src: *leader_tar_gz
+        mode: push
+      delegate_to: "{{ leader }}"
+      become: false
+
+    - name: Unarchive AUTH and SSH data into /var/lib/one/ (ha)
+      ansible.builtin.unarchive:
+        dest: /var/lib/one/
+        src: *leader_tar_gz
+        remote_src: true
+
+- when:
+    - inventory_hostname == leader
+    - not all_db_ok
+  block:
+    - name: Create DB backup (ha)
+      ansible.builtin.shell:
+        cmd: |
+          onedb backup -f -t '{{ db_backend_types[db_backend] }}' \
+                          -u '{{ db_owner }}' \
+                          -p '{{ db_password }}' \
+                          -d '{{ db_name }}' /var/tmp/db_leader.sql
+        executable: /bin/bash
+
+    - name: Compress DB backup (ha)
+      ansible.builtin.archive:
+        dest: &db_leader_sql_gz /var/tmp/db_leader.sql.gz
+        path: /var/tmp/db_leader.sql
+        format: gz
+        remove: true
+
+- when:
+    - inventory_hostname != leader
+    - not db_ok
+  block:
+    # NOTE: Artifacts are copied from Front-end to Front-end via RSYNC/SSH *directly*,
+    #       please make sure SSH/RSA keys are distributed accordingly (password-less login).
+    - name: Distribute DB backup (ha)
+      ansible.posix.synchronize:
+        dest: *db_leader_sql_gz
+        src: *db_leader_sql_gz
+        mode: push
+      delegate_to: "{{ leader }}"
+      become: false
+
+    - name: Restore DB backup (ha)
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit -o pipefail
+          zcat '{{ _db_leader_sql_gz }}' | onedb restore -t '{{ db_backend_types[db_backend] }}' \
+                                                         -u '{{ db_owner }}' \
+                                                         -p '{{ db_password }}' \
+                                                         -d '{{ db_name }}' /dev/fd/0
+        executable: /bin/bash
+      vars:
+        _db_leader_sql_gz: *db_leader_sql_gz

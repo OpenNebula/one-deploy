@@ -1,0 +1,11 @@
+---
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/ha.yml"
+  when: use_ha is true
+
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/solo.yml"
+  when: use_ha is false
+
+- ansible.builtin.include_role:
+    name: opennebula/leader

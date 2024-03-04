@@ -1,0 +1,106 @@
+---
+- delegate_to: "{{ federation.master }}"
+  block:
+    - &Get_Zone
+      name: Get Zone
+      ansible.builtin.shell:
+        cmd: onezone show '{{ zone_name }}' --json
+        executable: /bin/bash
+      register: shell
+      changed_when: false
+      ignore_errors: true
+
+    - name: Create Zone
+      ansible.builtin.shell:
+        cmd: |
+         set +o errexit
+          TEMPLATE="$(mktemp)"
+          tee "$TEMPLATE"
+          cat "$TEMPLATE" | onezone create "$TEMPLATE"; RC="$?"
+          rm -f "$TEMPLATE"
+          exit "$RC"
+        stdin: |
+          {{ _template | opennebula.deploy.to_one }}
+        executable: /bin/bash
+      register: shell
+      vars:
+        _template:
+          NAME: "{{ zone_name }}"
+          # NOTE: This cannot be VIP at this point.
+          ENDPOINT: >-
+            http://{{ ansible_host }}:2633/RPC2
+      when:
+        - inventory_hostname == federation.groups.frontend[0] # instead of `run_once: true`
+        - shell is failed
+
+    - <<: *Get_Zone
+      ignore_errors: false
+
+- name: Get ZONE_ID of this Front-end
+  ansible.builtin.set_fact:
+    zone_id: >-
+      {{ _document.ZONE.ID }}
+  vars:
+    _document: >-
+      {{ shell.stdout | from_json }}
+
+- ansible.builtin.include_tasks:
+     file: "{{ role_path }}/tasks/sync_fed.yml"
+
+- name: Configure oned (FEDERATION/MODE,ZONE_ID,MASTER_ONED)
+  ansible.builtin.replace:
+    path: /etc/one/oned.conf
+    after: '\nFEDERATION *= *\[' # find the start
+    regexp: "{{ item.regexp }}"  # match the option
+    before: '\] *\n'             # find the end
+    replace: "{{ item.replace }}"
+  loop:
+    - regexp: 'MODE( *)= *.*([,\s])$'
+      replace: >-
+        MODE\g<1>= "SLAVE"\g<2>
+    - regexp: 'ZONE_ID( *)= *.*([,\s])$'
+      replace: >-
+        ZONE_ID\g<1>= {{ zone_id }}\g<2>
+    - regexp: 'MASTER_ONED( *)= *.*([,\s])$'
+      replace: >-
+        MASTER_ONED\g<1>= "http://{{ federation.master }}:2633/RPC2"\g<2>
+  register: replace
+
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/ha.yml"
+  when: use_ha is true
+
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/solo.yml"
+  when: use_ha is false
+
+- delegate_to: "{{ federation.master }}"
+  block:
+    - <<: *Get_Zone
+      ignore_errors: false
+
+    - name: Update Zone Endpoint
+      ansible.builtin.shell:
+        cmd: |
+          set +o errexit
+          TEMPLATE="$(mktemp)"
+          tee "$TEMPLATE"
+          cat "$TEMPLATE" | onezone update '{{ zone_name }}' -a "$TEMPLATE"; RC="$?"
+          rm -f "$TEMPLATE"
+          exit "$RC"
+        stdin: |
+          {{ _update | opennebula.deploy.to_one }}
+        executable: /bin/bash
+      when:
+        - inventory_hostname == federation.groups.frontend[0] # instead of `run_once: true`
+        - _update | opennebula.deploy.to_one
+          !=
+          _template | opennebula.deploy.to_one
+      vars:
+        _document: >-
+          {{ shell.stdout | from_json }}
+        _template: >-
+          {{ _document.ZONE.TEMPLATE }}
+        _update:
+          ENDPOINT: >-
+            http://{{ one_vip | d(hostvars[leader].ansible_host) }}:2633/RPC2

@@ -23,7 +23,6 @@
           or
           ((one_vip is undefined) and (one_vip_cidr is undefined) and (one_vip_if is undefined))
     msg: Please either define all or undefine all one_vip, one_vip_cidr, one_vip_if vars.
-  run_once: true
 
 - name: Check if Prometheus can be enabled (one_token)
   ansible.builtin.assert:

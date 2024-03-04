@@ -1,12 +1,24 @@
 ---
-- delegate_to: "{{ leader }}"
-  run_once: true
-  block:
-    - name: Slurp oneadmin's public key
-      ansible.builtin.slurp:
-        path: /var/lib/one/.ssh/id_rsa.pub
-      register: slurp
+- name: Slurp oneadmin's public key from this Front-end
+  ansible.builtin.slurp:
+    path: /var/lib/one/.ssh/id_rsa.pub
+  register: slurp
 
+- name: Resolve admin_pubkey for this Front-end
+  ansible.builtin.set_fact:
+    admin_pubkey: >-
+      {{ admin_pubkey | d(None) }}
+  vars:
+    # NOTE: The "_admin_pubkey_loaded" is used inside the "admin_pubkey" var / default.
+    # That way it can be overridden or disabled (with null/None) or it takes the value of
+    # existing public key from the Leader when left alone.
+    _admin_pubkey_loaded: >-
+      {{ slurp.content | b64decode | trim }}
+
+- when:
+    - federation.role != 'SLAVE'
+    - inventory_hostname == leader # instead of `run_once: true`
+  block:
     - name: Get oneadmin's user template
       ansible.builtin.shell:
         cmd: oneuser show oneadmin --json
@@ -27,8 +39,6 @@
           {{ _combined | opennebula.deploy.to_one }}
         executable: /bin/bash
       when:
-        - admin_pubkey != None  # admin_pubkey: null
-        - admin_pubkey | d('') | trim | length > 0
         - _combined | opennebula.deploy.to_one
           !=
           _template | opennebula.deploy.to_one
@@ -39,11 +49,17 @@
           {{ _document.USER.TEMPLATE }}
         _combined: >-
           {{ _template | combine(_update, recursive=true) }}
-        # NOTE: The "_admin_pubkey_loaded" is used inside the "admin_pubkey" var / default.
-        # That way it can be overridden or disabled (with null) or it takes the value of
-        # existing public key from the Leader when left alone.
         _update:
           SSH_PUBLIC_KEY: >-
-            {{ admin_pubkey | d('') | trim }}
-        _admin_pubkey_loaded: >-
-          {{ slurp.content | b64decode }}
+            {{ (_configured + _admin_pubkeys) | unique | join(_newline) }}
+        _configured: >-
+          {{ (_template.SSH_PUBLIC_KEY | d('')).splitlines() | map('trim') | select }}
+        _admin_pubkeys: >-
+          {{ _frontends | map('extract', hostvars, ['admin_pubkey'])
+                        | select
+                        | map('trim')
+                        | select }}
+        # Helper vars.
+        _frontends: >-
+          {{ groups[frontend_group | d('frontend')] }}
+        _newline: "\n"
