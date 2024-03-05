@@ -22,7 +22,7 @@ all:
     one_vip: 10.2.50.111
     one_vip_cidr: 24
     one_vip_if: br0
-    force_master: false
+    force_master: true
     zone_name: OpenNebula
 
 frontend:
