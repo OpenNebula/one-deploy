@@ -24,7 +24,7 @@ The documentation is organized based on three distinct architectures. We will st
 
 * Guidelines
 * [Development and issue tracking](https://github.com/OpenNebula/one-deploy/issues).
-* [Community Forum](https://forum.opennebula.io).
+* [Community Forum](https://forum.opennebula.io/c/development/one-deploy/).
 
 ## Contact Information
 
