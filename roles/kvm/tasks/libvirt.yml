@@ -91,3 +91,35 @@
         - /var/run/libvirt/virtqemud-sock
         - /var/run/libvirt/virtqemud-sock-ro
       when: shell is failed
+
+- when: ansible_os_family == 'Debian'
+  block:
+    - name: Check if AppArmor configuration exists
+      ansible.builtin.stat:
+        path: /etc/apparmor.d/abstractions/libvirt-qemu
+        get_attributes: false
+        get_checksum: false
+        get_mime: false
+      register: stat_libvirt_qemu
+
+    - when: stat_libvirt_qemu.stat.exists is true
+      block:
+        - name: Add permissions to AppArmor
+          ansible.builtin.lineinfile:
+            dest: /etc/apparmor.d/abstractions/libvirt-qemu
+            line: "{{ item }}"
+          loop:
+            - "  /srv/** rwk,"
+            - "  /var/lib/one/datastores/** rwk,"
+          register: lineinfile_libvirt_qemu
+
+        - name: Reload apparmor
+          ansible.builtin.service:
+            name: apparmor
+            state: reloaded
+          register: result
+          failed_when:
+            - result is failed
+            - result.msg is not contains("find")
+            - result.msg is not contains("found")
+          when: lineinfile_libvirt_qemu is changed
