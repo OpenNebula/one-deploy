@@ -4,6 +4,7 @@ features_defaults:
   prometheus: false
   passenger: false
   ceph: false
+  evpn: false
 
 ceph_defaults:
   pool: one

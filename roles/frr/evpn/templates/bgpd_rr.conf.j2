@@ -1,0 +1,23 @@
+!
+!  Route Reflector configuration
+!
+hostname {{ ansible_nodename }}
+!
+log file /var/log/frr/bgpd.log informational
+!
+router bgp {{ evpn_as }}
+  bgp router-id {{ vars['ansible_' ~ evpn_if].ipv4.address }}
+  bgp cluster-id {{ evpn_cluster_id }}
+  no bgp default ipv4-unicast
+  neighbor fabric peer-group
+  neighbor fabric remote-as {{ evpn_as }}
+  neighbor fabric capability extended-nexthop
+  neighbor fabric update-source {{ vars['ansible_' ~ evpn_if].ipv4.address }}
+  bgp listen range {{ vars['ansible_' ~ evpn_if].ipv4.network ~ '/' ~ evpn_pfxlen }} peer-group fabric
+  address-family l2vpn evpn
+    neighbor fabric activate
+    neighbor fabric route-reflector-client
+    advertise-all-vni
+  exit-address-family
+  !
+end

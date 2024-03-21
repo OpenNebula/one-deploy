@@ -1,0 +1,31 @@
+---
+- name: Configure BGP
+  ansible.builtin.template:
+    dest: /etc/frr/bgpd.conf
+    src: >-
+      {{ 'bgpd_rr.conf.j2'
+         if (vars['ansible_' ~ evpn_if].ipv4.address in evpn_rr_servers) else
+         'bgpd_vtep.conf.j2' }}
+    owner: frr
+    group: frr
+    mode: u=rw,g=r,o=
+  when: vars['ansible_' ~ evpn_if].ipv4.address is defined
+  register: template_bgpd_conf
+
+- name: Enable BGP
+  ansible.builtin.replace:
+    path: /etc/frr/daemons
+    regexp: '^bgpd=no'
+    replace: 'bgpd=yes'
+  register: replace_daemons
+
+- name: (Re)Start FRR service (NOW)
+  ansible.builtin.service:
+    name: frr
+    enabled: true
+    state: >-
+      {{ 'restarted'
+          if ((template_bgpd_conf is defined and template_bgpd_conf is changed)
+              or
+              (replace_daemons is changed)) else
+         'started' }}

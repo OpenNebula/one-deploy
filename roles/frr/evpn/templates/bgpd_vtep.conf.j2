@@ -1,0 +1,26 @@
+!
+!  VTEP configuration file
+!
+hostname {{ ansible_nodename }}
+!
+log file /var/log/frr/bgpd.log informational
+!
+router bgp {{ evpn_as }}
+  bgp router-id {{ vars['ansible_' ~ evpn_if].ipv4.address }}
+  no bgp default ipv4-unicast
+  neighbor fabric peer-group
+  neighbor fabric remote-as {{ evpn_as }}
+  neighbor fabric capability extended-nexthop
+  ! debug route reflector list: {{ evpn_rr_servers }}
+{% for rr in evpn_rr_servers %}
+{% if rr != vars['ansible_' ~ evpn_if].ipv4.address %}
+  neighbor {{ rr }} peer-group fabric
+{% endif %}
+{% endfor %}
+  !
+  address-family l2vpn evpn
+    neighbor fabric activate
+    advertise-all-vni
+  exit-address-family
+  !
+end
