@@ -18,4 +18,5 @@ __pycache__/
 !/inventory/federation-master.yml
 !/inventory/federation-slave1.yml
 !/inventory/federation-slave2.yml
+!/inventory/evpn-ha.yml
 /.env.yml

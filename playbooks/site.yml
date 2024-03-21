@@ -28,6 +28,18 @@
     - role: gui
       tags: [gui]
 
+- hosts: "{{ router_group | d('router') }}"
+  tags: [network]
+  collections:
+    - opennebula.deploy
+  roles:
+    - role: helper/facts
+      when: &evpn
+        - features.evpn | bool is true
+
+    - role: frr/evpn
+      when: *evpn
+
 - hosts: "{{ node_group | d('node') }}"
   tags: [node]
   collections:
@@ -48,6 +60,10 @@
 
     - role: datastore/node
       tags: [datastore]
+
+    - role: frr/evpn
+      tags: [network]
+      when: *evpn
 
     - role: network/node
       tags: [network]

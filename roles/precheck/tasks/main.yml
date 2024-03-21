@@ -134,6 +134,18 @@
     _frontend_group: "{{ frontend_group | d('frontend') }}"
   run_once: true
 
+- name: Prevent FRR deployment in the parallel federation deployment mode
+  ansible.builtin.assert:
+    that: (features.evpn is undefined)
+          or
+          (features.evpn | bool is false)
+          or
+          (groups[_frontend_group ~ '0'] is undefined)
+    msg: Please use sequential federation deployment mode if you want to use FRR/EVPN.
+  vars:
+    _frontend_group: "{{ frontend_group | d('frontend') }}"
+  run_once: true
+
 - name: Check if DB backend is supported for the HA setup
   ansible.builtin.assert:
     that: ((_frontend_count | int == 1) and (_force_ha is false))

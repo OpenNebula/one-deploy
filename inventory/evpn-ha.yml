@@ -1,0 +1,45 @@
+---
+all:
+  vars:
+    ansible_user: ubuntu
+    ensure_keys_for: [ubuntu, root]
+    one_pass: opennebula
+    one_version: '6.8'
+    features: { evpn: true }
+    ds: { mode: ssh }
+    vn:
+      evpn0:
+        managed: true
+        template:
+          VN_MAD: vxlan
+          VXLAN_MODE: evpn
+          IP_LINK_CONF: nolearning=
+          PHYDEV: eth0
+          AUTOMATIC_VLAN_ID: "YES"
+          GUEST_MTU: 1450
+          AR:
+            TYPE: IP4
+            IP: 172.17.2.200
+            SIZE: 48
+          NETWORK_ADDRESS: 172.17.2.0
+          NETWORK_MASK: 255.255.255.0
+          GATEWAY: 172.17.2.1
+          DNS: 1.1.1.1
+    one_vip: 10.2.50.86
+    one_vip_cidr: 24
+    one_vip_if: eth0
+
+router:
+  hosts:
+    n1a1: { ansible_host: 10.2.50.10 }
+    n1a2: { ansible_host: 10.2.50.11 }
+
+frontend:
+  hosts:
+    n1a1: { ansible_host: 10.2.50.10 }
+    n1a2: { ansible_host: 10.2.50.11 }
+
+node:
+  hosts:
+    n1b1: { ansible_host: 10.2.50.20 }
+    n1b2: { ansible_host: 10.2.50.21 }
