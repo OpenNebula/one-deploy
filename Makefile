@@ -35,7 +35,7 @@ infra pre ceph site main:
 requirements: requirements-python requirements-galaxy
 
 requirements-python: $(SELF)/requirements.txt
-	pip3 install --requirement $<
+	pip3 install --requirement $< 2> /dev/null || pip3 install --break-system-packages --requirement $<
 
 requirements-galaxy: $(SELF)/requirements.yml
 	ansible-galaxy collection install --requirements-file $<
