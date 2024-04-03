@@ -1,0 +1,23 @@
+---
+# The AS number used for BGP.
+evpn_as: 65000
+
+# Network interface used to establish BGP Control Plane.
+evpn_if: >-
+  {{ ansible_default_ipv4.interface }}
+
+# A cluster is a collection of route reflectors and their clients, and is used by route reflectors to avoid looping.
+evpn_cluster_id: >-
+  {{ one_vip | d(hostvars[groups[frontend_group | d('frontend')][0]]['ansible_' ~ evpn_if].ipv4.address) }}
+
+# Prefix length for the BGP network.
+evpn_pfxlen: >-
+  {{ vars['ansible_' ~ evpn_if].ipv4.prefix }}
+
+# BGP Route Reflectors.
+# NOTE: If you don't define the "router" inventory group and override the "evpn_rr_servers" variable, then
+#       you can use existing RRs (that are unmanaged by one-deploy).
+evpn_rr_servers: >-
+  {{ (groups[router_group | d('router')] | map('extract', hostvars, ['ansible_' ~ evpn_if, 'ipv4', 'address']) | list)
+     if (groups[router_group | d('router')] is defined) else
+     [] }}
