@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "one-deploy"
+version = "1.0.0"
+description = ""
+authors = ["OpenNebula <contact@opennebula.io>"]
+
+license = "Apache-2.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+ansible-core = "<2.16"
+molecule = "*"
+netaddr = "*"
+pyone = "*"
+python = "^3.9"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

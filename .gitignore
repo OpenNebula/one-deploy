@@ -1,8 +1,6 @@
 *.swp
 *.tar.gz
 __pycache__/
-.galaxy-key
-.galaxy-server
 /ansible_collections/*
 !/ansible_collections/opennebula/deploy
 /inventory/.one-deploy/
@@ -20,3 +18,4 @@ __pycache__/
 !/inventory/federation-slave2.yml
 !/inventory/evpn-ha.yml
 /.env.yml
+/poetry.lock
