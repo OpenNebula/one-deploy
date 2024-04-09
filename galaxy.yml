@@ -6,7 +6,7 @@ version: 1.0.0
 readme: README.md
 
 authors:
-- http://opennebula.io <contact@opennebula.io>
+- OpenNebula <contact@opennebula.io>
 description: HA DEPLOYMENT FOR OPENNEBULA (ANSIBLE)
 
 license: []
