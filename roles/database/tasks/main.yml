@@ -11,7 +11,7 @@
       Debian:
         MariaDB: [mariadb-server]
         PostgreSQL: [postgresql]
-        SQLite: [sqlite]
+        SQLite: [sqlite3]
       RedHat:
         MariaDB: [mariadb-server]
         PostgreSQL: [postgresql-server]
