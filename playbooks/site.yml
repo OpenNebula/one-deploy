@@ -1,11 +1,14 @@
 ---
 - hosts: "{{ frontend_group | d('frontend') }}"
-  tags: [frontend]
+  tags: [frontend, stage1]
   collections:
     - opennebula.deploy
   roles:
     - role: helper/facts
       tags: [always]
+
+    # Make sure all facts are usable on the playbook level.
+    - role: common
 
     - role: repository
       tags: [preinstall, prometheus]
@@ -34,19 +37,25 @@
     - opennebula.deploy
   roles:
     - role: helper/facts
+      tags: [always]
+
+    # Make sure all facts are usable on the playbook level.
+    - role: common
+
+    - role: frr/evpn
       when: &evpn
         - features.evpn | bool is true
 
-    - role: frr/evpn
-      when: *evpn
-
 - hosts: "{{ node_group | d('node') }}"
-  tags: [node]
+  tags: [node, stage2]
   collections:
     - opennebula.deploy
   roles:
     - role: helper/facts
       tags: [always]
+
+    # Make sure all facts are usable on the playbook level.
+    - role: common
 
     - role: repository
       tags: [preinstall, prometheus]
@@ -80,12 +89,15 @@
         - one_token is defined and one_token is truthy
 
 - hosts: "{{ frontend_group | d('frontend') }}"
-  tags: [frontend]
+  tags: [frontend, stage3]
   collections:
     - opennebula.deploy
   roles:
     - role: helper/facts
       tags: [always]
+
+    # Make sure all facts are usable on the playbook level.
+    - role: common
 
     - role: ceph/frontend
       tags: [ceph]
@@ -108,6 +120,9 @@
   roles:
     - role: helper/facts
       tags: [always]
+
+    # Make sure all facts are usable on the playbook level.
+    - role: common
 
     - role: repository
       tags: [preinstall, grafana]
