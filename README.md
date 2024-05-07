@@ -4,21 +4,8 @@ The OpenNebula Ansible project consists of a set of playbooks and roles that let
 
 The documentation is organized based on three distinct architectures. We will start with the most straightforward architecture and gradually move towards more complex scenarios. For each scenario, we will provide concise explanations of the configurations implemented on both the platform and OpenNebula.
 
-## Contents
-
-* [Requirements & Platform Notes](../../wiki/sys_reqs)
-* [Release Notes](https://github.com/OpenNebula/one-deploy/releases)
-* [Using the playbooks](../../wiki/sys_use)
-* Deployments
-    * [Local storage](../../wiki/arch_single_local)
-    * [Shared storage](../../wiki/arch_single_shared)
-    * [Ceph storage](../../wiki/arch_single_ceph)
-    * [High availability front-ends](../../wiki/arch_ha)
-    * [Connect through a bastion host](../../wiki/arch_bastion)
-    * [Other configurations](../../wiki/arch_other)
-* [Verifying the installation](../../wiki/sys_verify)
-* [Playbook reference](../../wiki/sys_reference)
-* [Molecule testing](../../wiki/test_molecule)
+## Documentation
+[Documentation for one-deploy is in the project Wiki](../../wiki/)
 
 ## Contributing
 
