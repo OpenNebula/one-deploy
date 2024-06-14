@@ -40,7 +40,7 @@
   when: inventory_hostname in _hosts and _mount_path != '/var/lib/one/datastores'
   vars:
     _mount_path: >-
-      {{ ds_dict[item].symlink.src | realpath }}
+      {{ ds_dict[item].symlink.src | normpath }}
     _base_path: >-
       /var/lib/one/datastores/{{ ds_dict[item].id }}
     _hosts: >-

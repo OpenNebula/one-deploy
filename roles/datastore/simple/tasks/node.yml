@@ -23,9 +23,9 @@
                                 | count) }}
       vars:
         _mount_path: >-
-          {{ ds_items.image[item].0.path | realpath }}
+          {{ ds_items.image[item].0.path | normpath }}
         _base_path: >-
-          {{ ds_items.image[item].1.BASE_PATH | realpath }}
+          {{ ds_items.image[item].1.BASE_PATH | normpath }}
       register: shell
       changed_when:
         - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
@@ -40,9 +40,9 @@
                              | count) }}
   vars:
     _mount_path: >-
-      {{ ds_items.system[item].0.path | realpath }}
+      {{ ds_items.system[item].0.path | normpath }}
     _base_path: >-
-      {{ ds_items.system[item].1.BASE_PATH | realpath }}
+      {{ ds_items.system[item].1.BASE_PATH | normpath }}
   register: shell
   changed_when:
     - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
