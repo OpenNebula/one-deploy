@@ -23,10 +23,13 @@
           {{ groups[_node_group ~ _index] }}
       # Points to the leader of the master Front-end.
       # NOTE: This handles both federation deployment modes, "parallel" and "sequential".
-      master: >-
+      master_host: >-
         {{ (hostvars[_leader].one_vip | d(hostvars[_leader].ansible_host))
            if (_leader is defined) else
            hostvars[_master].ansible_host }}
+      master_user: >-
+        {{ hostvars[_master].ansible_user }}
+      master: master # inventory
   vars:
     # The inferred master machine.
     _master: >-
@@ -63,6 +66,16 @@
     #       master Front-end to handle subsequent slave Front-end additions).
     _force_master: >-
       {{ (force_master is defined) and (force_master | bool) is true }}
+
+- name: Dynamically add ungrouped inventory host to represent the Master
+  ansible.builtin.add_host:
+    name: master
+    ansible_host: "{{ federation.master_host }}"
+    ansible_user: "{{ federation.master_user }}"
+  when:
+    - federation.role != 'STANDALONE'
+    - hostvars.master is undefined
+  changed_when: false
 
 - name: Compute facts (Ceph)
   ansible.builtin.set_fact:
