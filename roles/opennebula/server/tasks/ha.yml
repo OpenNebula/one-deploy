@@ -17,7 +17,7 @@
     oned_no_restart: >-
       {{ federation.groups.frontend
          if _running is falsy else
-         federation.groups.frontend | difference(_peer_names) }}
+         federation.groups.frontend | reject('in', _peer_names) }}
   vars:
     # We process shell results from all Front-ends at once.
     _results: >-
@@ -52,5 +52,5 @@
   loop_control: { loop_var: follower }
   vars:
     _followers: >-
-      {{ federation.groups.frontend | difference([leader]) }}
+      {{ federation.groups.frontend | reject('in', [leader]) }}
   when: inventory_hostname == leader

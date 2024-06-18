@@ -68,7 +68,7 @@
       {{ _followers | map('extract', hostvars, ['db_ok']) is all }}
   vars:
     _followers: >-
-      {{ federation.groups.frontend | difference([leader]) }}
+      {{ federation.groups.frontend | reject('in', [leader]) }}
   when: inventory_hostname == leader
 
 - when:

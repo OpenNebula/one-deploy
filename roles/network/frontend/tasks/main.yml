@@ -69,7 +69,7 @@
         _name_to_template: >-
           {{ dict(vn_names_parsed | zip(vn_templates_parsed)) }}
         _existing: >-
-          {{ vn_names | intersect(vn_names_parsed) | list }}
+          {{ vn_names | select('in', vn_names_parsed) }}
         _combined: >-
           {{ _name_to_template[item] | combine(vn_dict[item].template, recursive=true) }}
 
@@ -88,7 +88,7 @@
       loop: "{{ _missing }}"
       vars:
         _missing: >-
-          {{ vn_names | difference(vn_names_parsed) | list }}
+          {{ vn_names | reject('in', vn_names_parsed) }}
 
     - name: Update ARs
       ansible.builtin.shell:
@@ -108,7 +108,7 @@
       loop: "{{ _existing }}"
       vars:
         _existing: >-
-          {{ ar_keys | intersect(ar_keys_parsed) | list }}
+          {{ ar_keys | select('in', ar_keys_parsed) }}
         _combined: >-
           {{ ar_dict_parsed[item.0][item.1] | combine(ar_dict[item.0][item.1], recursive=true) }}
 
@@ -127,4 +127,4 @@
       loop: "{{ _missing }}"
       vars:
         _missing: >-
-          {{ ar_keys | difference(ar_keys_parsed) | list }}
+          {{ ar_keys | reject('in', ar_keys_parsed) }}
