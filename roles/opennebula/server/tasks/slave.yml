@@ -63,7 +63,7 @@
         ZONE_ID\g<1>= {{ zone_id }}\g<2>
     - regexp: 'MASTER_ONED( *)= *.*([,\s])$'
       replace: >-
-        MASTER_ONED\g<1>= "http://{{ federation.master }}:2633/RPC2"\g<2>
+        MASTER_ONED\g<1>= "http://{{ federation.master_host }}:2633/RPC2"\g<2>
   register: replace
 
 - ansible.builtin.include_tasks:

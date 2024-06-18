@@ -19,18 +19,36 @@
         port: "{{ ping_port | int }}"
         timeout: 10
 
-    # NOTE: This check makes sense only when HA mode is enabled.
+    # This check makes sense only when HA mode is enabled.
     - when: (federation.groups.frontend | count > 1)
             or
             (force_ha | bool is true)
       block:
+        # NOTE: This is needed to handle custom ansible_user when argument
+        #       of delegate_to is the same as one_vip. If it's not defined
+        #       in the inventory, then Ansible ignores remote_user and takes
+        #       whatever is considered default (which in general may be incorrect!).
+        #       Here we assume that all Front-ends in the group can be accessed
+        #       uniformly with the same user.
+        - name: Dynamically add ungrouped inventory host to represent the Leader
+          ansible.builtin.add_host:
+            name: "{{ _federation.group_name }}-leader"
+            ansible_host: "{{ hostvars[_leader].ansible_host | d(_leader) }}"
+            ansible_user: "{{ hostvars[_federation.groups.frontend[0]].ansible_user }}"
+          when: _leader is defined
+          vars:
+            _leader: "{{ hostvars[item].leader }}"
+            _federation: "{{ hostvars[item].federation }}"
+          loop: "{{ play_hosts }}"
+          changed_when: false
+
         - name: Get Zone
           ansible.builtin.shell:
             cmd: onezone show '{{ zone_name }}' --json
             executable: /bin/bash
           register: shell
           changed_when: false
-          delegate_to: "{{ leader }}"
+          delegate_to: "{{ federation.group_name }}-leader"
 
         - name: Detect if the Leader is there
           ansible.builtin.set_fact:
