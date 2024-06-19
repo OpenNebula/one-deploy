@@ -15,7 +15,7 @@
         _active: >-
           {{ dict(shell.stdout_lines | map('split', _sep)) }}
         _selected: >-
-          {{ _active.keys() | intersect([_phydev, _bridge]) }}
+          {{ _active.keys() | select('in', [_phydev, _bridge]) }}
         _sep: ':'
 
     - name: Map CON -> KV (get)

@@ -39,7 +39,7 @@
       {{ dict(_frontends | zip(_frontends | map('extract', hostvars, ['infra_hostname']))) }}
     # NOTE: We deliberately remove existing (defined) VMs as we don't touch them ever again (unless undefined)!
     _frontends: >-
-      {{ groups[_frontend_group] | difference(defined_vms.list_vms) }}
+      {{ groups[_frontend_group] | reject('in', defined_vms.list_vms) }}
     _frontend_group: >-
       {{ frontend_group | d('frontend') }}
 

@@ -54,7 +54,7 @@
       loop: "{{ _existing }}"
       vars:
         _existing: >-
-          {{ ds_names | intersect(ds_names_parsed) | list }}
+          {{ ds_names | select('in', ds_names_parsed) }}
         _combined: >-
           {{ ds_dict_parsed[item].TEMPLATE | combine(ds_dict[item].template, recursive=true) }}
 
@@ -73,4 +73,4 @@
       loop: "{{ _missing }}"
       vars:
         _missing: >-
-          {{ ds_names | difference(ds_names_parsed) | list }}
+          {{ ds_names | reject('in', ds_names_parsed) }}
