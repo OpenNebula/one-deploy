@@ -4,6 +4,7 @@
     - name: Install Free Range Routing dependencies
       ansible.builtin.package:
         name: "{{ _common + _specific[ansible_os_family] }}"
+        update_cache: yes
       vars:
         _common: [ca-certificates, gnupg2]
         _specific:
