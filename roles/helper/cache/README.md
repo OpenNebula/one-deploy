@@ -11,9 +11,10 @@ N/A
 Role Variables
 --------------
 
-| Name               | Type   | Default | Example | Description             |
-|--------------------|--------|---------|---------|-------------------------|
-| `update_pkg_cache` | `bool` | `false` | `true`  | Update APT / DNF cache. |
+| Name               | Type   | Default | Example | Description                            |
+|--------------------|--------|---------|---------|----------------------------------------|
+| `update_pkg_cache` | `bool` | `false` | `true`  | Update APT / DNF cache.                |
+| `unattend_disable` | `bool` | `false` | `true`  | Purges the unattended upgrade service  |
 
 Dependencies
 ------------
@@ -25,7 +26,7 @@ Example Playbook
 
     - hosts: frontend:node
       roles:
-        - { role: opennebula.deploy.helper.cache, update_pkg_cache: true }
+        - { role: opennebula.deploy.helper.cache, update_pkg_cache: true, unattend_disable: true }
 
 License
 -------

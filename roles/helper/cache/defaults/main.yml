@@ -1,2 +1,3 @@
 ---
 update_pkg_cache: false
+unattend_disable: false
