@@ -1,4 +1,13 @@
 ---
+- name: Purge unattended upgrade service
+  ansible.builtin.package:
+    name: unattended-upgrades
+    state: absent
+    purge: true
+  when:
+  - unattend_disable | bool is true
+  - ansible_os_family == "Debian"
+
 - name: Update package cache
   ansible.builtin.package:
     update_cache: true
