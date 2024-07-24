@@ -13,7 +13,7 @@ Role Variables
 
 | Name          | Type  | Default      | Example | Description                                           |
 |---------------|-------|--------------|---------|-------------------------------------------------------|
-| `db_backend`  | `str` | `MariaDB`    |         | Can be `MariaDB`, `PostgreSQL` or `SQLite`.           |
+| `db_backend`  | `str` | `MariaDB`    |         | `MariaDB` or `SQLite`.                                |
 | `db_name`     | `str` | `opennebula` |         | Name of the database/schema used by OpenNebula.       |
 | `db_owner`    | `str` | `oneadmin`   |         | User used by OpenNebula to access the database.       |
 | `db_password` | `str` | `opennebula` |         | Password used by OpenNebula to authenticate the user. |
