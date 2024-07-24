@@ -1,0 +1,25 @@
+---
+- name: Configure OneGate Server (:host)
+  ansible.builtin.lineinfile:
+    path: /etc/one/onegate-server.conf
+    regexp: '^:host:.*$'
+    line: ':host: "{{ gate_bind_addr }}"'
+  notify:
+    - Restart OneGate Server
+
+# NOTE: ONEGATE_ENDPOINT is automatically propagated (as an environment variable)
+#       to VMs that are expected to be using OneGate.
+- name: Configure oned (ONEGATE_ENDPOINT)
+  ansible.builtin.lineinfile:
+    path: /etc/one/oned.conf
+    regexp: '^[#\s]*ONEGATE_ENDPOINT\s*=.*$'
+    line: 'ONEGATE_ENDPOINT = "{{ _endpoint }}"'
+  vars:
+    _endpoint: >-
+      {{ gate_endpoint | d(_default) }}
+    _default: >-
+      {{ 'http://' ~ (one_vip | d(_host)) ~ ':5030' }}
+    _host: >-
+      {{ hostvars[federation.groups.frontend[0]].ansible_host }}
+  notify:
+    - Restart OpenNebula

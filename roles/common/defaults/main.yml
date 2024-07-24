@@ -1,6 +1,5 @@
 ---
 features_defaults:
-  gateproxy: false
   prometheus: false
   passenger: false
   ceph: false

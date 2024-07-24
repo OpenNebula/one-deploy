@@ -41,9 +41,7 @@
     _endpoint: >-
       {{ gate_endpoint | d(_default) }}
     _default: >-
-      {{ 'http://169.254.16.9:5030'
-         if (features.gateproxy | bool is true) else
-         'http://' ~ (one_vip | d(_host)) ~ ':5030' }}
+      {{ 'http://' ~ (one_vip | d(_host)) ~ ':5030' }}
     _host: >-
       {{ hostvars[federation.groups.frontend[0]].ansible_host }}
   notify:

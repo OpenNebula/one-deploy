@@ -15,7 +15,7 @@
 
     - role: database
     - role: opennebula/server
-    - role: gate/server
+    - role: gate
       tags: [gate]
 
     # Wait until the Leader is elected, then run handlers (and possibly restart all oned instances),
@@ -76,11 +76,6 @@
 
     - role: network/node
       tags: [network]
-
-    - role: gate/proxy
-      tags: [gate]
-      when:
-        - features.gateproxy | bool is true
 
     - role: prometheus/exporter
       tags: [prometheus]
