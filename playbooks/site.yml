@@ -1,6 +1,6 @@
 ---
-- hosts: "{{ frontend_group | d('frontend') }}"
-  tags: [frontend, stage1]
+- hosts: all
+  tags: [frontend, node, grafana, stage1, stage2, stage3]
   collections:
     - opennebula.deploy
   roles:
@@ -10,9 +10,16 @@
     # Make sure all facts are usable on the playbook level.
     - role: common
 
+    # The repository role can be safely executed on the whole inventory, it will auto-detect
+    # which types of repositories it should install on which hosts.
     - role: repository
       tags: [preinstall, prometheus]
 
+- hosts: "{{ frontend_group | d('frontend') }}"
+  tags: [frontend, stage1]
+  collections:
+    - opennebula.deploy
+  roles:
     - role: database
     - role: opennebula/server
     - role: gate
@@ -36,12 +43,6 @@
   collections:
     - opennebula.deploy
   roles:
-    - role: helper/facts
-      tags: [always]
-
-    # Make sure all facts are usable on the playbook level.
-    - role: common
-
     - role: frr/evpn
       when: &evpn
         - features.evpn | bool is true
@@ -51,15 +52,6 @@
   collections:
     - opennebula.deploy
   roles:
-    - role: helper/facts
-      tags: [always]
-
-    # Make sure all facts are usable on the playbook level.
-    - role: common
-
-    - role: repository
-      tags: [preinstall, prometheus]
-
     - role: kvm
 
     - role: ceph/node
@@ -88,12 +80,6 @@
   collections:
     - opennebula.deploy
   roles:
-    - role: helper/facts
-      tags: [always]
-
-    # Make sure all facts are usable on the playbook level.
-    - role: common
-
     - role: ceph/frontend
       tags: [ceph]
       when:
@@ -113,15 +99,6 @@
   collections:
     - opennebula.deploy
   roles:
-    - role: helper/facts
-      tags: [always]
-
-    # Make sure all facts are usable on the playbook level.
-    - role: common
-
-    - role: repository
-      tags: [preinstall, grafana]
-
     - role: prometheus/grafana
       tags: [grafana]
       when: *prometheus

@@ -18,7 +18,6 @@ Role Variables
 | `ping_port`       | `int`  | `22`       |               | TCP port to check while detecting the Leader.             |
 | `force_ha`        | `bool` | `false`    |               | Deploy OpenNebula in HA mode even with a single Frontend. |
 
-
 Dependencies
 ------------
 

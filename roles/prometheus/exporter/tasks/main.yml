@@ -1,19 +1,26 @@
 ---
-- name: Install Prometheus and dependencies
-  ansible.builtin.package:
-    name: "{{ _common + _specific[ansible_os_family] }}"
-  vars:
-    _common:
-      - bash
-      - opennebula-prometheus-{{ node_hypervisor }}
-    _specific:
-      Debian: []
-      RedHat: []
-  register: package
-  until: package is success
-  retries: 12
-  delay: 5
-  tags: [preinstall]
+- tags: [preinstall]
+  block:
+    - ansible.builtin.include_role:
+        name: repository
+      vars:
+        repos_enabled: [opennebula]
+      when: opennebula_repo is undefined
+
+    - name: Install Prometheus and dependencies
+      ansible.builtin.package:
+        name: "{{ _common + _specific[ansible_os_family] }}"
+      vars:
+        _common:
+          - bash
+          - opennebula-prometheus-{{ node_hypervisor }}
+        _specific:
+          Debian: []
+          RedHat: []
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
 
 - name: Enable / Start Prometheus exporters (NOW)
   ansible.builtin.service:

@@ -1,73 +1,17 @@
 ---
 - tags: [preinstall]
   block:
-    - name: Install Grafana dependencies
+    - ansible.builtin.include_role:
+        name: repository
+      vars:
+        repos_enabled: [grafana, opennebula]
+      when: grafana_repo is undefined or opennebula_repo is undefined
+
+    - name: Install Grafana with dependencies
       ansible.builtin.package:
         name: "{{ _common + _specific[ansible_os_family] }}"
       vars:
-        _common: [bash, ca-certificates, gnupg2, opennebula-prometheus]
-        _specific:
-          Debian: [apt-transport-https, software-properties-common]
-          RedHat: []
-      register: package
-      until: package is success
-      retries: 12
-      delay: 5
-
-    - name: Check if Grafana GPG key is installed
-      ansible.builtin.stat:
-        path: "{{ grafana_repo_key_path[ansible_os_family] }}"
-        get_attributes: false
-        get_checksum: false
-        get_mime: false
-      register: stat
-
-    # NOTE: GPG keys are downloaded when any of them is missing on any of the play hosts.
-    #       That way we make sure:
-    #       - the key is downloaded only once and only when necessary
-    #       - keys are identical everywhere
-    - when: ansible_play_hosts | map('extract', hostvars, ['stat', 'stat', 'exists']) is not all
-      block:
-        - name: Download Grafana GPG key (once)
-          ansible.builtin.uri:
-            url: "{{ grafana_repo_key_url[ansible_os_family] }}"
-            return_content: true
-          run_once: true
-          register: uri
-
-        - name: Install Grafana GPG key
-          ansible.builtin.copy:
-            dest: "{{ grafana_repo_key_path[ansible_os_family] }}"
-            mode: u=rw,go=r
-            content: "{{ uri.content }}"
-
-    - name: Install Grafana package source
-      ansible.builtin.copy:
-        dest: "{{ grafana_repo_path[ansible_os_family] }}"
-        mode: u=rw,go=r
-        content: "{{ _content[ansible_os_family] }}"
-      vars:
-        _content:
-          Debian: |
-            deb {{ grafana_repo_url.Debian }} stable main
-          RedHat: |
-            [grafana]
-            name=grafana
-            baseurl={{ grafana_repo_url.RedHat }}
-            enabled=1
-            gpgkey=file://{{ grafana_repo_key_path.RedHat }}
-            gpgcheck=1
-            repo_gpgcheck=1
-            sslverify=1
-            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
-      register: copy
-
-    - name: Install Grafana
-      ansible.builtin.package:
-        name: "{{ _common + _specific[ansible_os_family] }}"
-        update_cache: "{{ copy is changed }}"
-      vars:
-        _common: [grafana]
+        _common: [bash, grafana, opennebula-prometheus]
         _specific:
           Debian: []
           RedHat: []

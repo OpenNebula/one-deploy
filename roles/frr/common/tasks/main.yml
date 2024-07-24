@@ -1,75 +1,15 @@
 ---
 - tags: [preinstall]
   block:
-    - name: Install Free Range Routing dependencies
-      ansible.builtin.package:
-        name: "{{ _common + _specific[ansible_os_family] }}"
+    - ansible.builtin.include_role:
+        name: repository
       vars:
-        _common: [ca-certificates, gnupg2]
-        _specific:
-          Debian: [apt-transport-https, software-properties-common]
-          RedHat: []
-      register: package
-      until: package is success
-      retries: 12
-      delay: 5
-
-    - name: Check if Free Range Routing GPG key is installed
-      ansible.builtin.stat:
-        path: "{{ frr_repo_key_path[ansible_os_family] }}"
-        get_attributes: false
-        get_checksum: false
-        get_mime: false
-      register: stat
-
-    # NOTE: GPG keys are downloaded when any of them is missing on any of the play hosts.
-    #       That way we make sure:
-    #       - the key is downloaded only once and only when necessary
-    #       - keys are identical everywhere
-    - when: ansible_play_hosts | map('extract', hostvars, ['stat', 'stat', 'exists']) is not all
-      block:
-        - name: Download Free Range Routing GPG key (once)
-          ansible.builtin.uri:
-            url: "{{ frr_repo_key_url[ansible_os_family] }}"
-            return_content: true
-          run_once: true
-          register: uri
-
-        - name: Install Free Range Routing GPG key
-          ansible.builtin.copy:
-            dest: "{{ frr_repo_key_path[ansible_os_family] }}"
-            mode: u=rw,go=r
-            content: "{{ uri.content }}"
-
-    - name: Install Free Range Routing package source
-      ansible.builtin.copy:
-        dest: "{{ frr_repo_path[ansible_os_family] }}"
-        mode: u=rw,go=r
-        content: "{{ _content[ansible_os_family] }}"
-      vars:
-        _content:
-          Debian: |
-            deb {{ frr_repo_url.Debian }} {{ ansible_distribution_release }} frr-stable
-          RedHat: |
-            [frr-stable]
-            name=frr-stable
-            baseurl={{ frr_repo_url.RedHat }}/frr
-            enabled=1
-            gpgcheck=1
-            gpgkey=file://{{ frr_repo_key_path.RedHat }}
-
-            [frr-extras]
-            name=frr-extras
-            baseurl={{ frr_repo_url.RedHat }}/extras
-            enabled=1
-            gpgcheck=1
-            gpgkey=file://{{ frr_repo_key_path.RedHat }}
-      register: copy
+        repos_enabled: [frr]
+      when: frr_repo is undefined
 
     - name: Install Free Range Routing (FRR)
       ansible.builtin.package:
         name: "{{ _common + _specific[ansible_os_family] }}"
-        update_cache: "{{ copy is changed }}"
       vars:
         _common: [frr, frr-pythontools]
         _specific:

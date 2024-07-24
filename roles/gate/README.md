@@ -31,7 +31,6 @@ Example Playbook
         gate_endpoint: "http://10.11.12.13:5030"
       roles:
         - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.repository
         - role: opennebula.deploy.gate
 
 License

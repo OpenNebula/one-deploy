@@ -1,17 +1,24 @@
 ---
-- name: Install OpenNebula base packages
-  ansible.builtin.package:
-    name: "{{ _common + _specific[ansible_os_family] }}"
-  vars:
-    _common: [opennebula]
-    _specific:
-      Debian: []
-      RedHat: []
-  register: package
-  until: package is success
-  retries: 12
-  delay: 5
-  tags: [preinstall]
+- tags: [preinstall]
+  block:
+    - ansible.builtin.include_role:
+        name: repository
+      vars:
+        repos_enabled: [opennebula]
+      when: opennebula_repo is undefined
+
+    - name: Install OpenNebula base packages
+      ansible.builtin.package:
+        name: "{{ _common + _specific[ansible_os_family] }}"
+      vars:
+        _common: [opennebula]
+        _specific:
+          Debian: []
+          RedHat: []
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
 
 - name: Decide if Front-end should be HA / Sort-out Federation membership
   ansible.builtin.set_fact:
