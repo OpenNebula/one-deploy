@@ -8,7 +8,7 @@ evpn_if: >-
 
 # A cluster is a collection of route reflectors and their clients, and is used by route reflectors to avoid looping.
 evpn_cluster_id: >-
-  {{ one_vip | d(hostvars[groups[frontend_group | d('frontend')][0]]['ansible_' ~ evpn_if].ipv4.address) }}
+  {{ one_vip | d(hostvars[groups[frontend_group | d('frontend')][0]].ansible_default_ipv4.address) }}
 
 # Prefix length for the BGP network.
 evpn_pfxlen: >-
