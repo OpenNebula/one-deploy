@@ -7,7 +7,6 @@ all:
     one_version: '6.8'
     one_token: example:example
     features:
-      gateproxy: true
       prometheus: false
     one_vip: 10.11.12.69
     one_vip_cidr: 24

@@ -56,12 +56,10 @@
     _federation_group: "{{ federation_group | d('federation') }}"
     _frontend_group: "{{ frontend_group | d('frontend') }}"
 
-- name: Check if OneGate Proxy can be enabled (one_version)
+- name: Check if legacy OneGate Proxy has been requested
   ansible.builtin.assert:
-    that: (features.gateproxy | bool is false)
-          or
-          (one_version is version('6.6', '>='))
-    msg: Please either disable the OneGate Proxy feature or use OpenNebula version >= 6.6.
+    that: features.gateproxy is undefined
+    msg: Legacy OneGate Proxy support has been removed.
   run_once: true
 
 - name: Check if distro family is supported
