@@ -5,17 +5,17 @@
       ansible.builtin.package:
         name: "{{ _common + _specific[ansible_os_family] }}"
       vars:
-        _common: [ca-certificates, gnupg2, memcached]
+        _common: [memcached]
         _specific:
-          Debian: [apt-transport-https, dirmngr, apache2]
+          Debian: [apache2]
           RedHat: [httpd, mod_ssl]
       register: package
       until: package is success
       retries: 12
       delay: 5
 
-    # NOTE: All modules specified below are enabled automatically
-    # in RedHat-like distros.
+    # NOTE: All modules specified below are not enabled automatically
+    #       in Debian-like distros.
     - name: Enable Apache2 modules
       ansible.builtin.command:
         cmd: a2enmod '{{ item }}'
@@ -25,58 +25,15 @@
         - Restart Sunstone
       when: ansible_os_family == 'Debian'
 
-    - name: Check if Phusion Passenger GPG key is installed
-      ansible.builtin.stat:
-        path: "{{ passenger_repo_key_path[ansible_os_family] }}"
-        get_attributes: false
-        get_checksum: false
-        get_mime: false
-      register: stat
-
-    # NOTE: GPG keys are downloaded when any of them is missing on any of the play hosts.
-    #       That way we make sure:
-    #       - the key is downloaded only once and only when necessary
-    #       - keys are identical everywhere
-    - when: ansible_play_hosts | map('extract', hostvars, ['stat', 'stat', 'exists']) is not all
-      block:
-        - name: Download Phusion Passenger GPG key (once)
-          ansible.builtin.uri:
-            url: "{{ passenger_repo_key_url[ansible_os_family] }}"
-            return_content: true
-          run_once: true
-          register: uri
-
-        - name: Install Phusion Passenger GPG key
-          ansible.builtin.copy:
-            dest: "{{ passenger_repo_key_path[ansible_os_family] }}"
-            mode: u=rw,go=r
-            content: "{{ uri.content }}"
-
-    - name: Install Phusion Passenger package source
-      ansible.builtin.copy:
-        dest: "{{ passenger_repo_path[ansible_os_family] }}"
-        mode: u=rw,go=r
-        content: "{{ _content[ansible_os_family] }}"
+    - ansible.builtin.include_role:
+        name: repository
       vars:
-        _content:
-          Debian: |
-            deb {{ passenger_repo_url.Debian }} {{ ansible_distribution_release }} main
-          RedHat: |
-            [passenger]
-            name=passenger
-            baseurl={{ passenger_repo_url.RedHat }}/$releasever/$basearch
-            enabled=1
-            gpgkey=file://{{ passenger_repo_key_path.RedHat }}
-            gpgcheck=0
-            repo_gpgcheck=1
-            sslverify=1
-            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
-      register: copy
+        repos_enabled: [passenger]
+      when: passenger_repo is undefined
 
     - name: Install Phusion Passenger
       ansible.builtin.package:
         name: "{{ _common + _specific[ansible_os_family] }}"
-        update_cache: "{{ copy is changed }}"
       vars:
         _common: []
         _specific:

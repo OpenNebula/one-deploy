@@ -45,7 +45,6 @@ Example Playbook
           managed: true # enable HTTPS with the default key and certchain
       roles:
         - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.repository
         - role: opennebula.deploy.gui
 
 License

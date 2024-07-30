@@ -1,0 +1,102 @@
+---
+- when: ansible_pkg_mgr == 'dnf'
+  block:
+    - name: Enable required DNF extra repos
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit
+          {{ _script[ansible_distribution][ansible_distribution_major_version] }}
+        executable: /bin/bash
+      changed_when: false
+      vars:
+        _script:
+          AlmaLinux:
+            '8': |
+              dnf config-manager -y --enable epel powertools ha
+            '9': |
+              dnf config-manager -y --enable epel crb highavailability
+          RedHat:
+            '8': |
+              dnf config-manager -y --enable epel
+              subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-rpms \
+                                         --enable rhel-8-for-x86_64-highavailability-rpms
+            '9': |
+              dnf config-manager -y --enable epel
+              subscription-manager repos --enable codeready-builder-for-rhel-9-x86_64-rpms \
+                                         --enable rhel-9-for-x86_64-highavailability-rpms
+
+- vars:
+    # Merge repository config with defaults.
+    _repo_key_path: "{{ opennebula_repo_key_path_defaults | combine(opennebula_repo_key_path, recursive=true) }}"
+    _repo_key_url: "{{ opennebula_repo_key_url_defaults | combine(opennebula_repo_key_url, recursive=true) }}"
+    _repo_path: "{{ opennebula_repo_path_defaults | combine(opennebula_repo_path, recursive=true) }}"
+    _repo_url: "{{ opennebula_repo_url_defaults | combine(opennebula_repo_url, recursive=true) }}"
+  block:
+    - when: opennebula_repo_force_trusted | bool is false
+      block:
+        - name: Check if OpenNebula GPG key is installed
+          ansible.builtin.stat:
+            path: "{{ _repo_key_path[ansible_os_family] | trim }}"
+            get_attributes: false
+            get_checksum: false
+            get_mime: false
+          register: stat
+
+        # NOTE: GPG keys are downloaded when any of them is missing on any of the play hosts.
+        #       That way we make sure:
+        #       - the key is downloaded only once and only when necessary
+        #       - keys are identical everywhere
+        - when: repo_constraints.opennebula.hosts | select('in', play_hosts)
+                                                  | map('extract', hostvars, ['stat', 'stat', 'exists']) is not all
+          block:
+            - name: Download OpenNebula GPG key (once)
+              ansible.builtin.uri:
+                url: "{{ _repo_key_url[ansible_os_family] | trim }}"
+                return_content: true
+              run_once: true
+              register: uri
+
+            - name: Install OpenNebula GPG key
+              ansible.builtin.copy:
+                dest: "{{ _repo_key_path[ansible_os_family] | trim }}"
+                mode: u=rw,go=r
+                content: "{{ uri.content }}"
+
+    - name: Install OpenNebula package source
+      ansible.builtin.copy:
+        dest: "{{ _repo_path[ansible_os_family] | trim }}"
+        mode: u=rw,go=r
+        content: "{{ _content[ansible_distribution] | d(_content[ansible_os_family]) }}"
+      vars:
+        _content:
+          Debian: |
+            {% if opennebula_repo_force_trusted | bool is false %}
+            deb {{ _repo_url.Debian | trim }} stable opennebula
+            {% else %}
+            deb [trusted=yes] {{ _repo_url.Debian | trim }} stable opennebula
+            {% endif %}
+          RedHat: |
+            [opennebula]
+            name=OpenNebula {{ _edition }} Edition
+            baseurl={{ _repo_url.RedHat | trim }}/$releasever/$basearch
+            enabled=1
+            {% if opennebula_repo_force_trusted | bool is false %}
+            repo_gpgcheck=1
+            gpgcheck=1
+            gpgkey=file://{{ _repo_key_path.RedHat | trim }}
+            sslverify=1
+            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            {% else %}
+            repo_gpgcheck=0
+            gpgcheck=0
+            sslverify=0
+            {% endif %}
+          Ubuntu: |
+            {% if opennebula_repo_force_trusted | bool is false %}
+            deb {{ _repo_url.Ubuntu | trim }} stable opennebula
+            {% else %}
+            deb [trusted=yes] {{ _repo_url.Ubuntu | trim }} stable opennebula
+            {% endif %}
+        _edition: >-
+          {{ 'Enterprise' if (one_token is defined and one_token is truthy) else 'Community' }}
+      register: opennebula_repo

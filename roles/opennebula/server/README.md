@@ -41,7 +41,6 @@ Example Playbook
         admin_pubkey: null  # ignore it
       roles:
         - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.repository
         - role: opennebula.deploy.database
         - role: opennebula.deploy.opennebula.server
 

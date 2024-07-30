@@ -1,6 +1,174 @@
 ---
-one_version: '6.6'
+one_version: '6.8'
 
-gpg_keys:
-  - name: opennebula2
-    url: https://downloads.opennebula.io/repo/repo2.key
+repo_constraints:
+  ceph:
+    condition: >-
+      {{ (features.ceph | bool is true) and (ceph.repo is defined) and (ceph.repo == 'community') }}
+    hosts: >-
+      {{ (groups.get(node_group | d('node'), []) + groups.get(mon_group_name | d('mons'), [])
+                                                 + groups.get(mgr_group_name | d('mgrs'), [])
+                                                 + groups.get(osd_group_name | d('osds'), [])) | unique }}
+  frr:
+    condition: >-
+      {{ features.evpn | bool is true }}
+    hosts: >-
+      {{ (groups.get(router_group | d('router'), []) + groups.get(node_group | d('node'), [])) | unique }}
+  grafana:
+    condition: >-
+      {{ features.prometheus | bool is true }}
+    hosts: >-
+      {{ groups.get(grafana_group | d('grafana'), []) }}
+  opennebula:
+    condition: >-
+      {{ true }}
+    hosts: >-
+      {{ (groups.get(frontend_group | d('frontend'), []) + groups.get(node_group | d('node'), [])) | unique }}
+  passenger:
+    condition: >-
+      {{ features.passenger | bool is true }}
+    hosts: >-
+      {{ groups.get(frontend_group | d('frontend'), []) }}
+
+repos_enabled: [ceph, frr, grafana, opennebula, passenger]
+
+###
+
+ceph_repo_force_trusted: false
+
+ceph_repo_key_path: {}
+ceph_repo_key_url: {}
+ceph_repo_path: {}
+ceph_repo_url: {}
+
+ceph_repo_key_path_defaults:
+  Debian: /etc/apt/trusted.gpg.d/ceph.asc
+  RedHat: /etc/pki/rpm-gpg/RPM-GPG-KEY-ceph
+
+ceph_repo_key_url_defaults:
+  Debian: https://download.ceph.com/keys/release.asc
+  RedHat: https://download.ceph.com/keys/release.asc
+
+ceph_repo_path_defaults:
+  Debian: /etc/apt/sources.list.d/ceph.list
+  RedHat: /etc/yum.repos.d/ceph.repo
+
+ceph_repo_url_defaults:
+  Debian: https://download.ceph.com/debian-quincy
+  RedHat: https://download.ceph.com/rpm-quincy
+
+###
+
+frr_repo_force_trusted: false
+
+frr_repo_key_path: {}
+frr_repo_key_url: {}
+frr_repo_path: {}
+frr_repo_url: {}
+
+frr_repo_key_path_defaults:
+  Debian: /etc/apt/trusted.gpg.d/frr.asc
+  RedHat: /etc/pki/rpm-gpg/RPM-GPG-KEY-frr
+
+frr_repo_key_url_defaults:
+  Debian: https://deb.frrouting.org/frr/keys.asc
+  RedHat: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x7AB8AC624CBA356CB6216D48F66B5A9140673A87
+
+frr_repo_path_defaults:
+  Debian: /etc/apt/sources.list.d/frr.list
+  RedHat: /etc/yum.repos.d/frr.repo
+
+frr_repo_url_defaults:
+  Debian: https://deb.frrouting.org/frr
+  RedHat: https://rpm.frrouting.org/repo/el$releasever
+
+###
+
+grafana_repo_force_trusted: false
+
+grafana_repo_key_path: {}
+grafana_repo_key_url: {}
+grafana_repo_path: {}
+grafana_repo_url: {}
+
+grafana_repo_key_path_defaults:
+  Debian: /etc/apt/trusted.gpg.d/grafana.asc
+  RedHat: /etc/pki/rpm-gpg/RPM-GPG-KEY-grafana
+
+grafana_repo_key_url_defaults:
+  Debian: https://apt.grafana.com/gpg.key
+  RedHat: https://rpm.grafana.com/gpg.key
+
+grafana_repo_path_defaults:
+  Debian: /etc/apt/sources.list.d/grafana.list
+  RedHat: /etc/yum.repos.d/grafana.repo
+
+grafana_repo_url_defaults:
+  Debian: https://apt.grafana.com
+  RedHat: https://rpm.grafana.com
+
+###
+
+opennebula_repo_force_trusted: false
+
+opennebula_repo_key_path: {}
+opennebula_repo_key_url: {}
+opennebula_repo_path: {}
+opennebula_repo_url: {}
+
+opennebula_repo_key_path_defaults:
+  Debian: /etc/apt/trusted.gpg.d/opennebula2.asc
+  RedHat: /etc/pki/rpm-gpg/RPM-GPG-KEY-opennebula2
+
+opennebula_repo_key_url_defaults:
+  Debian: https://downloads.opennebula.io/repo/repo2.key
+  RedHat: https://downloads.opennebula.io/repo/repo2.key
+
+opennebula_repo_path_defaults:
+  Debian: /etc/apt/sources.list.d/opennebula.list
+  RedHat: /etc/yum.repos.d/opennebula.repo
+
+opennebula_repo_url_defaults:
+  Debian: >-
+    {%- if one_token is defined and one_token is truthy -%}
+    https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_major_version }}
+    {%- else -%}
+    https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_major_version }}
+    {%- endif -%}
+  RedHat: >-
+    {%- if one_token is defined and one_token is truthy -%}
+    https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
+    {%- else -%}
+    https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
+    {%- endif -%}
+  Ubuntu: >-
+    {%- if one_token is defined and one_token is truthy -%}
+    https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }}
+    {%- else -%}
+    https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }}
+    {%- endif -%}
+
+###
+
+passenger_repo_force_trusted: false
+
+passenger_repo_key_path: {}
+passenger_repo_key_url: {}
+passenger_repo_path: {}
+passenger_repo_url: {}
+
+passenger_repo_key_path_defaults:
+  Debian: /etc/apt/trusted.gpg.d/passenger.asc
+  RedHat: /etc/pki/rpm-gpg/RPM-GPG-KEY-passenger
+
+passenger_repo_key_url_defaults:
+  Debian: https://oss-binaries.phusionpassenger.com/auto-software-signing-gpg-key.txt
+  RedHat: https://oss-binaries.phusionpassenger.com/auto-software-signing-gpg-key.txt
+
+passenger_repo_path_defaults:
+  Debian: /etc/apt/sources.list.d/passenger.list
+  RedHat: /etc/yum.repos.d/passenger.repo
+
+passenger_repo_url_defaults:
+  Debian: https://oss-binaries.phusionpassenger.com/apt/passenger
+  RedHat: https://oss-binaries.phusionpassenger.com/yum/passenger/el

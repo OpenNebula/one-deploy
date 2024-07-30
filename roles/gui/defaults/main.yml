@@ -7,22 +7,6 @@ public_fireedge_endpoint: >-
      if apache2_https.managed | bool is true else
      'http://' ~ (one_fqdn | d(one_vip) | d(hostvars[leader].ansible_host)) ~ ':2616' }}
 
-passenger_repo_key_path:
-  Debian: /etc/apt/trusted.gpg.d/passenger.asc
-  RedHat: /etc/pki/rpm-gpg/RPM-GPG-KEY-passenger
-
-passenger_repo_key_url:
-  Debian: https://oss-binaries.phusionpassenger.com/auto-software-signing-gpg-key.txt
-  RedHat: https://oss-binaries.phusionpassenger.com/auto-software-signing-gpg-key.txt
-
-passenger_repo_path:
-  Debian: /etc/apt/sources.list.d/passenger.list
-  RedHat: /etc/yum.repos.d/passenger.repo
-
-passenger_repo_url:
-  Debian: https://oss-binaries.phusionpassenger.com/apt/passenger
-  RedHat: https://oss-binaries.phusionpassenger.com/yum/passenger/el
-
 apache2_http_defaults:
   managed: true
 

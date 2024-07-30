@@ -1,0 +1,84 @@
+---
+- vars:
+    # Merge repository config with defaults.
+    _repo_key_path: "{{ frr_repo_key_path_defaults | combine(frr_repo_key_path, recursive=true) }}"
+    _repo_key_url: "{{ frr_repo_key_url_defaults | combine(frr_repo_key_url, recursive=true) }}"
+    _repo_path: "{{ frr_repo_path_defaults | combine(frr_repo_path, recursive=true) }}"
+    _repo_url: "{{ frr_repo_url_defaults | combine(frr_repo_url, recursive=true) }}"
+  block:
+    - when: frr_repo_force_trusted | bool is false
+      block:
+        - name: Check if Free Range Routing GPG key is installed
+          ansible.builtin.stat:
+            path: "{{ _repo_key_path[ansible_os_family] | trim }}"
+            get_attributes: false
+            get_checksum: false
+            get_mime: false
+          register: stat
+
+        # NOTE: GPG keys are downloaded when any of them is missing on any of the play hosts.
+        #       That way we make sure:
+        #       - the key is downloaded only once and only when necessary
+        #       - keys are identical everywhere
+        - when: repo_constraints.frr.hosts | select('in', play_hosts)
+                                           | map('extract', hostvars, ['stat', 'stat', 'exists']) is not all
+          block:
+            - name: Download Free Range Routing GPG key (once)
+              ansible.builtin.uri:
+                url: "{{ _repo_key_url[ansible_os_family] | trim }}"
+                return_content: true
+              run_once: true
+              register: uri
+
+            - name: Install Free Range Routing GPG key
+              ansible.builtin.copy:
+                dest: "{{ _repo_key_path[ansible_os_family] | trim }}"
+                mode: u=rw,go=r
+                content: "{{ uri.content }}"
+
+    - name: Install Free Range Routing package source
+      ansible.builtin.copy:
+        dest: "{{ _repo_path[ansible_os_family] | trim }}"
+        mode: u=rw,go=r
+        content: "{{ _content[ansible_distribution] | d(_content[ansible_os_family]) }}"
+      vars:
+        _content:
+          Debian: |
+            {% if frr_repo_force_trusted | bool is false %}
+            deb {{ _repo_url.Debian | trim }} {{ ansible_distribution_release }} frr-stable
+            {% else %}
+            deb [trusted=yes] {{ _repo_url.Debian | trim }} {{ ansible_distribution_release }} frr-stable
+            {% endif %}
+          RedHat: |
+            [frr-stable]
+            name=frr-stable
+            baseurl={{ _repo_url.RedHat | trim }}/frr
+            enabled=1
+            {% if frr_repo_force_trusted | bool is false %}
+            repo_gpgcheck=0
+            gpgcheck=1
+            gpgkey=file://{{ _repo_key_path.RedHat | trim }}
+            sslverify=1
+            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            {% else %}
+            repo_gpgcheck=0
+            gpgcheck=0
+            sslverify=0
+            {% endif %}
+
+            [frr-extras]
+            name=frr-extras
+            baseurl={{ _repo_url.RedHat | trim }}/extras
+            enabled=1
+            {% if frr_repo_force_trusted | bool is false %}
+            repo_gpgcheck=0
+            gpgcheck=1
+            gpgkey=file://{{ _repo_key_path.RedHat | trim }}
+            sslverify=1
+            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            {% else %}
+            repo_gpgcheck=0
+            gpgcheck=0
+            sslverify=0
+            {% endif %}
+      register: frr_repo
