@@ -108,17 +108,17 @@
     _repos: "{{ _supported[ansible_distribution][ansible_distribution_major_version] }}"
     _supported:
       Debian:
-        '11': [community]
         '10': []
+        '11': [community]
       Ubuntu:
-        '22': [distro]
         '20': [community]
+        '22': [distro, community]
       AlmaLinux:
         '8': [distro, community]
-        '9': []
+        '9': [community]
       RedHat:
         '8': [community]
-        '9': []
+        '9': [community]
     _hosts: "{{ federation.groups.node | d([]) | unique }}"
   tags: [preinstall]
 
