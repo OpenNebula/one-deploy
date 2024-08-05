@@ -9,8 +9,12 @@
       RedHat: [networkmanager]
     _phydev: "{{ vn_dict[_item.0].template.PHYDEV }}"
     _bridge: "{{ vn_dict[_item.0].template.BRIDGE }}"
+    # Narrow down VNET types when move_ip is unspecified (but allow users to override it still).
+    _vn_types: [bridge, dummy, fw]
+    _vn_mad: "{{ vn_dict[_item.0].template.VN_MAD | d('') | trim | lower }}"
+    _move_ip: "{{ vn_dict[_item.0].move_ip | d(_vn_mad in _vn_types) | bool }}"
   when:
-    - vn_dict[_item.0].move_ip | d(true) | bool is true
+    - _move_ip is true
     - _phydev is defined
     - _bridge is defined
     - _phydev in ansible_interfaces
