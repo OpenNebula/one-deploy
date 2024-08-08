@@ -13,4 +13,4 @@ ceph_defaults:
        if groups[mon_group_name | d('mons')] is defined else
        [] }}
   uuid: null
-  repo: distro
+  repo: community

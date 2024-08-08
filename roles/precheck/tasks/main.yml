@@ -28,6 +28,8 @@
   ansible.builtin.assert:
     that: (features.prometheus | bool is false)
           or
+          (one_version is version('6.10', '>='))
+          or
           (one_token is defined and one_token is truthy)
     msg: Please either disable the Prometheus feature or provide one_token.
   run_once: true
@@ -108,9 +110,11 @@
       Debian:
         '10': []
         '11': [community]
+        '12': []
       Ubuntu:
         '20': [community]
         '22': [distro, community]
+        '24': []
       AlmaLinux:
         '8': [distro, community]
         '9': [community]
