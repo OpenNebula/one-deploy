@@ -1,5 +1,5 @@
 ---
-one_version: '6.8'
+one_version: '6.10'
 
 repo_constraints:
   ceph:

@@ -73,7 +73,6 @@
       tags: [prometheus]
       when: &prometheus
         - features.prometheus | bool is true
-        - one_token is defined and one_token is truthy
 
 - hosts: "{{ frontend_group | d('frontend') }}"
   tags: [frontend, stage3]

@@ -29,6 +29,10 @@
           {{ [_server_pool.SERVER] | flatten | map(attribute='NAME') | list }}
         _this: >-
           {{ follower | d(inventory_hostname) }}
+      register: result
+      until: result is success
+      retries: 3
+      delay: 5
 
     - <<: *Get_Zone
 
