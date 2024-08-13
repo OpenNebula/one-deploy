@@ -2,7 +2,7 @@
 
 The OpenNebula Ansible project consists of a set of playbooks and roles that let you deploy an OpenNebula cloud in a simple and convenient way.
 
-The documentation is organized based on three distinct architectures. We will start with the most straightforward architecture and gradually move towards more complex scenarios. For each scenario, we will provide concise explanations of the configurations implemented on both the platform and OpenNebula.
+The documentation is organized based on three distinct references architectural deployments (local, shared and ceph). We will start with the most straightforward architecture and gradually move towards more complex scenarios. For each scenario, we will provide concise explanations of the configurations implemented on both the platform and OpenNebula.
 
 ## Documentation
 [Documentation for one-deploy is in the project Wiki](../../wiki/)
