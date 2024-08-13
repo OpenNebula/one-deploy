@@ -39,3 +39,6 @@
 
     - role: helper/keys
       tags: [keys]
+
+    - role: helper/fstab
+      tags: [fstab]
