@@ -5,8 +5,8 @@
     state: absent
     purge: true
   when:
-  - unattend_disable | bool is true
-  - ansible_os_family == "Debian"
+    - unattend_disable | bool is true
+    - ansible_os_family == "Debian"
 
 - name: Update package cache
   ansible.builtin.package:

@@ -20,6 +20,7 @@
     - opennebula.deploy
   roles:
     - role: helper/python3
+    - role: helper/facts
     - role: helper/cache
 
 - hosts:
