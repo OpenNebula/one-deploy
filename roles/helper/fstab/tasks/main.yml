@@ -1,0 +1,29 @@
+---
+- name: Install required OS packages
+  ansible.builtin.package:
+    name: "{{ (_common + _specific[ansible_os_family]) | select }}"
+  vars:
+    _common: []
+    _specific:
+      Debian:
+        - "{{ 'nfs-common' if ('nfs' in _fstypes) else None }}"
+      RedHat:
+        - "{{ 'nfs-utils' if ('nfs' in _fstypes) else None }}"
+    _fstypes: >-
+      {{ fstab | d([])
+               | map(attribute='fstype')
+               | map('default', 'nfs')
+               | map('lower') }}
+  register: package
+  until: package is success
+  retries: 12
+  delay: 5
+
+- name: Add to fstab and mount filesystems
+  ansible.posix.mount:
+    src: "{{ item.src }}"
+    path: "{{ item.path | d('/var/lib/one/datastores') }}"
+    fstype: "{{ item.fstype | d('nfs') }}"
+    opts: "{{ item.opts | d('rw,relatime,comment=one-deploy') }}"
+    state: mounted
+  loop: "{{ fstab }}"

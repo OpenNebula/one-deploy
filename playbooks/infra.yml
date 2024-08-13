@@ -1,8 +1,14 @@
 ---
 - hosts: "{{ infra_group | d('infra') }}"
   tags: [infra]
+  collections:
+    - opennebula.deploy
   roles:
+    - role: helper/python3
+
     - role: helper/facts
       tags: [always]
+
+    - role: helper/cache
 
     - role: infra

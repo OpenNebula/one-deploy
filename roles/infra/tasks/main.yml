@@ -3,18 +3,14 @@
   ansible.builtin.package:
     name: "{{ _common + _specific[ansible_os_family] }}"
   vars:
-    _common: [python3-pip]
+    _common: [genisoimage, python3-libvirt, python3-lxml]
     _specific:
-      Debian: [libvirt-dev, pkg-config, qemu-utils]
-      RedHat: [libvirt-devel, pkgconfig, qemu-img]
+      Debian: [qemu-utils]
+      RedHat: [qemu-img]
   register: package
   until: package is success
   retries: 12
   delay: 5
-
-- name: Install required python packages
-  ansible.builtin.pip:
-    name: [libvirt-python, lxml, pycdlib]
 
 - name: List defined VMs
   community.libvirt.virt:
@@ -47,13 +43,15 @@
     - infra_to_frontends[inventory_hostname] is defined
     - infra_to_frontends[inventory_hostname] is truthy
   block:
-    - name: Create runtime directory
+    - name: Create missing dirs
       ansible.builtin.file:
-        path: "{{ runtime_dir }}"
+        path: "{{ item }}"
         state: directory
         owner: 9869
         group: 9869
         mode: u=rwx,go=
+      loop: >-
+        {{ [runtime_dir, '/var/lib/one'] + (passthrough_fs | map(attribute='source_dir')) }}
 
     - block:
         - name: Create temporary dirs
@@ -75,28 +73,26 @@
             frontend: "{{ tempfile.results[item].frontend }}"
             context: "{{ hostvars[tempfile.results[item].frontend].context }}"
           loop: "{{ range(tempfile.results | count) }}"
+          register: template_context_sh
 
-        - name: Create context ISO images
-          community.general.iso_create:
-            dest_iso: "{{ runtime_dir }}/{{ frontend }}.iso"
-            src_files:
-              - "{{ tempfile.results[item].path }}/context.sh"
-            vol_ident: CONTEXT
-            joliet: 3
-            rock_ridge: 1.09
-          vars:
-            frontend: "{{ tempfile.results[item].frontend }}"
-          loop: "{{ range(tempfile.results | count) }}"
+        - when: template_context_sh is changed
+          block:
+            - name: Create context ISO images
+              ansible.builtin.shell:
+                cmd: genisoimage -Jr -V CONTEXT -o '{{ runtime_dir }}/{{ frontend }}.iso' '{{ tempfile.results[item].path }}/context.sh'
+              vars:
+                frontend: "{{ tempfile.results[item].frontend }}"
+              loop: "{{ range(tempfile.results | count) }}"
 
-        - name: Update context ISO image permissions
-          ansible.builtin.file:
-            path: "{{ runtime_dir }}/{{ frontend }}.iso"
-            owner: 9869
-            group: 9869
-            mode: u=r,go=
-          vars:
-            frontend: "{{ tempfile.results[item].frontend }}"
-          loop: "{{ range(tempfile.results | count) }}"
+            - name: Update context ISO image permissions
+              ansible.builtin.file:
+                path: "{{ runtime_dir }}/{{ frontend }}.iso"
+                owner: 9869
+                group: 9869
+                mode: u=r,go=
+              vars:
+                frontend: "{{ tempfile.results[item].frontend }}"
+              loop: "{{ range(tempfile.results | count) }}"
 
       always:
         - name: Delete temporary dirs

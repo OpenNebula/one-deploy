@@ -29,6 +29,10 @@ all:
           NETWORK_MASK: 255.255.255.0
           GATEWAY: 172.20.0.1
           DNS: 1.1.1.1
+    # Mount NFS share.
+    fstab:
+      - src: server:/var/lib/one/datastores
+        path: /mnt
 
 frontend:
   hosts:

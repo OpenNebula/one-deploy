@@ -10,7 +10,7 @@
     <partition>/machine</partition>
   </resource>
   <os>
-    <type arch='x86_64' machine='pc-i440fx-jammy'>hvm</type>
+    <type arch='x86_64' machine='pc'>hvm</type>
     <boot dev='hd'/>
   </os>
   <features>
@@ -21,6 +21,16 @@
   <on_poweroff>destroy</on_poweroff>
   <on_reboot>restart</on_reboot>
   <on_crash>destroy</on_crash>
+
+{% if 'virtiofs' in (passthrough_fs | map(attribute='driver_type')
+                                    | map('default', None)
+                                    | select
+                                    | map('lower')) %}
+  <memoryBacking>
+    <source type='memfd'/>
+    <access mode='shared'/>
+  </memoryBacking>
+{% endif %}
 
   <devices>
     <disk type='file' device='cdrom'>
@@ -56,6 +66,16 @@
       <alias name='ide'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
     </controller>
+
+{% for fs in passthrough_fs %}
+    <filesystem type='mount' accessmode='passthrough'>
+{% if fs.driver_type is defined and fs.driver_type is truthy %}
+      <driver type='{{ fs.driver_type }}'/>
+{% endif %}
+      <source dir='{{ fs.source_dir }}'/>
+      <target dir='{{ fs.target_dir }}'/>
+    </filesystem>
+{% endfor %}
 
     <controller type='virtio-serial' index='0'>
       <alias name='virtio-serial0'/>
