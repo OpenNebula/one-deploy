@@ -2,7 +2,7 @@
 
 The OpenNebula Ansible project consists of a set of playbooks and roles that let you deploy an OpenNebula cloud in a simple and convenient way.
 
-The documentation is organized based on three distinct reference architecture deployments based on three storage types: local, shared and Ceph. We will start with the most straightforward architecture (based on local storage) and gradually move towards more complex scenarios. For each scenario, we will provide concise explanations of the configurations implemented on both the platform and OpenNebula. The documentation also includes guides to deploy aditional configurations like High-Availaibility for the front-end, federation and the installation of the front-end in a VM.
+The documentation is organized based on three distinct reference architecture deployments based on three storage types: local, shared and Ceph. We will start with the most straightforward architecture (based on local storage) and gradually move towards more complex scenarios. For each scenario, we will provide concise explanations of the configurations implemented on both the platform and OpenNebula. The documentation also includes guides to deploy additional configurations like High-Availability for the front-end, federation and the installation of the front-end in a VM.
 
 ## Documentation
 [Documentation for one-deploy is in the project Wiki](../../wiki/)
