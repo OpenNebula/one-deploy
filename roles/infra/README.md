@@ -43,6 +43,7 @@ Dependencies
 ------------
 
 - `community.libvirt`
+- `ansible.posix`
 
 Example Playbook
 ----------------

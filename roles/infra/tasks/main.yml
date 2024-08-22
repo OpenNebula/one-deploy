@@ -3,7 +3,7 @@
   ansible.builtin.package:
     name: "{{ _common + _specific[ansible_os_family] }}"
   vars:
-    _common: [genisoimage, python3-libvirt, python3-lxml]
+    _common: [acl, genisoimage, python3-libvirt, python3-lxml]
     _specific:
       Debian: [qemu-utils]
       RedHat: [qemu-img]
@@ -39,117 +39,8 @@
     _frontend_group: >-
       {{ frontend_group | d('frontend') }}
 
-- when:
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/deploy.yml"
+  when:
     - infra_to_frontends[inventory_hostname] is defined
     - infra_to_frontends[inventory_hostname] is truthy
-  block:
-    - name: Create missing dirs
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: directory
-        owner: 9869
-        group: 9869
-        mode: u=rwx,go=
-      loop: >-
-        {{ [runtime_dir, '/var/lib/one'] + (passthrough_fs | map(attribute='source_dir')) }}
-
-    - block:
-        - name: Create temporary dirs
-          ansible.builtin.tempfile:
-            prefix: "one-deploy.{{ frontend }}."
-            state: directory
-          loop_control: { loop_var: frontend }
-          loop: "{{ infra_to_frontends[inventory_hostname] }}"
-          register: tempfile
-
-        - name: Create context.sh files
-          ansible.builtin.template:
-            dest: "{{ tempfile.results[item].path }}/context.sh"
-            src: context.sh.j2
-            owner: 0
-            group: 0
-            mode: u=rw,go=
-          vars:
-            frontend: "{{ tempfile.results[item].frontend }}"
-            context: "{{ hostvars[tempfile.results[item].frontend].context }}"
-          loop: "{{ range(tempfile.results | count) }}"
-          register: template_context_sh
-
-        - when: template_context_sh is changed
-          block:
-            - name: Create context ISO images
-              ansible.builtin.shell:
-                cmd: genisoimage -Jr -V CONTEXT -o '{{ runtime_dir }}/{{ frontend }}.iso' '{{ tempfile.results[item].path }}/context.sh'
-              vars:
-                frontend: "{{ tempfile.results[item].frontend }}"
-              loop: "{{ range(tempfile.results | count) }}"
-
-            - name: Update context ISO image permissions
-              ansible.builtin.file:
-                path: "{{ runtime_dir }}/{{ frontend }}.iso"
-                owner: 9869
-                group: 9869
-                mode: u=r,go=
-              vars:
-                frontend: "{{ tempfile.results[item].frontend }}"
-              loop: "{{ range(tempfile.results | count) }}"
-
-      always:
-        - name: Delete temporary dirs
-          ansible.builtin.file:
-            path: "{{ item }}"
-            state: absent
-          loop: "{{ tempfile.results | map(attribute='path') }}"
-
-    - name: Download OS image
-      ansible.builtin.get_url:
-        url: "{{ os_image_url }}"
-        dest: "{{ runtime_dir }}/{{ os_image_url | basename }}"
-
-    - name: Clone OS image
-      ansible.builtin.copy:
-        dest: "{{ runtime_dir }}/{{ frontend }}.qcow2"
-        src: "{{ runtime_dir }}/{{ os_image_url | basename }}"
-        remote_src: true
-        owner: 9869
-        group: 9869
-        mode: u=rw,go=
-        force: false
-      loop_control: { loop_var: frontend }
-      loop: "{{ infra_to_frontends[inventory_hostname] }}"
-
-    - name: Try to resize cloned OS images
-      ansible.builtin.shell:
-        cmd: qemu-img resize '{{ runtime_dir }}/{{ frontend }}.qcow2' '{{ os_image_size }}'
-      loop_control: { loop_var: frontend }
-      loop: "{{ infra_to_frontends[inventory_hostname] }}"
-      ignore_errors: true # NOTE: This is a best effort operation.
-
-    - name: Compute VNC ports
-      ansible.builtin.set_fact:
-        frontends_to_vnc_ports: >-
-          {{ dict(_frontends | zip(_ports)) }}
-      vars:
-        _ports: >-
-          {{ range(vnc_max_port, vnc_max_port - (_frontends | count), -1) }}
-        _frontends: >-
-          {{ groups[_frontend_group] }}
-        _frontend_group: >-
-          {{ frontend_group | d('frontend') }}
-
-    - name: Define Front-end VMs
-      community.libvirt.virt:
-        command: define
-        xml: "{{ lookup('template', 'frontend.xml.j2') }}"
-        autostart: true
-      vars:
-        context: "{{ hostvars[frontend].context }}"
-      loop_control: { loop_var: frontend }
-      loop: "{{ infra_to_frontends[inventory_hostname] }}"
-
-    - name: Start Front-end VMs
-      community.libvirt.virt:
-        name: "{{ frontend }}"
-        state: running
-      loop_control: { loop_var: frontend }
-      loop: "{{ infra_to_frontends[inventory_hostname] }}"
