@@ -2,3 +2,4 @@
 collections:
   - opennebula.deploy
   - community.libvirt
+  - ansible.posix

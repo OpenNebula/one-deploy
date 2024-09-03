@@ -1,0 +1,111 @@
+---
+- vars:
+    _dirs: >-
+      {{ [runtime_dir] + ((passthrough_fs | map(attribute='source_dir')) if (passthrough_fs is truthy) else []) }}
+  block:
+    - name: Create dirs
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: 0
+        group: kvm
+        mode: ug=rwx,o=
+      loop: "{{ _dirs }}"
+
+    - name: Set ACLs to workaround oneadmin's access
+      ansible.posix.acl:
+        path: "{{ item.0 }}"
+        state: present
+        etype: group
+        entity: 9869
+        permissions: rwX
+        default: "{{ item.1 }}"
+      loop: "{{ _dirs | product([true, false]) }}"
+
+- block:
+    - name: Create temporary dirs
+      ansible.builtin.tempfile:
+        prefix: "one-deploy.{{ frontend }}."
+        state: directory
+      loop_control: { loop_var: frontend }
+      loop: "{{ infra_to_frontends[inventory_hostname] }}"
+      register: tempfile
+
+    - name: Create context.sh files
+      ansible.builtin.template:
+        dest: "{{ tempfile.results[item].path }}/context.sh"
+        src: context.sh.j2
+      vars:
+        frontend: "{{ tempfile.results[item].frontend }}"
+        context: "{{ hostvars[tempfile.results[item].frontend].context }}"
+      loop: "{{ range(tempfile.results | count) }}"
+      register: template_context_sh
+
+    - name: Create context ISO images
+      ansible.builtin.shell:
+        cmd: genisoimage --input-charset utf-8 -Jr -V CONTEXT
+             -o '{{ runtime_dir }}/{{ frontend }}.iso'
+             '{{ tempfile.results[item].path }}/context.sh'
+      vars:
+        frontend: "{{ tempfile.results[item].frontend }}"
+      loop: "{{ range(tempfile.results | count) }}"
+      when: template_context_sh is changed
+
+  always:
+    - name: Delete temporary dirs
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ tempfile.results | map(attribute='path') }}"
+
+- name: Download OS image
+  ansible.builtin.get_url:
+    url: "{{ os_image_url }}"
+    dest: "{{ runtime_dir }}/{{ os_image_url | basename }}"
+    mode: ug=rw,o=
+
+- name: Clone OS image
+  ansible.builtin.copy:
+    dest: "{{ runtime_dir }}/{{ frontend }}.qcow2"
+    src: "{{ runtime_dir }}/{{ os_image_url | basename }}"
+    remote_src: true
+    force: false
+    mode: ug=rw,o=
+  loop_control: { loop_var: frontend }
+  loop: "{{ infra_to_frontends[inventory_hostname] }}"
+
+- name: Try to resize cloned OS images
+  ansible.builtin.shell:
+    cmd: qemu-img resize '{{ runtime_dir }}/{{ frontend }}.qcow2' '{{ os_image_size }}'
+  loop_control: { loop_var: frontend }
+  loop: "{{ infra_to_frontends[inventory_hostname] }}"
+  ignore_errors: true # NOTE: This is a best effort operation.
+
+- name: Compute VNC ports
+  ansible.builtin.set_fact:
+    frontends_to_vnc_ports: >-
+      {{ dict(_frontends | zip(_ports)) }}
+  vars:
+    _ports: >-
+      {{ range(vnc_max_port, vnc_max_port - (_frontends | count), -1) }}
+    _frontends: >-
+      {{ groups[_frontend_group] }}
+    _frontend_group: >-
+      {{ frontend_group | d('frontend') }}
+
+- name: Define Front-end VMs
+  community.libvirt.virt:
+    command: define
+    xml: "{{ lookup('template', 'frontend.xml.j2') }}"
+    autostart: true
+  vars:
+    context: "{{ hostvars[frontend].context }}"
+  loop_control: { loop_var: frontend }
+  loop: "{{ infra_to_frontends[inventory_hostname] }}"
+
+- name: Start Front-end VMs
+  community.libvirt.virt:
+    name: "{{ frontend }}"
+    state: running
+  loop_control: { loop_var: frontend }
+  loop: "{{ infra_to_frontends[inventory_hostname] }}"
