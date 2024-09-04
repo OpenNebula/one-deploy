@@ -8,12 +8,8 @@
 
 - name: Restart libvirtd (NOW)
   ansible.builtin.service:
-    name: "{{ _name[ansible_os_family] }}"
+    name: libvirtd
     state: restarted
-  vars:
-    _name:
-      Debian: libvirtd
-      RedHat: libvirtd
   when: lineinfile is changed
 
 - name: Disable Libvirt's default network (optional)
@@ -28,13 +24,15 @@
   changed_when: false
   when: disable_default_net | bool is true
 
-- name: Populate service facts
-  ansible.builtin.service_facts:
+- name: Query raw status of virtqemud.service
+  ansible.builtin.systemd:
+    name: virtqemud.service
+  register: systemd_virtqemud
   no_log: true
 
 # NOTE: OpenNebula cannot deal with socket-activated Libvirt (yet),
-# so the socket activation *MUST* be disabled.
-- when: ansible_facts.services is contains('virtqemud.service')
+#       so the socket activation *MUST* be disabled.
+- when: systemd_virtqemud.status.LoadState not in ['masked', 'not-found']
   block:
     - name: Mask virtqemud* units and libvirtd* sockets
       ansible.builtin.systemd:
@@ -42,16 +40,15 @@
         enabled: false
         masked: true
         state: stopped
+      register: result
+      failed_when:
+        - result is failed
+        - result.status.LoadState is defined and result.status.LoadState != 'not-found'
       loop:
         - virtqemud.service
         - virtqemud.socket
         - virtqemud-admin.socket
         - virtqemud-ro.socket
-        - libvirtd.socket
-        - libvirtd-admin.socket
-        - libvirtd-ro.socket
-        - libvirtd-tcp.socket
-        - libvirtd-tls.socket
 
     - name: Create /etc/systemd/system/libvirtd.service.d/
       ansible.builtin.file:
@@ -100,9 +97,9 @@
         get_attributes: false
         get_checksum: false
         get_mime: false
-      register: stat_libvirt_qemu
+      register: stat
 
-    - when: stat_libvirt_qemu.stat.exists is true
+    - when: stat.stat.exists is true
       block:
         - name: Add permissions to AppArmor
           ansible.builtin.lineinfile:
@@ -111,7 +108,7 @@
           loop:
             - "  /srv/** rwk,"
             - "  /var/lib/one/datastores/** rwk,"
-          register: lineinfile_libvirt_qemu
+          register: lineinfile
 
         - name: Reload apparmor
           ansible.builtin.service:
@@ -122,4 +119,4 @@
             - result is failed
             - result.msg is not contains("find")
             - result.msg is not contains("found")
-          when: lineinfile_libvirt_qemu is changed
+          when: lineinfile is changed
