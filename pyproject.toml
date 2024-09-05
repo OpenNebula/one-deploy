@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "one-deploy"
-version = "1.0.0"
+version = "0.0.0"
 description = ""
 authors = ["OpenNebula <contact@opennebula.io>"]
 
