@@ -33,7 +33,7 @@ Example Playbook
         # Configure OpenNebula to use "ssh" datastores.
         # Create symlinks accordingly.
         # NOTE: In case of HA OpenNebula, image and file datastores
-        # should be shared among all Frontends.
+        #       should be shared among all Frontends.
         ds:
           mode: ssh
           config:
@@ -68,6 +68,11 @@ Example Playbook
       vars:
         # Configure OpenNebula to use "shared" image and system datastores.
         # Create new datastores and symlinks accordingly.
+        # NOTE: 1. In OpenNebula all user-created datastores start from ID=100.
+        #       2. If the 'id' attribute refers to an existing datastore, then one-deploy tries to update it.
+        #       3. If 2. is false, then a new datastore is created using the next available ID.
+        #       4. Users *MUST* provide the 'id' attribute for each new entry in the 'ds.config' dict
+        #          (starting from 100, then incrementing by 1 further down the line).
         ds:
           mode: generic
           config:
