@@ -9,9 +9,14 @@
 
       if [[ -L '{{ _base_path }}' ]]; then exit 0; fi
 
-      if [[ -d '{{ _base_path }}/' ]] && ! rmdir '{{ _base_path }}/'; then exit 1; fi
+      if ! [[ -d '{{ _mount_path }}' ]]; then
+        echo "Symlink target does not exist or is not a directory." >&2
+        exit 1
+      fi
 
-      if ! ln -s '{{ _mount_path }}/' '{{ _base_path }}'; then exit 1; fi
+      if [[ -d '{{ _base_path }}' ]] && ! rmdir '{{ _base_path }}'; then exit 1; fi
+
+      if ! ln -s '{{ _mount_path }}' '{{ _base_path }}'; then exit 1; fi
 
       exit 78
     executable: /bin/bash
