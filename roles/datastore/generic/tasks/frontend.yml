@@ -25,9 +25,9 @@
     _document: >-
       {{ shell.stdout | from_json }}
     _datastores: >-
-      {{ [_document.DATASTORE_POOL.DATASTORE | default([])] | flatten | list }}
+      {{ [_document.DATASTORE_POOL.DATASTORE | d([])] | flatten }}
     _names: >-
-      {{ _datastores | map(attribute='NAME') | default([]) | list }}
+      {{ _datastores | map(attribute='NAME') | d([]) | list }}
 
 - when: inventory_hostname == leader
   block:

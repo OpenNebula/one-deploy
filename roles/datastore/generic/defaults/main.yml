@@ -11,7 +11,7 @@ ds_defaults:
       enabled: true
       symlink:
         groups: [node]
-        src: /var/lib/one/datastores/
+        src: /var/lib/one/datastores/ # this skips symlinking
       template:
         TYPE: SYSTEM_DS
         TM_MAD: ssh
@@ -21,7 +21,7 @@ ds_defaults:
       managed: true
       symlink:
         groups: [frontend, node]
-        src: /var/lib/one/datastores/
+        src: /var/lib/one/datastores/ # this skips symlinking
       template:
         TYPE: IMAGE_DS
         DS_MAD: fs
@@ -32,7 +32,7 @@ ds_defaults:
       managed: true
       symlink:
         groups: [frontend]
-        src: /var/lib/one/datastores/
+        src: /var/lib/one/datastores/ # this skips symlinking
       template:
         TYPE: FILE_DS
         DS_MAD: fs
