@@ -167,3 +167,47 @@
   vars:
     _frontend_count: "{{ federation.groups.frontend | count }}"
     _force_ha: "{{ force_ha | d(false) | bool }}"
+
+- name: Check if TProxy is supported
+  ansible.builtin.assert:
+    that: (gate_tproxy is undefined)
+          or
+          (gate_tproxy is falsy)
+          or
+          (one_version is version('6.10.0', '>'))
+    msg: Please install OpenNebula > 6.10.0 if you want to use transparent proxies.
+  run_once: true
+
+- name: Ensure input TProxy config is correctly structured
+  ansible.builtin.assert:
+    that: "{{ 0 == (_loop[item].query | flatten | count) }}"
+    msg: "{{ _loop[item].msg }}: {{ _loop[item].query | to_json }}"
+  loop: "{{ range(_loop | count) }}"
+  vars:
+    _required: [":service_port", ":remote_addr", ":remote_port"]
+    _optional: [":networks"]
+    _loop:
+      # Look for missing keys.
+      - query: >-
+          {{ gate_tproxy | map('dict2items')
+                         | map('map', attribute='key')
+                         | map('symmetric_difference', _required)
+                         | map('intersect', _required) }}
+        msg: "Missing keys detected"
+      # Look for unknown keys.
+      - query: >-
+          {{ gate_tproxy | map('dict2items')
+                         | map('map', attribute='key')
+                         | map('difference', _required + _optional) }}
+        msg: "Unknown keys detected"
+      # Look for empty (invalid) values.
+      - query: >-
+          {{ gate_tproxy | map('dict2items')
+                         | map('selectattr', 'key', 'in', _required)
+                         | map('selectattr', 'value', 'falsy')
+                         | map('map', attribute='key') }}
+        msg: "Empty values detected"
+  when:
+    - gate_tproxy is defined
+    - gate_tproxy is sequence
+  run_once: true
