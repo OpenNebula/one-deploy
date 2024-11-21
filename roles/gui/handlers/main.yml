@@ -5,20 +5,14 @@
     state: restarted
   when: gui_no_restart is false
 
-- name: Restart Sunstone
-  ansible.builtin.service:
-    name: >-
-      {{ _name[ansible_os_family]
-         if features.passenger | bool is true else
-         'opennebula-sunstone' }}
-    state: restarted
-  vars:
-    _name: { Debian: apache2, RedHat: httpd }
-  when: gui_no_restart is false
-
 - name: Reload Apache2
   ansible.builtin.service:
     name: "{{ _name[ansible_os_family] }}"
     state: reloaded
   vars:
     _name: { Debian: apache2, RedHat: httpd }
+
+- name: Reload nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded

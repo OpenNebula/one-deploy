@@ -1,11 +1,11 @@
 ---
 - tags: [preinstall]
   block:
-    - name: Install Phusion Passenger dependencies
+    - name: Install Apache2
       ansible.builtin.package:
         name: "{{ _common + _specific[ansible_os_family] }}"
       vars:
-        _common: [memcached]
+        _common: []
         _specific:
           Debian: [apache2]
           RedHat: [httpd, mod_ssl]
@@ -22,60 +22,19 @@
         creates: "/etc/apache2/mods-enabled/{{ item }}.load"
       loop: [headers, proxy, proxy_http, proxy_wstunnel, rewrite, ssl]
       notify:
-        - Restart Sunstone
+        - Restart FireEdge Server
       when: ansible_os_family == 'Debian'
-
-    - ansible.builtin.include_role:
-        name: repository
-      vars:
-        repos_enabled: [passenger]
-      when: passenger_repo is undefined
-
-    - name: Install Phusion Passenger
-      ansible.builtin.package:
-        name: "{{ _common + _specific[ansible_os_family] }}"
-      vars:
-        _common: []
-        _specific:
-          Debian: [libapache2-mod-passenger]
-          RedHat: [mod_passenger]
-      register: package
-      until: package is success
-      retries: 12
-      delay: 5
-
-- name: Enable / Start Memcached (NOW)
-  ansible.builtin.service:
-    name: memcached
-    enabled: true
-    state: started
-
-- name: Ensure correct directory permissions
-  ansible.builtin.file:
-    path: "{{ item.path }}"
-    mode: "{{ item.mode }}"
-  loop:
-    - { mode: a+x, path: /var }
-    - { mode: a+x, path: /var/lib }
-    - { mode: a+x, path: /var/lib/one }
-    - { mode: a+x, path: /var/lib/one/.one }
-    - { mode: a+x, path: /var/lib/one/sunstone }
 
 - vars:
     _destdir:
       Debian: /etc/apache2/sites-available
       RedHat: /etc/httpd/conf.d
     _loop:
-      - name: opennebula
-        when: >-
-          {{ (apache2_http.managed | bool is true) }}
       - name: opennebula-ssl
         when: >-
-          {{ (apache2_https.managed | bool is true)
+          {{ (ssl.key is defined and ssl.key is truthy)
              and
-             (apache2_https.key is defined and apache2_https.key is truthy)
-             and
-             (apache2_https.certchain is defined and apache2_https.certchain is truthy) }}
+             (ssl.certchain is defined and ssl.certchain is truthy) }}
   block:
     - name: Configure OpenNebula VHOSTs (Apache2)
       ansible.builtin.template:

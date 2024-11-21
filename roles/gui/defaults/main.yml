@@ -1,16 +1,7 @@
 ---
-private_fireedge_endpoint: >-
-  http://localhost:2616
+private_fireedge_endpoint: http://localhost:2616
 
-public_fireedge_endpoint: >-
-  {{ 'https://' ~ (one_fqdn | d(one_vip) | d(hostvars[leader].ansible_host))
-     if apache2_https.managed | bool is true else
-     'http://' ~ (one_fqdn | d(one_vip) | d(hostvars[leader].ansible_host)) ~ ':2616' }}
-
-apache2_http_defaults:
-  managed: true
-
-apache2_https_defaults:
-  managed: false
+ssl_defaults:
+  web_server: apache # could be nginx
   key: /etc/ssl/private/opennebula-key.pem
   certchain: /etc/ssl/certs/opennebula-certchain.pem

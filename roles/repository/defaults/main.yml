@@ -24,13 +24,10 @@ repo_constraints:
       {{ true }}
     hosts: >-
       {{ (groups.get(frontend_group | d('frontend'), []) + groups.get(node_group | d('node'), [])) | unique }}
-  passenger:
-    condition: >-
-      {{ features.passenger | bool is true }}
     hosts: >-
       {{ groups.get(frontend_group | d('frontend'), []) }}
 
-repos_enabled: [ceph, frr, grafana, opennebula, passenger]
+repos_enabled: [ceph, frr, grafana, opennebula]
 
 ###
 
@@ -149,26 +146,3 @@ opennebula_repo_url_defaults:
     {%- endif -%}
 
 ###
-
-passenger_repo_force_trusted: false
-
-passenger_repo_key_path: {}
-passenger_repo_key_url: {}
-passenger_repo_path: {}
-passenger_repo_url: {}
-
-passenger_repo_key_path_defaults:
-  Debian: /etc/apt/trusted.gpg.d/passenger.asc
-  RedHat: /etc/pki/rpm-gpg/RPM-GPG-KEY-passenger
-
-passenger_repo_key_url_defaults:
-  Debian: https://oss-binaries.phusionpassenger.com/auto-software-signing-gpg-key.txt
-  RedHat: https://oss-binaries.phusionpassenger.com/auto-software-signing-gpg-key.txt
-
-passenger_repo_path_defaults:
-  Debian: /etc/apt/sources.list.d/passenger.list
-  RedHat: /etc/yum.repos.d/passenger.repo
-
-passenger_repo_url_defaults:
-  Debian: https://oss-binaries.phusionpassenger.com/apt/passenger
-  RedHat: https://oss-binaries.phusionpassenger.com/yum/passenger/el

@@ -40,12 +40,6 @@ Role Variables
 | `opennebula_repo_key_url`       | `dict` |               |                     | OpenNebula GPG key urls for Debian/RedHat distros.                    |
 | `opennebula_repo_path`          | `dict` |               |                     | OpenNebula repo definition paths for Debian/RedHat distros.           |
 | `opennebula_repo_url`           | `dict` |               | (check below)       | OpenNebula repo url for Debian/RedHat distros.                        |
-|                                 |        |               |                     |                                                                       |
-| `passenger_repo_force_trusted`  | `bool` | `false`       |                     | Disable Passenger GPG / SSL repo verification.                        |
-| `passenger_repo_key_path`       | `dict` |               |                     | Passenger GPG key paths for Debian/RedHat distros.                    |
-| `passenger_repo_key_url`        | `dict` |               |                     | Passenger GPG key urls for Debian/RedHat distros.                     |
-| `passenger_repo_path`           | `dict` |               |                     | Passenger repo definition paths for Debian/RedHat distros.            |
-| `passenger_repo_url`            | `dict` |               |                     | Passenger repo url for Debian/RedHat distros.                         |
 
 Dependencies
 ------------
@@ -57,7 +51,7 @@ Example Playbook
 
     - hosts: frontend:node
       vars:
-        repos_enabled: [ceph, frr, grafana, opennebula, passenger] # defaults
+        repos_enabled: [ceph, frr, grafana, opennebula] # defaults
 
         # Enable OpenNebula EE repo.
         one_token: 'asd123as:123asd12'

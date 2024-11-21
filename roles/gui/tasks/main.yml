@@ -7,11 +7,11 @@
         repos_enabled: [opennebula]
       when: opennebula_repo is undefined
 
-    - name: Install FireEdge, Sunstone and dependencies
+    - name: Install FireEdge and dependencies
       ansible.builtin.package:
         name: "{{ _common + _specific[ansible_os_family] }}"
       vars:
-        _common: [opennebula-fireedge, opennebula-sunstone]
+        _common: [opennebula-fireedge]
         _specific:
           Debian: []
           RedHat: []
@@ -38,31 +38,12 @@
     state: started
   register: service_fireedge
 
-- when: features.passenger | bool is false
-  block:
-    - name: Enable Sunstone Server (NOW)
-      ansible.builtin.service:
-        name: opennebula-sunstone
-        enabled: true
-
-    - name: Start Sunstone Server (NOW)
-      ansible.builtin.service:
-        name: opennebula-sunstone
-        state: started
-      register: service_sunstone
-
-- when: features.passenger | bool is true
-  block:
-    - name: Disable / Stop Sunstone Server (NOW)
-      ansible.builtin.service:
-        name: opennebula-sunstone
-        enabled: false
-        state: stopped
-
-    - ansible.builtin.import_tasks:
-        file: "{{ role_path }}/tasks/passenger.yml"
+- name: Install Web Server
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/{{ ssl.web_server }}.yml"
+  when: ssl.web_server in ['nginx', 'apache']
 
 - name: Ensure FireEdge and Sunstone are not restarted twice
   ansible.builtin.set_fact:
     gui_no_restart: >-
-      {{ service_fireedge is changed and service_sunstone is changed }}
+      {{ service_fireedge is changed }}

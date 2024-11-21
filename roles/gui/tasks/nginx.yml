@@ -1,0 +1,24 @@
+---
+- tags: [preinstall]
+  block:
+    - name: Install nginx
+      ansible.builtin.package:
+        name: nginx
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+- name: Configure nginx reverse proxy
+  ansible.builtin.template:
+    dest: /etc/nginx/nginx.conf
+    src: "{{ role_path }}/templates/nginx.conf.j2"
+    mode: u=rw,go=r
+  notify:
+    - Reload nginx
+
+- name: Enable nginx Server
+  ansible.builtin.service:
+    name: nginx
+    enabled: true
+    state: started
