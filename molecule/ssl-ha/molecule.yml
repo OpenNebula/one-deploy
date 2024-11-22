@@ -68,8 +68,10 @@ platforms:
           GROW_FS: /
           NETCFG_TYPE: networkd
           PASSWORD: asd
+        CPU: 1
         DISK:
           SIZE: 20480
+          TYPE: FS
         MEMORY: 2048
         NIC:
           NETWORK: ${ONE_VNET}
