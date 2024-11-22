@@ -225,3 +225,9 @@
           Please use the ssl.web_server (nginx or apache), ssl.key and ssl.certchain variables.
           Use one-deploy version 1.2.0 if required.
   run_once: true
+
+- name: Check if using a supported web server
+  ansible.builtin.assert:
+    that:
+      - ssl.web_server in ['nginx', 'apache']
+    msg: The only supported web servers are apache and nginx

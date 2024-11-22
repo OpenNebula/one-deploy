@@ -41,7 +41,6 @@
 - name: Install Web Server
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/{{ ssl.web_server }}.yml"
-  when: ssl.web_server in ['nginx', 'apache']
 
 - name: Ensure FireEdge and Sunstone are not restarted twice
   ansible.builtin.set_fact:

@@ -71,4 +71,3 @@
     state: started
   vars:
     _name: { Debian: apache2, RedHat: httpd }
-  register: service_sunstone
