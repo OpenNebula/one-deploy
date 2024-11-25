@@ -38,11 +38,12 @@
     state: started
   register: service_fireedge
 
-- name: Install Web Server
-  ansible.builtin.include_tasks:
-    file: "{{ role_path }}/tasks/{{ ssl.web_server }}.yml"
-
 - name: Ensure FireEdge and Sunstone are not restarted twice
   ansible.builtin.set_fact:
     gui_no_restart: >-
       {{ service_fireedge is changed }}
+
+- name: Install Web Server
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/{{ ssl.web_server }}.yml"
+  when: ssl is defined

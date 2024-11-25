@@ -24,8 +24,6 @@ repo_constraints:
       {{ true }}
     hosts: >-
       {{ (groups.get(frontend_group | d('frontend'), []) + groups.get(node_group | d('node'), [])) | unique }}
-    hosts: >-
-      {{ groups.get(frontend_group | d('frontend'), []) }}
 
 repos_enabled: [ceph, frr, grafana, opennebula]
 

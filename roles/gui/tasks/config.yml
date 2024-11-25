@@ -1,9 +1,8 @@
 ---
 - name: Compute facts (GUI)
   ansible.builtin.set_fact:
-    ssl: >-
-      {{ ssl_defaults | combine(ssl | d({})) }}
-
+    ssl: "{{ ssl_defaults | combine(ssl) }}"
+  when: ssl is defined
 
 - name: Configure Sunstone Server (:token_remote_support)
   ansible.builtin.lineinfile:

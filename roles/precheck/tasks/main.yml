@@ -163,7 +163,7 @@
     that: ((_frontend_count | int == 1) and (_force_ha is false))
           or
           (db_backend | d('MariaDB') != 'SQLite')
-    msg: Please use either PostgreSQL or MariaDB as DB backend for HA setup.
+    msg: Please use MariaDB as DB backend for HA setup.
   vars:
     _frontend_count: "{{ federation.groups.frontend | count }}"
     _force_ha: "{{ force_ha | d(false) | bool }}"
@@ -223,11 +223,13 @@
           Apache Passenger is no longer required.
           Only reverse proxying with SSL termination is supported.
           Please use the ssl.web_server (nginx or apache), ssl.key and ssl.certchain variables.
-          Use one-deploy version 1.2.0 if required.
+          Use one-deploy version <= 1.2.0 if required.
   run_once: true
 
 - name: Check if using a supported web server
   ansible.builtin.assert:
-    that:
-      - ssl.web_server in ['nginx', 'apache']
-    msg: The only supported web servers are apache and nginx
+    that: (ssl is undefined)
+          or
+          ((ssl.web_server is defined) and (ssl.web_server in ['nginx', 'apache']))
+    msg: The only supported web servers are 'apache' and 'nginx'.
+  run_once: true
