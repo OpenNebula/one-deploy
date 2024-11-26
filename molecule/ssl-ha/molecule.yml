@@ -1,6 +1,8 @@
 ---
 prerun: false
 
+# TODO: Enable web server (apache and nginx) + ssl cert generation.
+
 dependency:
   name: galaxy
   enabled: false
