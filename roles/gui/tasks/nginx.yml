@@ -9,13 +9,50 @@
       retries: 12
       delay: 5
 
-- name: Configure nginx reverse proxy
-  ansible.builtin.template:
-    dest: /etc/nginx/nginx.conf
-    src: "{{ role_path }}/templates/nginx.conf.j2"
-    mode: u=rw,go=r
-  notify:
-    - Reload nginx
+
+- vars:
+    _destdir:
+      Debian: /etc/nginx/sites-available
+      RedHat: /etc/nginx/conf.d
+    _default_conf_file:
+      Debian: /etc/nginx/sites-enabled/default
+      RedHat: /etc/nginx/conf.d/default.conf
+    _template: reverse_proxy_ssl_nginx.conf.j2
+    _loop:
+      - name: opennebula-ssl
+        when: >-
+          {{ (ssl.key is defined and ssl.key is truthy)
+             and
+             (ssl.certchain is defined and ssl.certchain is truthy) }}
+  block:
+    - name: Remove default configuation file
+      ansible.builtin.file:
+        path: "{{ _default_conf_file[ansible_os_family] }}"
+        state: absent
+
+    - name: Configure OpenNebula VHOSTs (nginx)
+      ansible.builtin.template:
+        dest: "{{ _destdir[ansible_os_family] }}/{{ item.name }}.conf"
+        src: "{{ role_path }}/templates/{{ _template }}"
+        mode: u=rw,go=r
+      when:
+        - item.when is true
+      loop: "{{ _loop }}"
+      notify:
+        - Reload nginx
+
+    - name: Enable OpenNebula VHOSTs (nginx)
+      ansible.builtin.file:
+        src: "{{ _destdir[ansible_os_family] }}/{{ item.name }}.conf"
+        dest: "/etc/nginx/sites-enabled/{{ item.name }}.conf"
+        state: link
+      when:
+        - item.when is true
+        - ansible_os_family == 'Debian'
+      loop: "{{ _loop }}"
+      notify:
+        - Reload nginx
+
 
 - name: Enable nginx Server
   ansible.builtin.service:

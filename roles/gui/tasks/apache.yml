@@ -29,6 +29,7 @@
     _destdir:
       Debian: /etc/apache2/sites-available
       RedHat: /etc/httpd/conf.d
+    _template: reverse_proxy_ssl_apache2.conf.j2
     _loop:
       - name: opennebula-ssl
         when: >-
@@ -39,7 +40,7 @@
     - name: Configure OpenNebula VHOSTs (Apache2)
       ansible.builtin.template:
         dest: "{{ _destdir[ansible_os_family] }}/{{ item.name }}.conf"
-        src: "{{ role_path }}/templates/{{ item.name }}.conf.j2"
+        src: "{{ role_path }}/templates/{{ _template }}"
         mode: u=rw,go=r
       when:
         - item.when is true
