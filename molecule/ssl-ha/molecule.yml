@@ -1,6 +1,8 @@
 ---
 prerun: false
 
+# TODO: Enable web server (apache and nginx) + ssl cert generation.
+
 dependency:
   name: galaxy
   enabled: false
@@ -16,7 +18,7 @@ provisioner:
   inventory:
     group_vars:
       all:
-        env_name: passenger-ha
+        env_name: ssl-ha
         ansible_user: root
         ensure_keys_for: [root]
         ensure_hostname: true
@@ -24,7 +26,6 @@ provisioner:
         update_pkg_cache: true
         one_pass: asd
         one_version: '6.8'
-        features: { passenger: true }
         one_vip: "{{ '${ONE_RANGE2}'.split()[0] | ansible.utils.ipmath('${ONE_RANGE2}'.split()[1]|int - 1) }}"
         one_vip_cidr: "{{ '${ONE_SUBNET}' | ansible.utils.ipaddr('prefix') }}"
         one_vip_if: br0
@@ -60,7 +61,7 @@ provisioner:
       ssh_args: -q -o ControlMaster=auto -o ControlPersist=60s
 
 platforms:
-  - name: passenger-ha-f1
+  - name: ssl-ha-f1
     groups: [frontend, node]
     template:
       name: ubuntu2204
@@ -69,8 +70,10 @@ platforms:
           GROW_FS: /
           NETCFG_TYPE: networkd
           PASSWORD: asd
+        CPU: 1
         DISK:
           SIZE: 20480
+          TYPE: FS
         MEMORY: 2048
         NIC:
           NETWORK: ${ONE_VNET}
@@ -79,21 +82,21 @@ platforms:
       user: ${ONE_USER}
       pswd: ${ONE_PSWD}
 
-  - name: passenger-ha-f2
+  - name: ssl-ha-f2
     groups: [frontend, node]
     template:
       name: alma9
       content: *content
     auth: *auth
 
-  - name: passenger-ha-f3
+  - name: ssl-ha-f3
     groups: [frontend, node]
     template:
       name: ubuntu2004
       content: *content
     auth: *auth
 
-  - name: passenger-ha-f4
+  - name: ssl-ha-f4
     groups: [frontend, node]
     template:
       name: alma8

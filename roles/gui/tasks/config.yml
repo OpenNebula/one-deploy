@@ -1,41 +1,14 @@
 ---
-- name: Compute facts
+- name: Compute facts (GUI)
   ansible.builtin.set_fact:
-    apache2_http: >-
-      {{ apache2_http_defaults | combine(apache2_http | d({})) }}
-    apache2_https: >-
-      {{ apache2_https_defaults | combine(apache2_https | d({})) }}
-
-- name: Configure Sunstone Server (:private_fireedge_endpoint)
-  ansible.builtin.lineinfile:
-    path: /etc/one/sunstone-server.conf
-    regexp: '^:private_fireedge_endpoint:.*$'
-    line: ':private_fireedge_endpoint: "{{ private_fireedge_endpoint | lower }}"'
-  notify:
-    - Restart Sunstone
-
-- name: Configure Sunstone Server (:public_fireedge_endpoint)
-  ansible.builtin.lineinfile:
-    path: /etc/one/sunstone-server.conf
-    regexp: '^:public_fireedge_endpoint:.*$'
-    line: ':public_fireedge_endpoint: "{{ public_fireedge_endpoint | lower }}"'
-  notify:
-    - Restart Sunstone
-
-- name: Configure Sunstone Server (:sessions)
-  ansible.builtin.lineinfile:
-    path: /etc/one/sunstone-server.conf
-    regexp: '^[#\s]*:sessions:.*$'
-    line: ':sessions: memcache'
-  notify:
-    - Restart Sunstone
-  when: features.passenger | bool is true
+    ssl: "{{ ssl_defaults | combine(ssl) }}"
+  when: ssl is defined
 
 - name: Configure Sunstone Server (:token_remote_support)
   ansible.builtin.lineinfile:
-    path: /etc/one/sunstone-server.conf
+    path: /etc/one/fireedge/sunstone/sunstone-server.conf
     regexp: '^[#\s]*:token_remote_support:.*$'
     line: ':token_remote_support: "{{ one_token }}"'
   notify:
-    - Restart Sunstone
+    - Restart FireEdge Server
   when: one_token is defined and one_token is truthy

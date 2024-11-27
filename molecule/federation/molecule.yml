@@ -24,7 +24,6 @@ provisioner:
         update_pkg_cache: true
         one_pass: asd
         one_version: '6.8'
-        features: { passenger: true }
     hosts:
       _0:
         children:

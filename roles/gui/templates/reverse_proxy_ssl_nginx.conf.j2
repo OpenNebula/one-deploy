@@ -1,0 +1,44 @@
+
+#### cloudserver.org HTTP virtual host
+server {
+        listen 80;
+        server_name {{ one_fqdn | d(one_vip) | d(hostvars[leader].ansible_host) }};
+
+        ### Permanent redirect to HTTPS (optional)
+        return 301 $scheme://$server_name:$server_port$request_uri;
+}
+
+#### cloudserver.org HTTPS virtual host
+server {
+        listen 443 ssl;
+        server_name {{ one_fqdn | d(one_vip) | d(hostvars[leader].ansible_host) }};
+
+        ### SSL Parameters
+        ssl_certificate_key {{ ssl.key }};
+        ssl_certificate {{ ssl.certchain }};
+
+        # No squealing.
+        server_tokens off;
+
+        # Redirect root to /fireedge
+        location = / {
+                return 301 $scheme://$http_host/fireedge;
+        }
+
+        location /fireedge {
+                proxy_pass {{ private_fireedge_endpoint }}/fireedge;
+                proxy_redirect off;
+                log_not_found off;
+                proxy_buffering off;
+                proxy_cache_bypass $http_upgrade;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header Host $http_host;
+                proxy_set_header X-Forwarded-FOR $proxy_add_x_forwarded_for;
+                access_log off;
+        }
+}
+
+
