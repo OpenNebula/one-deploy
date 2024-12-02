@@ -32,4 +32,4 @@ Copyright 2002-2023, OpenNebula Project, OpenNebula Systems
 
 Some of the software features included in this repository have been made possible through the funding of the following innovation projects:
 
-- [ONEnextgen](http://onenextgen.eu/) (Grant Agreement UNICO IPCEI-2023-003), supported by the Spanish Ministry for Digital Transformation and Civil Service through the UNICO IPCEI Program, co-funded by the European Union – NextGenerationEU through the Recovery and Resilience Facility (RRF).
+* [ONEnextgen](http://onenextgen.eu/) (Grant Agreement UNICO IPCEI-2023-003), supported by the Spanish Ministry for Digital Transformation and Civil Service through the UNICO IPCEI Program, co-funded by the European Union – NextGenerationEU through the Recovery and Resilience Facility (RRF).
