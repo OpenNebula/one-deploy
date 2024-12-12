@@ -38,7 +38,7 @@ infra pre ceph site main:
 requirements: requirements-$(if $(POETRY_RUN),poetry,python) requirements-galaxy
 
 requirements-poetry: $(SELF)/pyproject.toml
-	poetry update --directory $(dir $<)
+	POETRY_PROJECT_DIR=$(dir $<) poetry update
 
 requirements-python: $(SELF)/requirements.txt
 	pip3 install --requirement $<
