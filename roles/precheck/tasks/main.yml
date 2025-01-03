@@ -15,7 +15,7 @@
     msg: Please make sure [context.PASSWORD, one_pass, one_token, one_version] are valid strings.
   run_once: true
 
-- name: Validate password strength
+- name: Validate passwords strength
   ansible.builtin.assert:
     that:
       - item.value | length >= 8
@@ -31,11 +31,19 @@
       - Contains at least one digit
       - Contains at least one special character
   loop:
-    - { key: "context.PASSWORD", value: "{{ context.PASSWORD }}" }
-    - { key: "one_pass", value: "{{ one_pass }}" }
-  when: prod_env is true and item.value is defined and item.value is string
+    - key: "one_pass"
+      value: "{{ one_pass }}"
+      condition: "{{ one_pass is defined }}"
+    - key: "context.PASSWORD"
+      value: "{{ context.PASSWORD | d(None) }}"
+      condition: "{{ context is defined and context.PASSWORD is defined }}"
+  when:
+    - prod_env is true
+    - item.condition
   loop_control:
     label: "{{ item.key }}"
+  run_once: true
+  no_log: true
 
 - name: Check if one_vip/force_ha settings are valid
   ansible.builtin.assert:
