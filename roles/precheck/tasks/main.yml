@@ -17,33 +17,45 @@
 
 - name: Validate passwords strength
   ansible.builtin.assert:
-    that:
-      - item.value | length >= 8
-      - item.value | regex_search('[A-Z]')
-      - item.value | regex_search('[a-z]')
-      - item.value | regex_search('[0-9]')
-      - item.value | regex_search('[!@#$%^&*(),.?":{}|<>]')
+    that: >-
+      {% if item == 'one_pass' %}
+      _items[item].value | length > 0 and
+      not _items[item].value | regex_search('[ \t\n\v\f\r]') and
+      _items[item].value not in ['opennebula', 'password']
+      {% else %}
+      _items[item].value | length >= 8 and
+      _items[item].value | regex_search('[A-Z]') and
+      _items[item].value | regex_search('[a-z]') and
+      _items[item].value | regex_search('[0-9]') and
+      _items[item].value | regex_search('[!@#$%^&*(),.?":{}|<>]')
+      {% endif %}
     fail_msg: >
-      Password validation failed for "{{ item.key }}". Ensure the password meets the following criteria:
+      Password validation failed for "{{ item }}".
+      {% if item == 'one_pass' %}
+      Ensure the password meets the following criteria:
+      - Must not be empty
+      - Must not contain whitespace characters
+      {% else %}
+      Ensure the password meets the following criteria:
       - At least 8 characters long
       - Contains at least one uppercase letter
       - Contains at least one lowercase letter
       - Contains at least one digit
       - Contains at least one special character
-  loop:
-    - key: "one_pass"
-      value: "{{ one_pass }}"
-      condition: "{{ one_pass is defined }}"
-    - key: "context.PASSWORD"
-      value: "{{ context.PASSWORD | d(None) }}"
-      condition: "{{ context is defined and context.PASSWORD is defined }}"
+      {% endif %}
+  loop: "{{ _items.keys() | list }}"
+  vars:
+    _items:
+      one_pass:
+        value: "{{ one_pass | d(None) }}"
+        condition: "{{ one_pass is defined }}"
+      context.PASSWORD:
+        value: "{{ context.PASSWORD | d(None) }}"
+        condition: "{{ context is defined and context.PASSWORD is defined }}"
   when:
     - prod_env is true
-    - item.condition
-  loop_control:
-    label: "{{ item.key }}"
+    - _items[item].condition
   run_once: true
-  no_log: true
 
 - name: Check if one_vip/force_ha settings are valid
   ansible.builtin.assert:
