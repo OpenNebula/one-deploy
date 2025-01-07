@@ -1,0 +1,35 @@
+---
+
+# JSON parser
+- name: Install jq
+  ansible.builtin.package:
+    name: jq
+    state: present
+  when: run_iperf or run_ping
+
+# Requirement for ping test. Converts ping ouput to json
+- name: Install jc
+  ansible.builtin.package:
+    name: jc
+    state: present
+  when: run_ping
+
+# Requirement for iperf test
+- name: Install IPerf3
+  ansible.builtin.package:
+    name: iperf3
+    state: present
+  when: run_iperf
+
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/iperf.yml"
+  when:
+    - run_iperf
+
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/ping.yml"
+  when:
+    - run_ping
+
+
+
