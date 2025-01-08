@@ -17,43 +17,41 @@
 
 - name: Validate passwords strength
   ansible.builtin.assert:
-    that: >-
-      {% if item == 'one_pass' %}
-      _items[item].value | length > 0 and
-      not _items[item].value | regex_search('[ \t\n\v\f\r]') and
-      _items[item].value not in ['opennebula', 'password']
-      {% else %}
-      _items[item].value | length >= 8 and
-      _items[item].value | regex_search('[A-Z]') and
-      _items[item].value | regex_search('[a-z]') and
-      _items[item].value | regex_search('[0-9]') and
-      _items[item].value | regex_search('[!@#$%^&*(),.?":{}|<>]')
-      {% endif %}
+    that: "{{ _items[item].that }}"
     fail_msg: >
       Password validation failed for "{{ item }}".
-      {% if item == 'one_pass' %}
-      Ensure the password meets the following criteria:
-      - Must not be empty
-      - Must not contain whitespace characters
-      {% else %}
-      Ensure the password meets the following criteria:
-      - At least 8 characters long
-      - Contains at least one uppercase letter
-      - Contains at least one lowercase letter
-      - Contains at least one digit
-      - Contains at least one special character
-      {% endif %}
+      {{ _items[item].fail_msg }}
   loop: "{{ _items.keys() | list }}"
   vars:
     _items:
       one_pass:
-        value: "{{ one_pass | d(None) }}"
         condition: "{{ one_pass is defined }}"
+        that:
+          - one_pass | length > 0
+          - not (one_pass | regex_search('[ \t\n\v\f\r]'))
+          - one_pass not in ['opennebula', 'password']
+        fail_msg: >
+          Ensure the password meets the following criteria:
+          - Must not be empty
+          - Must not contain whitespace characters
+          - Must not be trivial, one of ['opennebula', 'password']
       context.PASSWORD:
-        value: "{{ context.PASSWORD | d(None) }}"
         condition: "{{ context is defined and context.PASSWORD is defined }}"
+        that:
+          - context.PASSWORD | length >= 8
+          - context.PASSWORD | regex_search('[A-Z]')
+          - context.PASSWORD | regex_search('[a-z]')
+          - context.PASSWORD | regex_search('[0-9]')
+          - context.PASSWORD | regex_search('[!@#$%^&*(),.?":{}|<>]')
+        fail_msg: >
+          Ensure the password meets the following criteria:
+          - At least 8 characters long
+          - Contains at least one uppercase letter
+          - Contains at least one lowercase letter
+          - Contains at least one digit
+          - Contains at least one special character
   when:
-    - prod_env is true
+    - prod_env | d(false) | bool is true
     - _items[item].condition
   run_once: true
 
