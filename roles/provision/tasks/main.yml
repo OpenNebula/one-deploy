@@ -1,0 +1,58 @@
+---
+- name: Install Terraform
+  ansible.builtin.unarchive:
+    src: "{{ terraform_source }}"
+    dest: /usr/local/bin
+    remote_src: true
+    mode: '0755'
+    creates: /usr/local/bin/terraform
+
+
+- tags: [preinstall]
+  block:
+    - ansible.builtin.include_role:
+        name: repository
+      vars:
+        repos_enabled: [opennebula]
+      when: opennebula_repo is undefined
+
+    - name: Install OneProvision
+      ansible.builtin.package:
+        name: "{{ _common + _specific[ansible_os_family] }}"
+      vars:
+        _common: [opennebula-provision]
+        _specific:
+          Debian: []
+          RedHat: []
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+- name: Check Ansible version
+  ansible.builtin.shell:
+    cmd: |
+      version=$(ansible --version | head -n1)
+      if echo "$version" | grep -q "core"; then
+        echo "$version" | awk '{print $3}' | tr -d '[]'
+      else
+        echo "$version" | awk '{print $2}'
+      fi
+  register: ansible_version_check
+  changed_when: false
+
+- name: Install required Ansible version
+  when: ansible_version_check.stdout is version(ansible_version_provision, '<')
+  block:
+    - name: Ensure python3-pip is installed
+      ansible.builtin.package:
+        name: python3-pip
+        state: present
+
+    - name: Install updated ansible version
+      ansible.builtin.pip:
+        name: "ansible-core>={{ ansible_version_provision }}"
+        state: present
+      become: true
+      become_user: oneadmin
+      ignore_errors: true # pipx error message might show

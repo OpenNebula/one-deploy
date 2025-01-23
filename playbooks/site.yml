@@ -35,6 +35,9 @@
     - role: flow
       tags: [flow]
 
+    - role: provision
+      tags: [provision]
+
     - role: gui
       tags: [gui]
 
