@@ -39,6 +39,7 @@
         cmd: "{{ _shell[db_backend].cmd }}"
         stdin: "{{ _shell[db_backend].stdin }}"
         executable: /bin/bash
+      become: true
       become_user: "{{ _become_user[db_backend] }}"
       vars:
         _shell:

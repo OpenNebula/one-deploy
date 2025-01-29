@@ -35,19 +35,19 @@
             name: "{{ _federation.group_name }}-leader"
             ansible_host: "{{ hostvars[_leader].ansible_host | d(_leader) }}"
             ansible_user: "{{ hostvars[_federation.groups.frontend[0]].ansible_user }}"
+          changed_when: false
           when: _leader is defined
           vars:
             _leader: "{{ hostvars[item].leader }}"
             _federation: "{{ hostvars[item].federation }}"
           loop: "{{ play_hosts }}"
-          changed_when: false
 
         - name: Get Zone
           ansible.builtin.shell:
             cmd: onezone show '{{ zone_name }}' --json
             executable: /bin/bash
-          register: shell
           changed_when: false
+          register: shell
           delegate_to: "{{ federation.group_name }}-leader"
 
         - name: Detect if the Leader is there

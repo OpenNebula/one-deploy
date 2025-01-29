@@ -152,7 +152,8 @@
           (inventory_hostname not in _hosts)
           or
           ((_repos is defined) and (_repo in _repos))
-    msg: Please use one of the supported linux distro families to run Ceph ({{ ansible_distribution }}/{{ ansible_distribution_major_version }}/{{ _repo }} combination is unsupported).
+    msg: Please use one of the supported linux distro families to run Ceph
+         ({{ ansible_distribution }}/{{ ansible_distribution_major_version }}/{{ _repo }} combination is unsupported).
   vars:
     _repo: "{{ ceph.repo | d('distro') }}"
     _repos: "{{ _supported[ansible_distribution][ansible_distribution_major_version] }}"

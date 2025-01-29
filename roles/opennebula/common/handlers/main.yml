@@ -9,6 +9,7 @@
   ansible.builtin.shell:
     cmd: onehost sync -f
     executable: /bin/bash
+  changed_when: true
   become: true
   become_user: oneadmin
   when: inventory_hostname == leader

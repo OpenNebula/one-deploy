@@ -44,11 +44,12 @@
         - delegate_to: "{{ federation.master }}"
           block:
             - name: Archive AUTH data (fed)
-              ansible.builtin.archive:
+              community.general.archive:
                 dest: &master_tar_gz "/var/tmp/master-{{ inventory_hostname }}.tar.gz"
                 path: *_paths
                 format: gz
                 remove: false
+                mode: u=rw,go=r
 
             # NOTE: Artifacts are copied from Front-end to Front-end via RSYNC/SSH *directly*,
             #       please make sure SSH/RSA keys are distributed accordingly (password-less login).
@@ -73,8 +74,8 @@
                         -p '{{ db_password }}' \
                         -d '{{ db_name }}'
         executable: /bin/bash
-      register: shell
       changed_when: false
+      register: shell
       ignore_errors: true
 
     - name: Detect if DB has been replicated (fed)
@@ -88,6 +89,8 @@
           ansible.builtin.shell:
             cmd: /usr/bin/oned --init-db
             executable: /bin/bash
+          changed_when: true
+          become: true
           become_user: oneadmin
 
         - delegate_to: "{{ federation.master }}"
@@ -101,13 +104,15 @@
                                   -p '{{ db_password }}' \
                                   -d '{{ db_name }}' '/var/tmp/db_master-{{ inventory_hostname }}.sql'
                 executable: /bin/bash
+              changed_when: true
 
             - name: Compress DB backup (fed)
-              ansible.builtin.archive:
+              community.general.archive:
                 dest: &db_master_sql_gz "/var/tmp/db_master-{{ inventory_hostname }}.sql.gz"
                 path: "/var/tmp/db_master-{{ inventory_hostname }}.sql"
                 format: gz
                 remove: true
+                mode: u=rw,go=r
 
         - block:
             # NOTE: Artifacts are copied from Front-end to Front-end via RSYNC/SSH *directly*,
@@ -130,5 +135,6 @@
                                                                  -p '{{ db_password }}' \
                                                                  -d '{{ db_name }}' /dev/fd/0
                 executable: /bin/bash
+              changed_when: true
               vars:
                 _db_master_sql_gz: *db_master_sql_gz

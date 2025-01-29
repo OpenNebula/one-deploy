@@ -1,0 +1,12 @@
+---
+exclude_paths:
+  - vendor/
+
+skip_list:
+  - fqcn[keyword]
+  - name[missing]
+  - name[play]
+  - no-handler
+  - role-name[path]
+  - var-naming[no-role-prefix]
+  - var-naming[pattern]

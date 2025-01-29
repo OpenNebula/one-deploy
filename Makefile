@@ -70,3 +70,8 @@ clean-requirements:
 	find $(SELF)/ansible_collections/ -mindepth 1 -maxdepth 1 -type d ! -name opennebula -exec rm -rf {} +
 	$(if $(ENV_DEFAULT),$(HATCH_BIN) env remove default,)
 	$(if $(ENV_CEPH),$(HATCH_BIN) env remove ceph,)
+
+.PHONY: lint-ansible
+
+lint-ansible: $(ENV_DEFAULT)
+	cd $(SELF)/ && $(call ENV_RUN,default) ansible-lint roles/ playbooks/

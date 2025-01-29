@@ -153,7 +153,7 @@
     _mons: >-
       {%- set output = [] -%}
       {%- for host in _hosts -%}
-      {{- output.append( '[v2:%(host)s:3300,v1:%(host)s:6789]' | format(host=host) ) -}}
+      {{- output.append('[v2:%(host)s:3300,v1:%(host)s:6789]' | format(host=host)) -}}
       {%- endfor -%}
       {{- output | join(_sep) -}}
     _sep: ','
@@ -184,5 +184,6 @@
         --base64 '{{ shell_key.stdout | trim }}'
       fi
     executable: /bin/bash
-  become_user: oneadmin
   changed_when: false
+  become: true
+  become_user: oneadmin

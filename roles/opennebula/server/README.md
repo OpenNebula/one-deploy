@@ -30,7 +30,7 @@ Role Variables
 Dependencies
 ------------
 
-N/A
+- community.general
 
 Example Playbook
 ----------------

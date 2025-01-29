@@ -12,6 +12,7 @@ skip-install = true
 installer = "uv"
 dependencies = [
   "ansible-core",
+  "ansible-lint",
   "molecule",
   "netaddr",
   "pyone",

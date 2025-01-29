@@ -126,21 +126,19 @@ opennebula_repo_path_defaults:
 opennebula_repo_url_defaults:
   Debian: >-
     {%- if one_token is defined and one_token is truthy -%}
-    https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_major_version }}
+      https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_major_version }}
     {%- else -%}
-    https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_major_version }}
+      https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_major_version }}
     {%- endif -%}
   RedHat: >-
     {%- if one_token is defined and one_token is truthy -%}
-    https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
+      https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
     {%- else -%}
-    https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
+      https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
     {%- endif -%}
   Ubuntu: >-
     {%- if one_token is defined and one_token is truthy -%}
-    https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }}
+      https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }}
     {%- else -%}
-    https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }}
+      https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }}
     {%- endif -%}
-
-###

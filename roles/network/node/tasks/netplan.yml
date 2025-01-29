@@ -48,6 +48,7 @@
 
           netplan apply
         executable: /bin/bash
+      changed_when: true
       vars:
         _update: >-
           {{ phydev_cfg[_phydev].config | dict2items
