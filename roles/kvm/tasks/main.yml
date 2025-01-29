@@ -45,13 +45,14 @@
       ansible.builtin.shell:
         cmd: onehost list --json
         executable: /bin/bash
-      register: shell
       changed_when: false
+      register: shell
 
     - name: Add this KVM Node to OpenNebula
       ansible.builtin.shell:
         cmd: onehost create '{{ _this }}' -i '{{ hv_types[_hv].im_mad }}' -v '{{ hv_types[_hv].vmm_mad }}'
         executable: /bin/bash
+      changed_when: true
       when: _host_pool is falsy or _this not in _node_names
       vars:
         _document: >-

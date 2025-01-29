@@ -14,8 +14,8 @@
   ansible.builtin.shell:
     cmd: onezone show '{{ zone_name }}' --json
     executable: /bin/bash
-  register: shell
   changed_when: false
+  register: shell
 
 - name: Get ZONE_ID of this Front-end
   ansible.builtin.set_fact:
@@ -28,7 +28,7 @@
 - name: Update Zone Endpoint
   ansible.builtin.shell:
     cmd: |
-      set +o errexit
+      set +o errexit -o pipefail
       TEMPLATE="$(mktemp)"
       tee "$TEMPLATE"
       cat "$TEMPLATE" | onezone update '{{ zone_name }}' -a "$TEMPLATE"; RC="$?"
@@ -37,6 +37,7 @@
     stdin: |
       {{ _update | opennebula.deploy.to_one }}
     executable: /bin/bash
+  changed_when: true
   when:
     - _update | opennebula.deploy.to_one
       !=

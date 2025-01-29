@@ -75,8 +75,8 @@
       ansible.builtin.shell:
         cmd: virsh -r -c qemu:///system capabilities
         executable: /bin/bash
-      register: shell
       changed_when: false
+      register: shell
       ignore_errors: true
 
     - name: Delete stale virtqemud* sockets (fix)

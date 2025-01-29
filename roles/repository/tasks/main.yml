@@ -9,7 +9,7 @@
       RedHat: []
   # NOTE: This allows for some limited recovery if re-executed, it is likely
   #       required packages are already installed.
-  ignore_errors: true
+  ignore_errors: true # noqa ignore-errors
 
 - ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/{{ _item }}.yml"

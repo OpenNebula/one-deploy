@@ -60,6 +60,7 @@
       ansible.builtin.shell:
         cmd: nmcli con add type bridge ifname '{{ _bridge }}'
         executable: /bin/bash
+      changed_when: true
 
     - block: *collect
 
@@ -67,6 +68,7 @@
       ansible.builtin.shell:
         cmd: nmcli con modify '{{ if_to_con[_bridge] }}' {{ _options }}
         executable: /bin/bash
+      changed_when: true
       vars:
         _options: >-
           {{ con_to_kv[if_to_con[_phydev]].items() | flatten
@@ -77,6 +79,7 @@
       ansible.builtin.shell:
         cmd: nmcli con modify '{{ if_to_con[_phydev] }}' {{ _options }} master '{{ _bridge }}' slave-type bridge
         executable: /bin/bash
+      changed_when: true
       vars:
         _options: >-
           {{ con_to_kv[if_to_con[_bridge]].items() | flatten
@@ -87,6 +90,7 @@
       ansible.builtin.shell:
         cmd: "{{ item }}"
         executable: /bin/bash
+      changed_when: true
       loop:
         - nmcli con up '{{ if_to_con[_bridge] }}'
         - nmcli con up '{{ if_to_con[_phydev] }}'

@@ -72,10 +72,10 @@
     name: master
     ansible_host: "{{ federation.master_host }}"
     ansible_user: "{{ federation.master_user }}"
+  changed_when: false
   when:
     - federation.role != 'STANDALONE'
     - hostvars.master is undefined
-  changed_when: false
 
 - name: Compute facts (Ceph)
   ansible.builtin.set_fact:

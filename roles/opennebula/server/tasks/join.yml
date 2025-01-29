@@ -12,13 +12,14 @@
       ansible.builtin.shell:
         cmd: onezone show '{{ zone_name }}' --json
         executable: /bin/bash
-      register: shell
       changed_when: false
+      register: shell
 
     - name: Add this Front-end to current Zone
       ansible.builtin.shell:
         cmd: onezone server-add '{{ zone_name }}' --name '{{ _this }}' --rpc 'http://{{ _this }}:2633/RPC2'
         executable: /bin/bash
+      changed_when: true
       when: (_server_pool is falsy) or (_this not in _node_names)
       vars: &vars
         _document: >-

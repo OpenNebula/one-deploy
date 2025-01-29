@@ -3,8 +3,8 @@
   ansible.builtin.shell:
     cmd: onezone show '{{ zone_name }}' --json
     executable: /bin/bash
-  register: shell
   changed_when: false
+  register: shell
   ignore_errors: true
 
 - name: Detect or select a Leader

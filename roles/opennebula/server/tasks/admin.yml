@@ -19,13 +19,13 @@
       ansible.builtin.shell:
         cmd: oneuser show oneadmin --json
         executable: /bin/bash
-      register: shell
       changed_when: false
+      register: shell
 
     - name: Update oneadmin's user template
       ansible.builtin.shell:
         cmd: |
-          set +o errexit
+          set +o errexit -o pipefail
           TEMPLATE="$(mktemp)"
           tee "$TEMPLATE"
           cat "$TEMPLATE" | oneuser update oneadmin "$TEMPLATE"; RC="$?"
@@ -34,6 +34,7 @@
         stdin: |
           {{ _combined | opennebula.deploy.to_one }}
         executable: /bin/bash
+      changed_when: true
       when: _combined | opennebula.deploy.to_one
             !=
             _template | opennebula.deploy.to_one

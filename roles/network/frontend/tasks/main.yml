@@ -9,8 +9,8 @@
       ansible.builtin.shell:
         cmd: onevnet list --json
         executable: /bin/bash
-      register: shell
       changed_when: false
+      register: shell
 
 - name: Parse VNETs
   ansible.builtin.set_fact:
@@ -52,7 +52,7 @@
     - name: Update VNETs
       ansible.builtin.shell:
         cmd: |
-          set +o errexit
+          set +o errexit -o pipefail
           TEMPLATE="$(mktemp)"
           tee "$TEMPLATE"
           cat "$TEMPLATE" | onevnet update '{{ item }}' "$TEMPLATE"; RC="$?"
@@ -61,6 +61,7 @@
         stdin: |
           {{ _combined | opennebula.deploy.to_one }}
         executable: /bin/bash
+      changed_when: true
       when: _combined | opennebula.deploy.to_one
             !=
             _name_to_template[item] | opennebula.deploy.to_one
@@ -76,7 +77,7 @@
     - name: Create VNETs
       ansible.builtin.shell:
         cmd: |
-          set +o errexit
+          set +o errexit -o pipefail
           TEMPLATE="$(mktemp)"
           tee "$TEMPLATE"
           cat "$TEMPLATE" | onevnet create "$TEMPLATE"; RC="$?"
@@ -85,6 +86,7 @@
         stdin: |
           {{ vn_dict[item].template | combine({"NAME": item}) | opennebula.deploy.to_one }}
         executable: /bin/bash
+      changed_when: true
       loop: "{{ _missing }}"
       vars:
         _missing: >-
@@ -93,7 +95,7 @@
     - name: Update ARs
       ansible.builtin.shell:
         cmd: |
-          set +o errexit
+          set +o errexit -o pipefail
           TEMPLATE="$(mktemp)"
           tee "$TEMPLATE"
           cat "$TEMPLATE" | onevnet updatear '{{ item.0 }}' '{{ item.1 }}' "$TEMPLATE"; RC="$?"
@@ -102,6 +104,7 @@
         stdin: |
           {{ _combined | opennebula.deploy.to_one }}
         executable: /bin/bash
+      changed_when: true
       when: _combined | opennebula.deploy.to_one
             !=
             ar_dict_parsed[item.0][item.1] | opennebula.deploy.to_one
@@ -115,7 +118,7 @@
     - name: Create ARs
       ansible.builtin.shell:
         cmd: |
-          set +o errexit
+          set +o errexit -o pipefail
           TEMPLATE="$(mktemp)"
           tee "$TEMPLATE"
           cat "$TEMPLATE" | onevnet addar '{{ item.0 }}' "$TEMPLATE"; RC="$?"
@@ -124,6 +127,7 @@
         stdin: |
           {{ {"AR": ar_dict[item.0][item.1]} | opennebula.deploy.to_one }}
         executable: /bin/bash
+      changed_when: true
       loop: "{{ _missing }}"
       vars:
         _missing: >-

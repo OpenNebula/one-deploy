@@ -6,14 +6,14 @@
       ansible.builtin.shell:
         cmd: onezone show '{{ zone_name }}' --json
         executable: /bin/bash
-      register: shell
       changed_when: false
+      register: shell
       ignore_errors: true
 
     - name: Create Zone
       ansible.builtin.shell:
         cmd: |
-         set +o errexit
+          set +o errexit -o pipefail
           TEMPLATE="$(mktemp)"
           tee "$TEMPLATE"
           cat "$TEMPLATE" | onezone create "$TEMPLATE"; RC="$?"
@@ -22,6 +22,7 @@
         stdin: |
           {{ _template | opennebula.deploy.to_one }}
         executable: /bin/bash
+      changed_when: true
       register: shell
       vars:
         _template:
@@ -45,7 +46,7 @@
       {{ shell.stdout | from_json }}
 
 - ansible.builtin.include_tasks:
-     file: "{{ role_path }}/tasks/sync_fed.yml"
+    file: "{{ role_path }}/tasks/sync_fed.yml"
 
 - name: Configure oned (FEDERATION/MODE,ZONE_ID,MASTER_ONED)
   ansible.builtin.replace:
@@ -82,7 +83,7 @@
     - name: Update Zone Endpoint
       ansible.builtin.shell:
         cmd: |
-          set +o errexit
+          set +o errexit -o pipefail
           TEMPLATE="$(mktemp)"
           tee "$TEMPLATE"
           cat "$TEMPLATE" | onezone update '{{ zone_name }}' -a "$TEMPLATE"; RC="$?"
@@ -91,6 +92,7 @@
         stdin: |
           {{ _update | opennebula.deploy.to_one }}
         executable: /bin/bash
+      changed_when: true
       when:
         - inventory_hostname == federation.groups.frontend[0] # instead of `run_once: true`
         - _update | opennebula.deploy.to_one
