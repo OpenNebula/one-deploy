@@ -1,0 +1,2 @@
+terraform_source: https://releases.hashicorp.com/terraform/0.14.7/terraform_0.14.7_linux_amd64.zip
+ansible_version_provision: '2.15.13'

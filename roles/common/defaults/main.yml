@@ -3,6 +3,7 @@ features_defaults:
   prometheus: false
   ceph: false
   evpn: false
+  provision: false
 
 ceph_defaults:
   pool: one
