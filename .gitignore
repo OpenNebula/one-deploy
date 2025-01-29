@@ -18,5 +18,4 @@ __pycache__/
 !/inventory/federation-slave2.yml
 !/inventory/evpn-ha.yml
 /.env.yml
-/poetry.lock
 .vscode

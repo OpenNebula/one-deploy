@@ -5,8 +5,7 @@ version: 0.0.0
 
 readme: README.md
 
-authors:
-- OpenNebula <contact@opennebula.io>
+authors: ["OpenNebula <contact@opennebula.io>"]
 description: HA DEPLOYMENT FOR OPENNEBULA (ANSIBLE)
 
 license: []
@@ -18,13 +17,15 @@ dependencies:
   "ansible.posix": "*"
   "ansible.utils": "*"
   "community.crypto": "*"
+  "community.general": "*"
+  "community.libvirt": "*"
 
 repository: https://github.com/OpenNebula/one-deploy
 documentation: https://github.com/OpenNebula/one-deploy/wiki
 issues: https://github.com/OpenNebula/one-deploy/issues
 
 build_ignore:
-- .gitignore
-- .env.yml
-- inventory
-- ansible_collections
+  - .gitignore
+  - .env.yml
+  - inventory
+  - ansible_collections
