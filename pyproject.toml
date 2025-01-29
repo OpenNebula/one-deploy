@@ -1,19 +1,29 @@
-[tool.poetry]
+[project]
 name = "one-deploy"
 version = "0.0.0"
-description = ""
+description = "OpenNebula Ansible Playbooks"
 authors = ["OpenNebula <contact@opennebula.io>"]
-
 license = "Apache-2.0"
 readme = "README.md"
+requires-python = ">=3.9"
 
-[tool.poetry.dependencies]
-ansible-core = "<2.16"
-molecule = "*"
-netaddr = "*"
-pyone = "*"
-python = "^3.9"
+[tool.hatch.envs.default]
+skip-install = true
+installer = "uv"
+dependencies = [
+  "ansible-core",
+  "molecule",
+  "netaddr",
+  "pyone",
+]
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.hatch.envs.ceph]
+skip-install = true
+installer = "uv"
+dependencies = [
+  "ansible-core<2.16",
+  "molecule",
+  "netaddr",
+  "pyone",
+  "setuptools",
+]
