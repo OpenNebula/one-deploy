@@ -1,37 +1,65 @@
+- name: Install iperf dependencies
+  ansible.builtin.package:
+    name: iperf3
+    state: present
+
+- name: Check if iperf3 server is running
+  ansible.builtin.command: pgrep -f "iperf3 -s -p {{ iperf.port }}"
+  register: iperf3_check
+  ignore_errors: true
+  changed_when: false
+
 - name: Start iperf3 server in all hosts
-  ansible.builtin.shell: nohup iperf3 -s -p {{ iperf3_port }} > /dev/null 2>&1 &
+  ansible.builtin.command: nohup iperf3 -s -p {{ iperf.port }} > /dev/null 2>&1 &
   async: 30
   poll: 0
-  when: run_iperf
+  when: iperf3_check.rc != 0
+  changed_when: true
 
+- name: Verify iperf3 is running
+  ansible.builtin.wait_for:
+    port: "{{ iperf.port }}"
+    timeout: 30
 
 # In total n(n-1) iperf tests (every host to all the other hosts). Could be improved to n(n-1)/2 if only testing one direction (e.g. testing A->B only instead of A->B and B->A)
-# May take some time. For instance, for 10 hosts and 10s iperf tests (iperf3_test_time variable), it would take 15min.
+# May take some time. For instance, for 10 hosts and 10s iperf tests (iperf.test_time variable), it would take 15min.
 - name: Run iperf3 tests
-  ansible.builtin.shell: >
-    iperf3 -c {{ item }} -p {{ iperf3_port }} -t {{ iperf3_test_time }} -J | jq .end.sum_sent.bits_per_second
+  ansible.builtin.shell: |
+    set -o pipefail
+    iperf3 -c {{ item }} -p {{ iperf.port }} -t {{ iperf.test_time }} -J | jq .end.sum_sent.bits_per_second
+  args:
+    executable: /bin/bash
   register: iperf_results
   with_items: "{{ groups['node'] | map('extract', hostvars, 'ansible_host') | difference([hostvars[inventory_hostname]['ansible_host']]) }}"
   loop_control:
     label: "{{ item }}"
-  when: run_iperf
   throttle: 1 # Force sequential (one host at a time)
+  changed_when: false
 
+- name: Kill the iperf3 server process
+  ansible.builtin.command: pkill iperf3
+  ignore_errors: true
+  register: iperf_killing
+  changed_when: iperf_killing.rc == 0
 
 - name: Show iperf3 results
   ansible.builtin.debug: # "█" character added to easily locate the results in the Ansible stdout
     msg: "███████████████████████ Iperf_client: {{ inventory_hostname }} Iperf_server: {{ item.item }} Result: {{ (item.stdout | int) / 1000000 }} Mbps"
   loop: "{{ iperf_results.results }}"
-  when: run_iperf
+
+- name: Ensure iperf results directory exists
+  ansible.builtin.file:
+    path: "{{ iperf.results_path }}"
+    state: directory
+    recurse: true
+  delegate_to: localhost
+  become: false
 
 - name: Save iperf3 results
   ansible.builtin.copy:
     content: "Iperf_client: {{ inventory_hostname }} Iperf_server: {{ item.item }} Result: {{ (item.stdout | int) / 1000000 }} Mbps \n"
-    dest: "/tmp/{{ inventory_hostname }}_to_{{ item.item }}_iperf_results.txt"
-  when: run_iperf
+    dest: "{{ iperf.results_path }}/{{ item.item }}.txt"
+    mode: "0644"
   loop: "{{ iperf_results.results }}"
-
-- name: Kill the iperf3 server process
-  ansible.builtin.shell: pkill iperf3
-  when: run_iperf
-  ignore_errors: true
+  delegate_to: localhost
+  become: false

@@ -1,25 +1,41 @@
+# Requirement for ping test. Converts ping ouput to json
+- name: Install ping dependencies
+  ansible.builtin.package:
+    name: jc
+    state: present
+
 # In total n(n-1) ping tests (every host to all the other hosts). Could be improved to n(n-1)/2 if only testing one direction (e.g. testing A->B only instead of A->B and B->A)
 # May take some time. For instance, for 10 hosts and 10s ping tests (ping_test_time variable), it would take 15min.
 - name: Run ping tests
   ansible.builtin.shell: >
-    ping -c {{ ping_test_time }} {{ item }} | jc --ping | jq .round_trip_ms_avg
-  register: ping_results
+    set -o pipefail
+    ping -c {{ ping.test_time }} {{ item }} | jc --ping | jq .round_trip_ms_avg
+  args:
+    executable: /bin/bash
+  register: ping_exec
   with_items: "{{ groups['node'] | map('extract', hostvars, 'ansible_host') | difference([hostvars[inventory_hostname]['ansible_host']]) }}"
   loop_control:
     label: "{{ item }}"
-  when: run_ping
-#  throttle: 1 # Uncomment to force sequential testing (one test at a time)
+  changed_when: ping_exec.rc == 0
 
 - name: Show ping results
   ansible.builtin.debug: # "█" character added to easily locate the results
     msg: "███████████████████████ Ping_from: {{ inventory_hostname }} Ping_to: {{ item.item }} Result: {{ item.stdout }} ms"
-  loop: "{{ ping_results.results }}"
-  when: run_ping
+  loop: "{{ ping_exec.results }}"
 
+- name: Ensure ping results directory exists
+  ansible.builtin.file:
+    path: "{{ ping.results_path }}"
+    state: directory
+    recurse: true
+  delegate_to: localhost
+  become: false
 
 - name: Save ping results
   ansible.builtin.copy:
     content: "Ping_from: {{ inventory_hostname }} Ping_to: {{ item.item }} Result: {{ item.stdout }} ms \n"
-    dest: "/tmp/{{ inventory_hostname }}_to_{{ item.item }}_ping_results.txt"
-  when: run_ping
-  loop: "{{ ping_results.results }}"
+    dest: "{{ ping.results_path }}/{{ item.item }}.txt"
+    mode: "0644"
+  loop: "{{ ping_exec.results }}"
+  delegate_to: localhost
+  become: false

@@ -1,0 +1,11 @@
+---
+- hosts: "{{ node_group | d('node') }}"
+  tags: [node]
+  collections:
+    - opennebula.deploy
+  roles:
+    - role: helper/facts
+      tags: [always]
+
+    - role: benchmark/common
+    - role: benchmark/network

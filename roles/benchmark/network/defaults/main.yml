@@ -1,6 +1,10 @@
 ---
-run_iperf: true
-run_ping: true
-iperf3_port: 5201
-iperf3_test_time: 10
-ping_test_time: 10
+iperf:
+  run: true
+  port: 5201
+  test_time: 10
+  results_path: "{{ benchmark_results_path }}/{{ inventory_hostname }}/network/iperf"
+ping:
+  run: true
+  test_time: 10
+  results_path: "{{ benchmark_results_path }}/{{ inventory_hostname }}/network/ping"

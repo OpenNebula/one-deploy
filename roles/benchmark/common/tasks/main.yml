@@ -1,0 +1,16 @@
+- name: Install benchmark dependencies
+  ansible.builtin.package:
+    name: jq
+    state: present
+
+- name: Establish benchmark results path
+  ansible.builtin.set_fact:
+    benchmark_results_path: "{{ benchmark.results_path }}/one-deploy_benchmark"
+
+- name: Ensure results directory exists
+  ansible.builtin.file:
+    path: "{{ benchmark_results_path }}"
+    state: directory
+    recurse: true
+  delegate_to: localhost
+  become: false
