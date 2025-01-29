@@ -32,6 +32,7 @@
 - name: Check Ansible version
   ansible.builtin.shell:
     cmd: |
+      set -o pipefail
       version=$(ansible --version | head -n1)
       if echo "$version" | grep -q "core"; then
         echo "$version" | awk '{print $3}' | tr -d '[]'
@@ -40,7 +41,11 @@
       fi
   register: ansible_version_check
   changed_when: false
+  args:
+    executable: /bin/bash
 
+# This task might fail on distros with python>=3.12
+# but ansible version in those should be recent enough for oneprovision
 - name: Install required Ansible version
   when: ansible_version_check.stdout is version(ansible_version_provision, '<')
   block:
@@ -55,4 +60,5 @@
         state: present
       become: true
       become_user: oneadmin
-      ignore_errors: true # pipx error message might show
+      register: pip_result
+      failed_when: pip_result.failed
