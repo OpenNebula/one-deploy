@@ -1,8 +1,6 @@
 ---
 prerun: false
 
-# TODO: Enable web server (apache and nginx) + ssl cert generation.
-
 dependency:
   name: galaxy
   enabled: false
@@ -44,6 +42,10 @@ provisioner:
               NETWORK_MASK: "{{ '${ONE_SUBNET}' | ansible.utils.ipaddr('netmask') }}"
               GATEWAY: "{{ '${ONE_SUBNET}' | ansible.utils.nthhost(1) }}"
               DNS: 1.1.1.1 8.8.8.8
+        ssl:
+          web_server: nginx # could be nginx
+          key:  /etc/proxy/key/client.key
+          certchain: /etc/proxy/crt/certchain.crt
   config_options:
     defaults:
       gathering: explicit

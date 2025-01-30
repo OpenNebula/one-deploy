@@ -1,0 +1,129 @@
+---
+- ansible.builtin.set_fact:
+    subject_alt_name: >-
+      {{ 'DNS:' + one_fqdn }}
+  when: one_fqdn is defined
+
+- ansible.builtin.set_fact:
+    subject_alt_name: >-
+      {{ 'IP:' + one_vip }}
+  when: one_fqdn is undefined and one_vip is defined
+
+- ansible.builtin.set_fact:
+    subject_alt_name: >-
+      {{ 'IP:' + hostvars[leader].ansible_host }}
+  when: subject_alt_name is undefined
+
+- name: Ensure certificate directories exist
+  ansible.builtin.file:
+    path: "{{ item }}/"
+    state: directory
+    owner: 0
+    group: 0
+    mode: u=rwx,go=
+  loop:
+    - "{{ certs_path }}"
+    - "{{ certs_path }}/key"
+    - "{{ certs_path }}/csr"
+    - "{{ certs_path }}/crt"
+
+- run_once: true
+  delegate_to: "{{ groups[frontend_group | d('node')][0] }}"
+  block:
+    - name: Generate CA private key
+      community.crypto.openssl_privatekey:
+        path: "{{ certs_path }}/key/ca.key"
+        type: RSA
+        owner: 0
+        group: 0
+        mode: u=rw,go=
+
+    - name: Check if CA CSR exists
+      ansible.builtin.stat:
+        path: "{{ certs_path }}/csr/ca.csr"
+      register: ca_csr
+
+    - name: Generate CA certificate signing request
+      community.crypto.openssl_csr:
+        path: "{{ certs_path }}/csr/ca.csr"
+        privatekey_path: "{{ certs_path }}/key/ca.key"
+        basic_constraints:
+          - "CA:TRUE"
+        key_usage:
+          - digitalSignature
+          - keyEncipherment
+          - keyCertSign
+        common_name: ca
+        owner: 0
+        group: 0
+        mode: u=rw,go=
+      when: not ca_csr.stat.exists
+
+    - name: Generate self-signed CA certificate
+      community.crypto.x509_certificate:
+        path: "{{ certs_path }}/crt/ca.crt"
+        privatekey_path: "{{ certs_path }}/key/ca.key"
+        csr_path: "{{ certs_path }}/csr/ca.csr"
+        provider: selfsigned
+        owner: 0
+        group: 0
+        mode: u=rw,go=
+
+    - name: Generate client private key
+      community.crypto.openssl_privatekey:
+        path: "{{ certs_path }}/key/client.key"
+        type: RSA
+        owner: 0
+        group: 0
+        mode: u=rw,go=
+
+    - name: Check if client CSR exists
+      ansible.builtin.stat:
+        path: "{{ certs_path }}/csr/client.csr"
+      register: client_csr
+
+    - name: Generate client certificate signing request
+      community.crypto.openssl_csr:
+        path: "{{ certs_path }}/csr/client.csr"
+        privatekey_path: "{{ certs_path }}/key/client.key"
+        basic_constraints:
+          - "CA:FALSE"
+        key_usage:
+          - digitalSignature
+          - keyEncipherment
+        extended_key_usage:
+          - serverAuth
+          - clientAuth
+        subject_alt_name: "{{ subject_alt_name }}"
+        common_name: client
+        owner: 0
+        group: 0
+        mode: u=rw,go=
+      when: not client_csr.stat.exists
+
+    - name: Generate signed client certificate
+      community.crypto.x509_certificate:
+        path: "{{ certs_path }}/crt/client.crt"
+        csr_path: "{{ certs_path }}/csr/client.csr"
+        ownca_path: "{{ certs_path }}/crt/ca.crt"
+        ownca_privatekey_path: "{{ certs_path }}/key/ca.key"
+        provider: ownca
+        owner: 0
+        group: 0
+        mode: u=rw,go=
+
+    - name: Combine CA and client certificates into certchain
+      ansible.builtin.shell: |
+        cat {{ certs_path }}/crt/client.crt {{ certs_path }}/crt/ca.crt > {{ certs_path }}/crt/certchain.crt
+      args:
+        creates: "{{ certs_path }}/crt/certchain.crt"
+
+- name: Synchronize certificates to other nodes
+  ansible.posix.synchronize:
+    src: "{{ certs_path }}/"
+    dest: "{{ certs_path }}"
+    recursive: true
+    mode: push
+    perms: true
+  delegate_to: "{{ groups[frontend_group | default('frontend')][0] }}"
+  when: inventory_hostname != groups[frontend_group | default('frontend')][0]
