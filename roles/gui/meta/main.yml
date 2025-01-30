@@ -4,3 +4,4 @@ collections:
 
 dependencies:
   - role: opennebula.deploy.common
+  - role: opennebula.deploy.helper.certs

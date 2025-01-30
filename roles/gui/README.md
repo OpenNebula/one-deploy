@@ -25,6 +25,7 @@ Dependencies
 ------------
 
 - opennebula.deploy.opennebula.leader
+- opennebula.deploy.helper.certs
 
 Example Playbook
 ----------------
