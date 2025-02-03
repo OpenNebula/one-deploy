@@ -43,6 +43,11 @@
     gui_no_restart: >-
       {{ service_fireedge is changed }}
 
+- name: Generate SSL certificates
+  ansible.builtin.include_role:
+    name: opennebula.deploy.helper.certs
+  when: (ssl.generate_cert is defined and ssl.generate_cert)
+
 - name: Install Web Server
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/{{ ssl.web_server }}.yml"

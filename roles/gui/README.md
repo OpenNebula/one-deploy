@@ -20,6 +20,7 @@ Role Variables
 | `ssl.web_server`            | `enum` | `apache`                                  | (check below)       | Enable reverse proxy with SSL termination with Apache2 or nginx over HTTPS/443.|
 | `ssl.key`                   | `str`  | `/etc/ssl/private/opennebula-key.pem`     |                     | Private key path on the target Front-end (the file must be readable).          |
 | `ssl.certchain`             | `str`  | `/etc/ssl/certs/opennebula-certchain.pem` |                     | Certificate chain path on the target Front-end (the file must be readable).    |
+| `ssl.generate_cert`         | `bool` | `false`                                   | `true`              | Generate a CA and a certificate signed by that CA for the reverse proxy.       |
 
 Dependencies
 ------------
@@ -34,6 +35,7 @@ Example Playbook
       vars:
         one_fqdn: "nebula.example.io"
         ssl:
+          generate_cert: true
           web_server: nginx
           key: /etc/ssl/private/ssl-cert-snakeoil.key
           certchain: /etc/ssl/certs/ssl-cert-snakeoil.pem
