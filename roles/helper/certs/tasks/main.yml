@@ -1,18 +1,12 @@
 ---
-- ansible.builtin.set_fact:
+- name: Define client certificate alt name
+  ansible.builtin.set_fact:
     subject_alt_name: >-
-      {{ 'DNS:' + one_fqdn }}
-  when: one_fqdn is defined
-
-- ansible.builtin.set_fact:
-    subject_alt_name: >-
-      {{ 'IP:' + one_vip }}
-  when: one_fqdn is undefined and one_vip is defined
-
-- ansible.builtin.set_fact:
-    subject_alt_name: >-
-      {{ 'IP:' + hostvars[leader].ansible_host }}
-  when: subject_alt_name is undefined
+      {{
+        'DNS:' + one_fqdn if one_fqdn is defined else
+        'IP:' + one_vip if one_vip is defined else
+        'IP:' + hostvars[leader].ansible_host
+      }}
 
 - name: Ensure certificate directories exist
   ansible.builtin.file:
@@ -27,8 +21,7 @@
     - "{{ certs_path }}/csr"
     - "{{ certs_path }}/crt"
 
-- run_once: true
-  delegate_to: "{{ groups[frontend_group | d('node')][0] }}"
+- when: inventory_hostname == federation.groups.frontend[0]
   block:
     - name: Generate CA private key
       community.crypto.openssl_privatekey:
@@ -125,5 +118,5 @@
     recursive: true
     mode: push
     perms: true
-  delegate_to: "{{ groups[frontend_group | default('frontend')][0] }}"
-  when: inventory_hostname != groups[frontend_group | default('frontend')][0]
+  delegate_to: "{{ federation.group_name }}-leader"
+  when: inventory_hostname != federation.groups.frontend[0]
