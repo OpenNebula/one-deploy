@@ -1,12 +1,7 @@
 ---
-- name: Define client certificate alt name
+- name: Compute facts
   ansible.builtin.set_fact:
-    subject_alt_name: >-
-      {{
-        'DNS:' + one_fqdn if one_fqdn is defined else
-        'IP:' + one_vip if one_vip is defined else
-        'IP:' + hostvars[leader].ansible_host
-      }}
+    subject_alt_name: "{{ _subject_alt_name | select }}"
     ca_key: "{{ pki.base }}/{{ pki.dirs.key }}/{{ pki.ca.key }}"
     ca_csr: "{{ pki.base }}/{{ pki.dirs.csr }}/{{ pki.ca.csr }}"
     ca_crt: "{{ pki.base }}/{{ pki.dirs.crt }}/{{ pki.ca.crt }}"
@@ -14,8 +9,12 @@
     client_csr: "{{ pki.base }}/{{ pki.dirs.csr }}/{{ pki.client.csr }}"
     client_crt: "{{ pki.base }}/{{ pki.dirs.crt }}/{{ pki.client.crt }}"
     certchain_crt: "{{ pki.base }}/{{ pki.dirs.crt }}/{{ pki.certchain }}"
+  vars:
+    _subject_alt_name:
+      - "{{ ('DNS:' ~ one_fqdn) if (one_fqdn is defined) else '' }}"
+      - "{{ ('IP:' ~ one_vip) if (one_vip is defined) else ('IP:' ~ hostvars[leader].ansible_host) }}"
 
-- name: Install required cryptography library
+- name: Install required system packages
   ansible.builtin.package:
     name: "{{ _common }}"
   vars:
@@ -51,6 +50,9 @@
     - name: Check if CA CSR exists
       ansible.builtin.stat:
         path: "{{ ca_csr }}"
+        get_attributes: false
+        get_checksum: false
+        get_mime: false
       register: ca_csr_check
 
     - name: Generate CA certificate signing request
@@ -123,9 +125,8 @@
         mode: u=rw,go=
 
     - name: Combine CA and client certificates into certchain
-      ansible.builtin.shell: |
-        cat {{ client_crt }} {{ ca_crt }} > {{ certchain_crt }}
-      args:
+      ansible.builtin.shell:
+        cmd: cat '{{ client_crt }}' '{{ ca_crt }}' > '{{ certchain_crt }}'
         creates: "{{ certchain_crt }}"
 
 - name: Stat CA and client key, cert and csr (ha)
@@ -157,7 +158,8 @@
     - inventory_hostname != leader
     - (_follower is undefined) or (item.checksum != _follower.checksum)
   vars:
-    _follower: "{{ stat.results | map(attribute='stat')
-                                | selectattr('exists', 'equalto', true)
-                                | selectattr('path', 'equalto', item.path)
-                                | first }}"
+    _follower: >-
+      {{ stat.results | map(attribute='stat')
+                      | selectattr('exists', '==', true)
+                      | selectattr('path', '==', item.path)
+                      | first }}
