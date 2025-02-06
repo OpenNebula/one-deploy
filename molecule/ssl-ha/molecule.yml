@@ -43,6 +43,7 @@ provisioner:
               GATEWAY: "{{ '${ONE_SUBNET}' | ansible.utils.nthhost(1) }}"
               DNS: 1.1.1.1 8.8.8.8
         ssl:
+          generate_cert: true
           web_server: nginx # could be nginx
           key:  /etc/proxy/key/client.key
           certchain: /etc/proxy/crt/certchain.crt

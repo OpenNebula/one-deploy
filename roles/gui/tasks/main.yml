@@ -46,7 +46,7 @@
 - name: Generate SSL certificates
   ansible.builtin.include_role:
     name: opennebula.deploy.helper.certs
-  when: (ssl.generate_cert is defined and ssl.generate_cert)
+  when: (ssl.generate_cert is defined and ssl.generate_cert | bool is true)
 
 - name: Install Web Server
   ansible.builtin.include_tasks:

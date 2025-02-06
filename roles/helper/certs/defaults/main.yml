@@ -1,2 +1,16 @@
 ---
-certs_path: /etc/proxy
+pki:
+  base: /etc/proxy
+  dirs:
+    key: key
+    crt: crt
+    csr: csr
+  ca:
+    key: ca.key
+    crt: ca.crt
+    csr: ca.csr
+  client:
+    key: client.key
+    crt: client.crt
+    csr: client.csr
+  certchain: certchain.crt

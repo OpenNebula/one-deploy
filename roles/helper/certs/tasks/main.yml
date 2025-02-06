@@ -7,6 +7,23 @@
         'IP:' + one_vip if one_vip is defined else
         'IP:' + hostvars[leader].ansible_host
       }}
+    ca_key: "{{ pki.base }}/{{ pki.dirs.key }}/{{ pki.ca.key }}"
+    ca_csr: "{{ pki.base }}/{{ pki.dirs.csr }}/{{ pki.ca.csr }}"
+    ca_crt: "{{ pki.base }}/{{ pki.dirs.crt }}/{{ pki.ca.crt }}"
+    client_key: "{{ pki.base }}/{{ pki.dirs.key }}/{{ pki.client.key }}"
+    client_csr: "{{ pki.base }}/{{ pki.dirs.csr }}/{{ pki.client.csr }}"
+    client_crt: "{{ pki.base }}/{{ pki.dirs.crt }}/{{ pki.client.crt }}"
+    certchain_crt: "{{ pki.base }}/{{ pki.dirs.crt }}/{{ pki.certchain }}"
+
+- name: Install required cryptography library
+  ansible.builtin.package:
+    name: "{{ _common }}"
+  vars:
+    _common: [python3-cryptography]
+  register: package
+  until: package is success
+  retries: 12
+  delay: 5
 
 - name: Ensure certificate directories exist
   ansible.builtin.file:
@@ -16,16 +33,16 @@
     group: 0
     mode: u=rwx,go=
   loop:
-    - "{{ certs_path }}"
-    - "{{ certs_path }}/key"
-    - "{{ certs_path }}/csr"
-    - "{{ certs_path }}/crt"
+    - "{{ pki.base }}"
+    - "{{ pki.base }}/{{ pki.dirs.key }}"
+    - "{{ pki.base }}/{{ pki.dirs.crt }}"
+    - "{{ pki.base }}/{{ pki.dirs.csr }}"
 
-- when: inventory_hostname == federation.groups.frontend[0]
+- when: inventory_hostname == leader
   block:
     - name: Generate CA private key
       community.crypto.openssl_privatekey:
-        path: "{{ certs_path }}/key/ca.key"
+        path: "{{ ca_key }}"
         type: RSA
         owner: 0
         group: 0
@@ -33,13 +50,13 @@
 
     - name: Check if CA CSR exists
       ansible.builtin.stat:
-        path: "{{ certs_path }}/csr/ca.csr"
-      register: ca_csr
+        path: "{{ ca_csr }}"
+      register: ca_csr_check
 
     - name: Generate CA certificate signing request
       community.crypto.openssl_csr:
-        path: "{{ certs_path }}/csr/ca.csr"
-        privatekey_path: "{{ certs_path }}/key/ca.key"
+        path: "{{ ca_csr }}"
+        privatekey_path: "{{ ca_key }}"
         basic_constraints:
           - "CA:TRUE"
         key_usage:
@@ -50,13 +67,13 @@
         owner: 0
         group: 0
         mode: u=rw,go=
-      when: not ca_csr.stat.exists
+      when: not ca_csr_check.stat.exists
 
     - name: Generate self-signed CA certificate
       community.crypto.x509_certificate:
-        path: "{{ certs_path }}/crt/ca.crt"
-        privatekey_path: "{{ certs_path }}/key/ca.key"
-        csr_path: "{{ certs_path }}/csr/ca.csr"
+        path: "{{ ca_crt }}"
+        privatekey_path: "{{ ca_key }}"
+        csr_path: "{{ ca_csr }}"
         provider: selfsigned
         owner: 0
         group: 0
@@ -64,7 +81,7 @@
 
     - name: Generate client private key
       community.crypto.openssl_privatekey:
-        path: "{{ certs_path }}/key/client.key"
+        path: "{{ client_key }}"
         type: RSA
         owner: 0
         group: 0
@@ -72,13 +89,13 @@
 
     - name: Check if client CSR exists
       ansible.builtin.stat:
-        path: "{{ certs_path }}/csr/client.csr"
-      register: client_csr
+        path: "{{ client_csr }}"
+      register: client_csr_check
 
     - name: Generate client certificate signing request
       community.crypto.openssl_csr:
-        path: "{{ certs_path }}/csr/client.csr"
-        privatekey_path: "{{ certs_path }}/key/client.key"
+        path: "{{ client_csr }}"
+        privatekey_path: "{{ client_key }}"
         basic_constraints:
           - "CA:FALSE"
         key_usage:
@@ -92,14 +109,14 @@
         owner: 0
         group: 0
         mode: u=rw,go=
-      when: not client_csr.stat.exists
+      when: not client_csr_check.stat.exists
 
     - name: Generate signed client certificate
       community.crypto.x509_certificate:
-        path: "{{ certs_path }}/crt/client.crt"
-        csr_path: "{{ certs_path }}/csr/client.csr"
-        ownca_path: "{{ certs_path }}/crt/ca.crt"
-        ownca_privatekey_path: "{{ certs_path }}/key/ca.key"
+        path: "{{ client_crt }}"
+        csr_path: "{{ client_csr }}"
+        ownca_path: "{{ ca_crt }}"
+        ownca_privatekey_path: "{{ ca_key }}"
         provider: ownca
         owner: 0
         group: 0
@@ -107,16 +124,40 @@
 
     - name: Combine CA and client certificates into certchain
       ansible.builtin.shell: |
-        cat {{ certs_path }}/crt/client.crt {{ certs_path }}/crt/ca.crt > {{ certs_path }}/crt/certchain.crt
+        cat {{ client_crt }} {{ ca_crt }} > {{ certchain_crt }}
       args:
-        creates: "{{ certs_path }}/crt/certchain.crt"
+        creates: "{{ certchain_crt }}"
+
+- name: Stat CA and client key, cert and csr (ha)
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    get_attributes: false
+    get_checksum: true
+    get_mime: false
+  register: stat
+  loop:
+    - "{{ ca_key }}"
+    - "{{ ca_csr }}"
+    - "{{ ca_crt }}"
+    - "{{ client_key }}"
+    - "{{ client_csr }}"
+    - "{{ client_crt }}"
+    - "{{ certchain_crt }}"
 
 - name: Synchronize certificates to other nodes
   ansible.posix.synchronize:
-    src: "{{ certs_path }}/"
-    dest: "{{ certs_path }}"
+    src: "{{ item.path }}"
+    dest: "{{ item.path }}"
     recursive: true
     mode: push
     perms: true
-  delegate_to: "{{ federation.group_name }}-leader"
-  when: inventory_hostname != federation.groups.frontend[0]
+  delegate_to: "{{ leader }}"
+  loop: "{{ hostvars[leader].stat.results | map(attribute='stat') }}"
+  when:
+    - inventory_hostname != leader
+    - (_follower is undefined) or (item.checksum != _follower.checksum)
+  vars:
+    _follower: "{{ stat.results | map(attribute='stat')
+                                | selectattr('exists', 'equalto', true)
+                                | selectattr('path', 'equalto', item.path)
+                                | first }}"
