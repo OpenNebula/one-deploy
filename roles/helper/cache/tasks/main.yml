@@ -1,30 +1,12 @@
 ---
-- name: Check if unattended-upgrades service exists
-  ansible.builtin.stat:
-    path: /lib/systemd/system/unattended-upgrades.service
-  register: service_stat
-
-- name: Handle unattended upgrades for Debian systems
+- name: Purge unattended upgrade service
+  ansible.builtin.package:
+    name: unattended-upgrades
+    state: absent
+    purge: true
   when:
-    - service_stat.stat.exists
     - unattend_disable | bool is true
     - ansible_os_family == "Debian"
-  block:
-    - name: Stop unattended-upgrades service
-      ansible.builtin.systemd:
-        name: unattended-upgrades
-        state: stopped
-        enabled: false
-
-    - name: Purge unattended upgrade service
-      ansible.builtin.package:
-        name: unattended-upgrades
-        state: absent
-        purge: true
-      register: purge_result
-      retries: 12
-      delay: 5
-      until: purge_result is not failed
 
 - name: Update package cache
   ansible.builtin.package:
