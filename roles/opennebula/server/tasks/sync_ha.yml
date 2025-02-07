@@ -71,85 +71,101 @@
       {{ federation.groups.frontend | reject('in', [leader]) }}
   when: inventory_hostname == leader
 
-- when:
-    - inventory_hostname == leader
-    - not (all_auth_ok and all_key_ok)
+- always: # noqa key-order[task]
+    - name: Remove leader.tar.gz (cleanup)
+      ansible.builtin.file:
+        path: &leader_tar_gz /var/tmp/leader.tar.gz
+        state: absent
   block:
-    - name: Archive AUTH and SSH data (ha)
-      community.general.archive:
-        dest: &leader_tar_gz /var/tmp/leader.tar.gz
-        path:
-          - /var/lib/one/.one
-          - /var/lib/one/.ssh
-        format: gz
-        remove: false
-        mode: u=rw,go=r
+    - when:
+        - inventory_hostname == leader
+        - not (all_auth_ok and all_key_ok)
+      block:
+        - name: Archive AUTH and SSH data (ha)
+          community.general.archive:
+            dest: *leader_tar_gz
+            path:
+              - /var/lib/one/.one
+              - /var/lib/one/.ssh
+            format: gz
+            remove: false
+            owner: "{{ ansible_user }}"
+            mode: u=rw,go=
 
-- when:
-    - inventory_hostname != leader
-    - not (auth_ok and key_ok)
+    - when:
+        - inventory_hostname != leader
+        - not (auth_ok and key_ok)
+      block:
+        # NOTE: Artifacts are copied from Front-end to Front-end via RSYNC/SSH *directly*,
+        #       please make sure SSH/RSA keys are distributed accordingly (password-less login).
+        - name: Distribute AUTH and SSH data (ha)
+          ansible.posix.synchronize:
+            dest: *leader_tar_gz
+            src: *leader_tar_gz
+            mode: push
+            checksum: true
+          delegate_to: "{{ leader }}"
+          become: false
+
+        - name: Unarchive AUTH and SSH data into /var/lib/one/ (ha)
+          ansible.builtin.unarchive:
+            dest: /var/lib/one/
+            src: *leader_tar_gz
+            remote_src: true
+
+- always: # noqa key-order[task]
+    - name: Remove db_leader.sql.gz (cleanup)
+      ansible.builtin.file:
+        path: &db_leader_sql_gz /var/tmp/db_leader.sql.gz
+        state: absent
   block:
-    # NOTE: Artifacts are copied from Front-end to Front-end via RSYNC/SSH *directly*,
-    #       please make sure SSH/RSA keys are distributed accordingly (password-less login).
-    - name: Distribute AUTH and SSH data (ha)
-      ansible.posix.synchronize:
-        dest: *leader_tar_gz
-        src: *leader_tar_gz
-        mode: push
-      delegate_to: "{{ leader }}"
-      become: false
+    - when:
+        - inventory_hostname == leader
+        - not all_db_ok
+      block:
+        - name: Create DB backup (ha)
+          ansible.builtin.shell:
+            cmd: |
+              onedb backup -f -t '{{ db_backend_types[db_backend] }}' \
+                              -u '{{ db_owner }}' \
+                              -p '{{ db_password }}' \
+                              -d '{{ db_name }}' /var/tmp/db_leader.sql
+            executable: /bin/bash
+          changed_when: true
 
-    - name: Unarchive AUTH and SSH data into /var/lib/one/ (ha)
-      ansible.builtin.unarchive:
-        dest: /var/lib/one/
-        src: *leader_tar_gz
-        remote_src: true
+        - name: Compress DB backup (ha)
+          community.general.archive:
+            dest: *db_leader_sql_gz
+            path: /var/tmp/db_leader.sql
+            format: gz
+            remove: true
+            owner: "{{ ansible_user }}"
+            mode: u=rw,go=
 
-- when:
-    - inventory_hostname == leader
-    - not all_db_ok
-  block:
-    - name: Create DB backup (ha)
-      ansible.builtin.shell:
-        cmd: |
-          onedb backup -f -t '{{ db_backend_types[db_backend] }}' \
-                          -u '{{ db_owner }}' \
-                          -p '{{ db_password }}' \
-                          -d '{{ db_name }}' /var/tmp/db_leader.sql
-        executable: /bin/bash
-      changed_when: true
+    - when:
+        - inventory_hostname != leader
+        - not db_ok
+      block:
+        # NOTE: Artifacts are copied from Front-end to Front-end via RSYNC/SSH *directly*,
+        #       please make sure SSH/RSA keys are distributed accordingly (password-less login).
+        - name: Distribute DB backup (ha)
+          ansible.posix.synchronize:
+            dest: *db_leader_sql_gz
+            src: *db_leader_sql_gz
+            mode: push
+            checksum: true
+          delegate_to: "{{ leader }}"
+          become: false
 
-    - name: Compress DB backup (ha)
-      community.general.archive:
-        dest: &db_leader_sql_gz /var/tmp/db_leader.sql.gz
-        path: /var/tmp/db_leader.sql
-        format: gz
-        remove: true
-        mode: u=rw,go=r
-
-- when:
-    - inventory_hostname != leader
-    - not db_ok
-  block:
-    # NOTE: Artifacts are copied from Front-end to Front-end via RSYNC/SSH *directly*,
-    #       please make sure SSH/RSA keys are distributed accordingly (password-less login).
-    - name: Distribute DB backup (ha)
-      ansible.posix.synchronize:
-        dest: *db_leader_sql_gz
-        src: *db_leader_sql_gz
-        mode: push
-      delegate_to: "{{ leader }}"
-      become: false
-
-    - name: Restore DB backup (ha)
-      ansible.builtin.shell:
-        cmd: |
-          set -o errexit -o pipefail
-          zcat '{{ _db_leader_sql_gz }}' | onedb restore -t '{{ db_backend_types[db_backend] }}' \
-                                                         -u '{{ db_owner }}' \
-                                                         -p '{{ db_password }}' \
-                                                         -d '{{ db_name }}' /dev/fd/0
-        executable: /bin/bash
-      changed_when: true
-      vars:
-        _db_leader_sql_gz: *db_leader_sql_gz
+        - name: Restore DB backup (ha)
+          ansible.builtin.shell:
+            cmd: |
+              set -o errexit -o pipefail
+              zcat '{{ _db_leader_sql_gz }}' | onedb restore -t '{{ db_backend_types[db_backend] }}' \
+                                                             -u '{{ db_owner }}' \
+                                                             -p '{{ db_password }}' \
+                                                             -d '{{ db_name }}' /dev/fd/0
+            executable: /bin/bash
+          changed_when: true
+          vars:
+            _db_leader_sql_gz: *db_leader_sql_gz
