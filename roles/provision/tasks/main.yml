@@ -1,13 +1,5 @@
 ---
-- name: Install Terraform
-  ansible.builtin.unarchive:
-    src: "{{ terraform_source }}"
-    dest: /usr/local/bin
-    remote_src: true
-    mode: '0755'
-    creates: /usr/local/bin/terraform
-
-
+# NOTE: There is a strong assumption the oneadmin user has been already created at this point.
 - tags: [preinstall]
   block:
     - ansible.builtin.include_role:
@@ -18,47 +10,70 @@
 
     - name: Install OneProvision
       ansible.builtin.package:
-        name: "{{ _common + _specific[ansible_os_family] }}"
+        name: "{{ _common }}"
       vars:
-        _common: [opennebula-provision]
-        _specific:
-          Debian: []
-          RedHat: []
+        _common: [gawk, opennebula-provision]
       register: package
       until: package is success
-      retries: 12
+      retries: 6
       delay: 5
 
-- name: Check Ansible version
-  ansible.builtin.shell:
-    cmd: |
-      set -o pipefail
-      version=$(ansible --version | head -n1)
-      if echo "$version" | grep -q "core"; then
-        echo "$version" | awk '{print $3}' | tr -d '[]'
-      else
-        echo "$version" | awk '{print $2}'
-      fi
-  register: ansible_version_check
-  changed_when: false
-  args:
-    executable: /bin/bash
-
-# This task might fail on distros with python>=3.12
-# but ansible version in those should be recent enough for oneprovision
-- name: Install required Ansible version
-  when: ansible_version_check.stdout is version(ansible_version_provision, '<')
-  block:
-    - name: Ensure python3-pip is installed
-      ansible.builtin.package:
-        name: python3-pip
-        state: present
-
-    - name: Install updated ansible version
-      ansible.builtin.pip:
-        name: "ansible-core>={{ ansible_version_provision }}"
-        state: present
+    - name: Get Ansible version (oneadmin)
+      ansible.builtin.command:
+        cmd: gawk -f-
+        stdin: |
+          BEGIN {
+            if ("ansible --version" | getline line) {
+              if (match(line, /(core|ansible) ([0-9.]+)/, m)) {
+                print m[2]; exit
+              }
+            }
+            print "0.0.0"; exit
+          }
+      changed_when: false
       become: true
       become_user: oneadmin
-      register: pip_result
-      failed_when: pip_result.failed
+      register: oneadmin_ansible_version
+
+    - when: oneadmin_ansible_version.stdout_lines.0 is version(provision_ansible_version, '<')
+      block:
+        - name: Install python3-pip
+          ansible.builtin.package:
+            name: "{{ _common }}"
+          vars:
+            _common: [python3-pip]
+          register: package
+          until: package is success
+          retries: 6
+          delay: 5
+
+        - block:
+            # This task might fail on distros with python>=3.12,
+            # but Ansible version in those should be recent enough for OneProvision.
+            - &pip
+              name: Install Ansible (oneadmin)
+              ansible.builtin.pip:
+                name: "ansible-core>={{ provision_ansible_version }}"
+                state: present
+                extra_args: "{{ _pip_extra_args | d(omit) }}"
+              become: true
+              become_user: oneadmin
+              register: pip
+              until: pip is success
+              retries: 6
+              delay: 5
+          rescue:
+            - <<: *pip
+              vars: { _pip_extra_args: "--break-system-packages" }
+
+    - name: Download and install Terraform
+      ansible.builtin.unarchive:
+        dest: /usr/local/bin/
+        src: "{{ provision_terraform_url }}"
+        remote_src: true
+        mode: u=rwx,go=rx
+        creates: /usr/local/bin/terraform
+      register: unarchive
+      until: unarchive is success
+      retries: 6
+      delay: 5

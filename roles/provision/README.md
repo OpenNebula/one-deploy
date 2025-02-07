@@ -1,5 +1,5 @@
-Role: opennebula.deploy.flow
-============================
+Role: opennebula.deploy.provision
+=================================
 
 A role that sets up the OneProvision utility.
 
@@ -8,22 +8,27 @@ Requirements
 
 N/A
 
-| Name                        | Type  |                               Default                                            |               Example             |              Description                   |
-| --------------------------- | ----- | -------------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------ |
-| `terraform_source`          | `str` | https://releases.hashicorp.com/terraform/0.14.7/terraform_0.14.7_linux_amd64.zip | http://mirror.local/terraform.zip | Where to look the terraform zipped binary  |
-| `ansible_version_provision` | `str` | 2.15.13                                                                          | `2.18`                            | `ansible-core` pip package version         |
+Role Variables
+--------------
 
-
+| Name                          | Type  | Default       | Example                             | Description                                |
+|-------------------------------|-------|---------------|-------------------------------------|--------------------------------------------|
+| `provision_ansible_version`   | `str` | `2.15.13`     |                                     | Ansible/Core version to install (PIP).     |
+| `provision_terraform_version` | `str` | `0.14.7`      |                                     | Terraform version to install.              |
+| `provision_terraform_url`     | `str` | (check below) | `http://mirror.local/terraform.zip` | Where to look the terraform zipped binary. |
 
 Dependencies
 ------------
 
-- opennebula.deploy.opennebula.common
+N/A
 
 Example Playbook
 ----------------
 
     - hosts: frontend
+      vars:
+        provision_terraform_url: >-
+          https://releases.hashicorp.com/terraform/0.14.7/terraform_0.14.7_linux_amd64.zip
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.provision
