@@ -40,16 +40,25 @@
                           | unique == [1] }}
 
     - when: not auth_ok
+      always: # noqa key-order[task]
+        - &remove_master_tar_gz
+          name: Remove master-*.tar.gz (cleanup)
+          ansible.builtin.file:
+            path: &master_tar_gz "/var/tmp/master-{{ inventory_hostname }}.tar.gz"
+            state: absent
       block:
         - delegate_to: "{{ federation.master }}"
+          always: # noqa key-order[task]
+            - *remove_master_tar_gz
           block:
             - name: Archive AUTH data (fed)
               community.general.archive:
-                dest: &master_tar_gz "/var/tmp/master-{{ inventory_hostname }}.tar.gz"
+                dest: *master_tar_gz
                 path: *_paths
                 format: gz
                 remove: false
-                mode: u=rw,go=r
+                owner: "{{ federation.master_user }}"
+                mode: u=rw,go=
 
             # NOTE: Artifacts are copied from Front-end to Front-end via RSYNC/SSH *directly*,
             #       please make sure SSH/RSA keys are distributed accordingly (password-less login).
@@ -58,6 +67,7 @@
                 dest: *master_tar_gz
                 src: *master_tar_gz
                 mode: push
+                checksum: true
               become: false
 
         - name: Unarchive AUTH data into /var/lib/one/.one/ (fed)
@@ -84,6 +94,12 @@
           {{ shell is success }}
 
     - when: not db_ok
+      always: # noqa key-order[task]
+        - &remove_db_master_sql_gz
+          name: Remove db_master-*.sql.gz (cleanup)
+          ansible.builtin.file:
+            path: &db_master_sql_gz "/var/tmp/db_master-{{ inventory_hostname }}.sql.gz"
+            state: absent
       block:
         - name: Init OpenNebula DB (fed)
           ansible.builtin.shell:
@@ -94,6 +110,8 @@
           become_user: oneadmin
 
         - delegate_to: "{{ federation.master }}"
+          always: # noqa key-order[task]
+            - *remove_db_master_sql_gz
           block:
             - name: Create DB backup (fed)
               ansible.builtin.shell:
@@ -108,13 +126,13 @@
 
             - name: Compress DB backup (fed)
               community.general.archive:
-                dest: &db_master_sql_gz "/var/tmp/db_master-{{ inventory_hostname }}.sql.gz"
+                dest: *db_master_sql_gz
                 path: "/var/tmp/db_master-{{ inventory_hostname }}.sql"
                 format: gz
                 remove: true
-                mode: u=rw,go=r
+                owner: "{{ federation.master_user }}"
+                mode: u=rw,go=
 
-        - block:
             # NOTE: Artifacts are copied from Front-end to Front-end via RSYNC/SSH *directly*,
             #       please make sure SSH/RSA keys are distributed accordingly (password-less login).
             - name: Distribute DB backup (fed)
@@ -122,19 +140,19 @@
                 dest: *db_master_sql_gz
                 src: *db_master_sql_gz
                 mode: push
-              delegate_to: "{{ federation.master }}"
+                checksum: true
               become: false
 
-            - name: Restore DB backup (fed)
-              ansible.builtin.shell:
-                cmd: |
-                  set -o errexit -o pipefail
-                  zcat '{{ _db_master_sql_gz }}' | onedb restore --federated \
-                                                                 -t '{{ db_backend_types[db_backend] }}' \
-                                                                 -u '{{ db_owner }}' \
-                                                                 -p '{{ db_password }}' \
-                                                                 -d '{{ db_name }}' /dev/fd/0
-                executable: /bin/bash
-              changed_when: true
-              vars:
-                _db_master_sql_gz: *db_master_sql_gz
+        - name: Restore DB backup (fed)
+          ansible.builtin.shell:
+            cmd: |
+              set -o errexit -o pipefail
+              zcat '{{ _db_master_sql_gz }}' | onedb restore --federated \
+                                                             -t '{{ db_backend_types[db_backend] }}' \
+                                                             -u '{{ db_owner }}' \
+                                                             -p '{{ db_password }}' \
+                                                             -d '{{ db_name }}' /dev/fd/0
+            executable: /bin/bash
+          changed_when: true
+          vars:
+            _db_master_sql_gz: *db_master_sql_gz
