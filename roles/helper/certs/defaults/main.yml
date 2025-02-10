@@ -1,5 +1,5 @@
 ---
-pki:
+pki_defaults:
   base: /etc/one/fireedge-pki
   dirs:
     key: key

@@ -1,4 +1,8 @@
 ---
+- name: Compute facts (pki)
+  ansible.builtin.set_fact:
+    pki: "{{ pki_defaults | combine(pki | d({}), recursive=true) }}"
+
 - name: Compute facts
   ansible.builtin.set_fact:
     subject_alt_name: "{{ _subject_alt_name | select }}"
@@ -200,8 +204,6 @@
     - name: Restore certs from tarball
       ansible.builtin.unarchive:
         dest: "{{ archive_result.arcroot }}"
-        src: "{{ _cert_leader_tar_gz }}"
+        src: *cert_leader_tar_gz
         remote_src: true
       changed_when: true
-      vars:
-        _cert_leader_tar_gz: *cert_leader_tar_gz
