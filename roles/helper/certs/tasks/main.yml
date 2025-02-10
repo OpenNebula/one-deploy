@@ -145,21 +145,63 @@
     - "{{ client_crt }}"
     - "{{ certchain_crt }}"
 
-- name: Synchronize certificates to other nodes
-  ansible.posix.synchronize:
-    src: "{{ item.path }}"
-    dest: "{{ item.path }}"
-    recursive: true
-    mode: push
-    perms: true
-  delegate_to: "{{ leader }}"
-  loop: "{{ hostvars[leader].stat.results | map(attribute='stat') }}"
-  when:
+- when:
     - inventory_hostname != leader
-    - (_follower is undefined) or (item.checksum != _follower.checksum)
+    - _modified_certs | length > 0
   vars:
-    _follower: >-
-      {{ stat.results | map(attribute='stat')
-                      | selectattr('exists', '==', true)
-                      | selectattr('path', '==', item.path)
-                      | first }}
+    _modified_certs: >-
+      {%- set output = [] -%}
+      {%- for item in _leader_stat -%}
+        {%- set _follower = _follower_stat
+          | selectattr('exists', '==', true)
+          | selectattr('path', '==', item.path)
+          | first -%}
+        {%- if (_follower is undefined) or (item.checksum != _follower.checksum) -%}
+          {{- output.append('%s' % item.path) -}}
+        {%- endif -%}
+      {%- endfor -%}
+      {{- output -}}
+    _leader_stat: >-
+      {{ hostvars[leader].stat.results | map(attribute='stat') }}
+    _follower_stat: >-
+      {{ stat.results | map(attribute='stat') }}
+  always: # noqa key-order[task]
+    - &remove_cert_leader_tar_gz
+      name: Remove cert_leader-*.tar.gz (cleanup)
+      ansible.builtin.file:
+        path: &cert_leader_tar_gz "/var/tmp/cert_leader-{{ inventory_hostname }}.tar.gz"
+        state: absent
+  block:
+    - delegate_to: "{{ leader }}"
+      always: # noqa key-order[task]
+        - *remove_cert_leader_tar_gz
+      block:
+        - name: Compress certs into a tarball
+          community.general.archive:
+            dest: *cert_leader_tar_gz
+            path: "{{ _modified_certs }}"
+            format: gz
+            remove: false
+            force_archive: true
+            owner: "{{ ansible_user }}"
+            mode: u=rw,go=
+          register: archive_result
+
+        # NOTE: Artifacts are copied from Front-end to Front-end via RSYNC/SSH *directly*,
+        #       please make sure SSH/RSA keys are distributed accordingly (password-less login).
+        - name: Distribute certs tarball
+          ansible.posix.synchronize:
+            dest: *cert_leader_tar_gz
+            src: *cert_leader_tar_gz
+            mode: push
+            checksum: true
+          become: false
+
+    - name: Restore certs from tarball
+      ansible.builtin.unarchive:
+        dest: "{{ archive_result.arcroot }}"
+        src: "{{ _cert_leader_tar_gz }}"
+        remote_src: true
+      changed_when: true
+      vars:
+        _cert_leader_tar_gz: *cert_leader_tar_gz
