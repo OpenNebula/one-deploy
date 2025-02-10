@@ -9,8 +9,8 @@ pki_defaults:
     key: ca.key
     crt: ca.crt
     csr: ca.csr
-  client:
-    key: client.key
-    crt: client.crt
-    csr: client.csr
+  server:
+    key: server.key
+    crt: server.crt
+    csr: server.csr
   certchain: certchain.crt

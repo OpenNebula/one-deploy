@@ -9,9 +9,9 @@
     ca_key: "{{ pki.base }}/{{ pki.dirs.key }}/{{ pki.ca.key }}"
     ca_csr: "{{ pki.base }}/{{ pki.dirs.csr }}/{{ pki.ca.csr }}"
     ca_crt: "{{ pki.base }}/{{ pki.dirs.crt }}/{{ pki.ca.crt }}"
-    client_key: "{{ pki.base }}/{{ pki.dirs.key }}/{{ pki.client.key }}"
-    client_csr: "{{ pki.base }}/{{ pki.dirs.csr }}/{{ pki.client.csr }}"
-    client_crt: "{{ pki.base }}/{{ pki.dirs.crt }}/{{ pki.client.crt }}"
+    server_key: "{{ pki.base }}/{{ pki.dirs.key }}/{{ pki.server.key }}"
+    server_csr: "{{ pki.base }}/{{ pki.dirs.csr }}/{{ pki.server.csr }}"
+    server_crt: "{{ pki.base }}/{{ pki.dirs.crt }}/{{ pki.server.crt }}"
     certchain_crt: "{{ pki.base }}/{{ pki.dirs.crt }}/{{ pki.certchain }}"
   vars:
     _subject_alt_name:
@@ -85,23 +85,23 @@
         group: 0
         mode: u=rw,go=
 
-    - name: Generate client private key
+    - name: Generate server private key
       community.crypto.openssl_privatekey:
-        path: "{{ client_key }}"
+        path: "{{ server_key }}"
         type: RSA
         owner: 0
         group: 0
         mode: u=rw,go=
 
-    - name: Check if client CSR exists
+    - name: Check if server CSR exists
       ansible.builtin.stat:
-        path: "{{ client_csr }}"
-      register: client_csr_check
+        path: "{{ server_csr }}"
+      register: server_csr_check
 
-    - name: Generate client certificate signing request
+    - name: Generate server certificate signing request
       community.crypto.openssl_csr:
-        path: "{{ client_csr }}"
-        privatekey_path: "{{ client_key }}"
+        path: "{{ server_csr }}"
+        privatekey_path: "{{ server_key }}"
         basic_constraints:
           - "CA:FALSE"
         key_usage:
@@ -111,16 +111,16 @@
           - serverAuth
           - clientAuth
         subject_alt_name: "{{ subject_alt_name }}"
-        common_name: client
+        common_name: server
         owner: 0
         group: 0
         mode: u=rw,go=
-      when: not client_csr_check.stat.exists
+      when: not server_csr_check.stat.exists
 
-    - name: Generate signed client certificate
+    - name: Generate signed server certificate
       community.crypto.x509_certificate:
-        path: "{{ client_crt }}"
-        csr_path: "{{ client_csr }}"
+        path: "{{ server_crt }}"
+        csr_path: "{{ server_csr }}"
         ownca_path: "{{ ca_crt }}"
         ownca_privatekey_path: "{{ ca_key }}"
         provider: ownca
@@ -128,12 +128,12 @@
         group: 0
         mode: u=rw,go=
 
-    - name: Combine CA and client certificates into certchain
+    - name: Combine CA and server certificates into certchain
       ansible.builtin.shell:
-        cmd: cat '{{ client_crt }}' '{{ ca_crt }}' > '{{ certchain_crt }}'
+        cmd: cat '{{ server_crt }}' '{{ ca_crt }}' > '{{ certchain_crt }}'
         creates: "{{ certchain_crt }}"
 
-- name: Stat CA and client key, cert and csr (ha)
+- name: Stat CA and server key, cert and csr (ha)
   ansible.builtin.stat:
     path: "{{ item }}"
     get_attributes: false
@@ -144,9 +144,9 @@
     - "{{ ca_key }}"
     - "{{ ca_csr }}"
     - "{{ ca_crt }}"
-    - "{{ client_key }}"
-    - "{{ client_csr }}"
-    - "{{ client_crt }}"
+    - "{{ server_key }}"
+    - "{{ server_csr }}"
+    - "{{ server_crt }}"
     - "{{ certchain_crt }}"
 
 - when:

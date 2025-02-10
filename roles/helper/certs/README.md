@@ -1,7 +1,7 @@
 Role: opennebula.deploy.helper.certs
 ====================================
 
-A simple role that generates a certificate authority (CA) and then a client certificate signed by that CA.
+A simple role that generates a certificate authority (CA) and then a server certificate signed by that CA.
 
 Requirements
 ------------
@@ -20,9 +20,9 @@ Role Variables
 | `pki.ca.key`     | `str` | `ca.key`                |         | Filename of the CA private key.                        |
 | `pki.ca.crt`     | `str` | `ca.crt`                |         | Filename of the CA certificate.                        |
 | `pki.ca.csr`     | `str` | `ca.csr`                |         | Filename of the CA certificate signing request.        |
-| `pki.client.key` | `str` | `client.key`            |         | Filename of the client private key.                    |
-| `pki.client.crt` | `str` | `client.crt`            |         | Filename of the client certificate.                    |
-| `pki.client.csr` | `str` | `client.csr`            |         | Filename of the client certificate signing request.    |
+| `pki.server.key` | `str` | `server.key`            |         | Filename of the server private key.                    |
+| `pki.server.crt` | `str` | `server.crt`            |         | Filename of the server certificate.                    |
+| `pki.server.csr` | `str` | `server.csr`            |         | Filename of the server certificate signing request.    |
 | `pki.certchain`  | `str` | `certchain.crt`         |         | Filename of the full certificate chain.                |
 
 Dependencies
