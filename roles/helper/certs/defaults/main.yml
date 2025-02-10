@@ -1,6 +1,6 @@
 ---
 pki:
-  base: /etc/proxy
+  base: /etc/one/fireedge-pki
   dirs:
     key: key
     crt: crt

@@ -45,8 +45,8 @@ provisioner:
         ssl:
           generate_cert: true
           web_server: nginx # could be nginx
-          key:  /etc/proxy/key/client.key
-          certchain: /etc/proxy/crt/certchain.crt
+          key:  /etc/one/fireedge-pki/key/client.key
+          certchain: /etc/one/fireedge-pki/crt/certchain.crt
   config_options:
     defaults:
       gathering: explicit
