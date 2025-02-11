@@ -23,7 +23,7 @@ provisioner:
         ensure_hosts: true
         update_pkg_cache: true
         one_pass: opennebula
-        one_version: '6.8'
+        one_version: '6.10'
         one_token: ${ONE_TOKEN}
         features: { prometheus: true }
         one_vip: "{{ '${ONE_RANGE3}'.split()[0] | ansible.utils.ipmath('${ONE_RANGE3}'.split()[1]|int - 1) }}"
@@ -58,13 +58,21 @@ provisioner:
       become_user: root
     ssh_connection:
       pipelining: true
-      ssh_args: -q -o ControlMaster=auto -o ControlPersist=60s
+  connection_options:
+    ansible_ssh_common_args: >-
+      -o UserKnownHostsFile=/dev/null
+      -o ControlMaster=auto
+      -o ControlPersist=60s
+      -o ForwardX11=no
+      -o LogLevel=ERROR
+      -o IdentitiesOnly=no
+      -o StrictHostKeyChecking=no
 
 platforms:
   - name: prometheus-ha-f1
     groups: [frontend, node, grafana]
     template:
-      name: ubuntu2204
+      name: alma8
       content: &content
         CONTEXT:
           GROW_FS: /
@@ -83,20 +91,20 @@ platforms:
   - name: prometheus-ha-f2
     groups: [frontend, node]
     template:
-      name: alma9
+      name: ubuntu2204
       content: *content
     auth: *auth
 
   - name: prometheus-ha-f3
     groups: [frontend, node]
     template:
-      name: ubuntu2004
+      name: alma9
       content: *content
     auth: *auth
 
   - name: prometheus-ha-f4
     groups: [frontend, node]
     template:
-      name: alma8
+      name: ubuntu2404
       content: *content
     auth: *auth

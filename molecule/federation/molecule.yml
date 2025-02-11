@@ -23,7 +23,7 @@ provisioner:
         ensure_hosts: true
         update_pkg_cache: true
         one_pass: asd
-        one_version: '6.8'
+        one_version: '6.10'
     hosts:
       _0:
         children:
@@ -109,7 +109,15 @@ provisioner:
       become_user: root
     ssh_connection:
       pipelining: true
-      ssh_args: -q -o ControlMaster=auto -o ControlPersist=60s
+  connection_options:
+    ansible_ssh_common_args: >-
+      -o UserKnownHostsFile=/dev/null
+      -o ControlMaster=auto
+      -o ControlPersist=60s
+      -o ForwardX11=no
+      -o LogLevel=ERROR
+      -o IdentitiesOnly=no
+      -o StrictHostKeyChecking=no
 
 platforms:
   - name: federation-f1
@@ -141,6 +149,6 @@ platforms:
   - name: federation-f3
     groups: [frontend2, node2]
     template:
-      name: ubuntu2004
+      name: ubuntu2404
       content: *content
     auth: *auth

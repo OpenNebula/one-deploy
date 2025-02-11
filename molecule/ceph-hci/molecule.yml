@@ -29,7 +29,7 @@ provisioner:
         ensure_hosts: true
         update_pkg_cache: true
         one_pass: asd
-        one_version: '6.8'
+        one_version: '6.10'
         features: { ceph: true }
         ceph: { repo: community }
         ds: { mode: ceph }
@@ -68,13 +68,21 @@ provisioner:
       become_user: root
     ssh_connection:
       pipelining: true
-      ssh_args: -q -o ControlMaster=auto -o ControlPersist=60s
+  connection_options:
+    ansible_ssh_common_args: >-
+      -o UserKnownHostsFile=/dev/null
+      -o ControlMaster=auto
+      -o ControlPersist=60s
+      -o ForwardX11=no
+      -o LogLevel=ERROR
+      -o IdentitiesOnly=no
+      -o StrictHostKeyChecking=no
 
 platforms:
   - name: ceph-hci-f1
     groups: [frontend, mons, mgrs]
     template:
-      name: ubuntu2004
+      name: alma8
       content: &content
         CONTEXT:
           GROW_FS: /
@@ -93,7 +101,7 @@ platforms:
   - name: ceph-hci-n1
     groups: [node, osds]
     template:
-      name: alma8
+      name: ubuntu2204
       content: *content
     datablocks: &datablocks
       - PERSISTENT: "NO"
@@ -111,7 +119,7 @@ platforms:
   - name: ceph-hci-n2
     groups: [node, osds]
     template:
-      name: ubuntu2004
+      name: ubuntu2404
       content: *content
     datablocks: *datablocks
     auth: *auth
