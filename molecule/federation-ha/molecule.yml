@@ -23,7 +23,7 @@ provisioner:
         ensure_hosts: true
         update_pkg_cache: true
         one_pass: asd
-        one_version: '6.8'
+        one_version: '6.10'
     hosts:
       _0:
         children:
@@ -93,13 +93,21 @@ provisioner:
       become_user: root
     ssh_connection:
       pipelining: true
-      ssh_args: -q -o ControlMaster=auto -o ControlPersist=60s
+  connection_options:
+    ansible_ssh_common_args: >-
+      -o UserKnownHostsFile=/dev/null
+      -o ControlMaster=auto
+      -o ControlPersist=60s
+      -o ForwardX11=no
+      -o LogLevel=ERROR
+      -o IdentitiesOnly=no
+      -o StrictHostKeyChecking=no
 
 platforms:
   - name: federation-ha-f1
     groups: [frontend0, node0]
     template:
-      name: ubuntu2204
+      name: alma8
       content: &content
         CONTEXT:
           GROW_FS: /
@@ -118,20 +126,20 @@ platforms:
   - name: federation-ha-f2
     groups: [frontend0, node0]
     template:
-      name: alma9
+      name: ubuntu2204
       content: *content
     auth: *auth
 
   - name: federation-ha-f3
     groups: [frontend1, node1]
     template:
-      name: ubuntu2004
+      name: alma9
       content: *content
     auth: *auth
 
   - name: federation-ha-f4
     groups: [frontend1, node1]
     template:
-      name: alma8
+      name: ubuntu2404
       content: *content
     auth: *auth

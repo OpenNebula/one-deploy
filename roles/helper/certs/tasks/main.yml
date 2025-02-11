@@ -1,0 +1,209 @@
+---
+- name: Compute facts (pki)
+  ansible.builtin.set_fact:
+    pki: "{{ pki_defaults | combine(pki | d({}), recursive=true) }}"
+
+- name: Compute facts
+  ansible.builtin.set_fact:
+    subject_alt_name: "{{ _subject_alt_name | select }}"
+    ca_key: "{{ pki.base }}/{{ pki.dirs.key }}/{{ pki.ca.key }}"
+    ca_csr: "{{ pki.base }}/{{ pki.dirs.csr }}/{{ pki.ca.csr }}"
+    ca_crt: "{{ pki.base }}/{{ pki.dirs.crt }}/{{ pki.ca.crt }}"
+    server_key: "{{ pki.base }}/{{ pki.dirs.key }}/{{ pki.server.key }}"
+    server_csr: "{{ pki.base }}/{{ pki.dirs.csr }}/{{ pki.server.csr }}"
+    server_crt: "{{ pki.base }}/{{ pki.dirs.crt }}/{{ pki.server.crt }}"
+    certchain_crt: "{{ pki.base }}/{{ pki.dirs.crt }}/{{ pki.certchain }}"
+  vars:
+    _subject_alt_name:
+      - "{{ ('DNS:' ~ one_fqdn) if (one_fqdn is defined) else '' }}"
+      - "{{ ('IP:' ~ one_vip) if (one_vip is defined) else ('IP:' ~ hostvars[leader].ansible_host) }}"
+
+- name: Install required system packages
+  ansible.builtin.package:
+    name: "{{ _common }}"
+  vars:
+    _common: [python3-cryptography]
+  register: package
+  until: package is success
+  retries: 12
+  delay: 5
+
+- name: Ensure certificate directories exist
+  ansible.builtin.file:
+    path: "{{ item }}/"
+    state: directory
+    owner: 0
+    group: 0
+    mode: u=rwx,go=
+  loop:
+    - "{{ pki.base }}"
+    - "{{ pki.base }}/{{ pki.dirs.key }}"
+    - "{{ pki.base }}/{{ pki.dirs.crt }}"
+    - "{{ pki.base }}/{{ pki.dirs.csr }}"
+
+- when: inventory_hostname == leader
+  block:
+    - name: Generate CA private key
+      community.crypto.openssl_privatekey:
+        path: "{{ ca_key }}"
+        type: RSA
+        owner: 0
+        group: 0
+        mode: u=rw,go=
+
+    - name: Check if CA CSR exists
+      ansible.builtin.stat:
+        path: "{{ ca_csr }}"
+        get_attributes: false
+        get_checksum: false
+        get_mime: false
+      register: ca_csr_check
+
+    - name: Generate CA certificate signing request
+      community.crypto.openssl_csr:
+        path: "{{ ca_csr }}"
+        privatekey_path: "{{ ca_key }}"
+        basic_constraints:
+          - "CA:TRUE"
+        key_usage:
+          - digitalSignature
+          - keyEncipherment
+          - keyCertSign
+        common_name: ca
+        owner: 0
+        group: 0
+        mode: u=rw,go=
+      when: not ca_csr_check.stat.exists
+
+    - name: Generate self-signed CA certificate
+      community.crypto.x509_certificate:
+        path: "{{ ca_crt }}"
+        privatekey_path: "{{ ca_key }}"
+        csr_path: "{{ ca_csr }}"
+        provider: selfsigned
+        owner: 0
+        group: 0
+        mode: u=rw,go=
+
+    - name: Generate server private key
+      community.crypto.openssl_privatekey:
+        path: "{{ server_key }}"
+        type: RSA
+        owner: 0
+        group: 0
+        mode: u=rw,go=
+
+    - name: Check if server CSR exists
+      ansible.builtin.stat:
+        path: "{{ server_csr }}"
+      register: server_csr_check
+
+    - name: Generate server certificate signing request
+      community.crypto.openssl_csr:
+        path: "{{ server_csr }}"
+        privatekey_path: "{{ server_key }}"
+        basic_constraints:
+          - "CA:FALSE"
+        key_usage:
+          - digitalSignature
+          - keyEncipherment
+        extended_key_usage:
+          - serverAuth
+          - clientAuth
+        subject_alt_name: "{{ subject_alt_name }}"
+        common_name: server
+        owner: 0
+        group: 0
+        mode: u=rw,go=
+      when: not server_csr_check.stat.exists
+
+    - name: Generate signed server certificate
+      community.crypto.x509_certificate:
+        path: "{{ server_crt }}"
+        csr_path: "{{ server_csr }}"
+        ownca_path: "{{ ca_crt }}"
+        ownca_privatekey_path: "{{ ca_key }}"
+        provider: ownca
+        owner: 0
+        group: 0
+        mode: u=rw,go=
+
+    - name: Combine CA and server certificates into certchain
+      ansible.builtin.shell:
+        cmd: cat '{{ server_crt }}' '{{ ca_crt }}' > '{{ certchain_crt }}'
+        creates: "{{ certchain_crt }}"
+
+- name: Stat CA and server key, cert and csr (ha)
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    get_attributes: false
+    get_checksum: true
+    get_mime: false
+  register: stat
+  loop:
+    - "{{ ca_key }}"
+    - "{{ ca_csr }}"
+    - "{{ ca_crt }}"
+    - "{{ server_key }}"
+    - "{{ server_csr }}"
+    - "{{ server_crt }}"
+    - "{{ certchain_crt }}"
+
+- when:
+    - inventory_hostname != leader
+    - _modified_certs | length > 0
+  vars:
+    _modified_certs: >-
+      {%- set output = [] -%}
+      {%- for item in _leader_stat -%}
+        {%- set _follower = _follower_stat
+          | selectattr('exists', '==', true)
+          | selectattr('path', '==', item.path)
+          | first -%}
+        {%- if (_follower is undefined) or (item.checksum != _follower.checksum) -%}
+          {{- output.append('%s' % item.path) -}}
+        {%- endif -%}
+      {%- endfor -%}
+      {{- output -}}
+    _leader_stat: >-
+      {{ hostvars[leader].stat.results | map(attribute='stat') }}
+    _follower_stat: >-
+      {{ stat.results | map(attribute='stat') }}
+  always: # noqa key-order[task]
+    - &remove_cert_leader_tar_gz
+      name: Remove cert_leader-*.tar.gz (cleanup)
+      ansible.builtin.file:
+        path: &cert_leader_tar_gz "/var/tmp/cert_leader-{{ inventory_hostname }}.tar.gz"
+        state: absent
+  block:
+    - delegate_to: "{{ leader }}"
+      always: # noqa key-order[task]
+        - *remove_cert_leader_tar_gz
+      block:
+        - name: Compress certs into a tarball
+          community.general.archive:
+            dest: *cert_leader_tar_gz
+            path: "{{ _modified_certs }}"
+            format: gz
+            remove: false
+            force_archive: true
+            owner: "{{ ansible_user }}"
+            mode: u=rw,go=
+          register: archive_result
+
+        # NOTE: Artifacts are copied from Front-end to Front-end via RSYNC/SSH *directly*,
+        #       please make sure SSH/RSA keys are distributed accordingly (password-less login).
+        - name: Distribute certs tarball
+          ansible.posix.synchronize:
+            dest: *cert_leader_tar_gz
+            src: *cert_leader_tar_gz
+            mode: push
+            checksum: true
+          become: false
+
+    - name: Restore certs from tarball
+      ansible.builtin.unarchive:
+        dest: "{{ archive_result.arcroot }}"
+        src: *cert_leader_tar_gz
+        remote_src: true
+      changed_when: true

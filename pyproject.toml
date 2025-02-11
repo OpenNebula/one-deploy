@@ -11,7 +11,7 @@ requires-python = ">=3.9"
 skip-install = true
 installer = "uv"
 dependencies = [
-  "ansible-core",
+  "ansible-core<2.17",
   "ansible-lint",
   "molecule",
   "netaddr",

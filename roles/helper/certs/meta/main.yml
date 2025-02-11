@@ -1,0 +1,4 @@
+---
+collections:
+  - opennebula.deploy
+  - community.crypto

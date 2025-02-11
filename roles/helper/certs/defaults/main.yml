@@ -1,0 +1,16 @@
+---
+pki_defaults:
+  base: /etc/one/fireedge-pki
+  dirs:
+    key: key
+    crt: crt
+    csr: csr
+  ca:
+    key: ca.key
+    crt: ca.crt
+    csr: ca.csr
+  server:
+    key: server.key
+    crt: server.crt
+    csr: server.csr
+  certchain: certchain.crt
