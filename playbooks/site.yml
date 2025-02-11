@@ -35,6 +35,10 @@
     - role: flow
       tags: [flow]
 
+    - role: provision
+      tags: [provision]
+      when: features.provision | bool is true
+
     - role: gui
       tags: [gui]
 

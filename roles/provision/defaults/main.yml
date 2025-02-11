@@ -1,0 +1,5 @@
+---
+provision_ansible_version: "2.15.13"
+provision_terraform_version: "0.14.7"
+provision_terraform_url: >-
+  https://releases.hashicorp.com/terraform/{{ provision_terraform_version }}/terraform_{{ provision_terraform_version }}_linux_amd64.zip
