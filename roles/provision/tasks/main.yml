@@ -50,8 +50,7 @@
         - block:
             # This task might fail on distros with python>=3.12,
             # but Ansible version in those should be recent enough for OneProvision.
-            - &pip
-              name: Install Ansible (oneadmin)
+            - name: Install Ansible (oneadmin)
               ansible.builtin.pip:
                 name: "ansible-core>={{ provision_ansible_version }}"
                 state: present
@@ -63,8 +62,9 @@
               retries: 6
               delay: 5
           rescue:
-            - <<: *pip
-              vars: { _pip_extra_args: "--break-system-packages" }
+            - name: Warning about Ansible version
+              ansible.builtin.debug:
+                msg: "Failed to install ansible-core>={{ provision_ansible_version }}. OneProvision might not be compatible or require manual intervention"
 
     - name: Download and install Terraform
       ansible.builtin.unarchive:
