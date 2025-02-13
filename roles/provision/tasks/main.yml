@@ -1,0 +1,79 @@
+---
+# NOTE: There is a strong assumption the oneadmin user has been already created at this point.
+- tags: [preinstall]
+  block:
+    - ansible.builtin.include_role:
+        name: repository
+      vars:
+        repos_enabled: [opennebula]
+      when: opennebula_repo is undefined
+
+    - name: Install OneProvision
+      ansible.builtin.package:
+        name: "{{ _common }}"
+      vars:
+        _common: [gawk, opennebula-provision]
+      register: package
+      until: package is success
+      retries: 6
+      delay: 5
+
+    - name: Get Ansible version (oneadmin)
+      ansible.builtin.command:
+        cmd: gawk -f-
+        stdin: |
+          BEGIN {
+            if ("ansible --version" | getline line) {
+              if (match(line, /(core|ansible) ([0-9.]+)/, m)) {
+                print m[2]; exit
+              }
+            }
+            print "0.0.0"; exit
+          }
+      changed_when: false
+      become: true
+      become_user: oneadmin
+      register: oneadmin_ansible_version
+
+    - when: oneadmin_ansible_version.stdout_lines.0 is version(provision_ansible_version, '<')
+      block:
+        - name: Install python3-pip
+          ansible.builtin.package:
+            name: "{{ _common }}"
+          vars:
+            _common: [python3-pip]
+          register: package
+          until: package is success
+          retries: 6
+          delay: 5
+
+        - block:
+            # This task might fail on distros with python>=3.12,
+            # but Ansible version in those should be recent enough for OneProvision.
+            - name: Install Ansible (oneadmin)
+              ansible.builtin.pip:
+                name: "ansible-core>={{ provision_ansible_version }}"
+                state: present
+                extra_args: "{{ _pip_extra_args | d(omit) }}"
+              become: true
+              become_user: oneadmin
+              register: pip
+              until: pip is success
+              retries: 6
+              delay: 5
+          rescue:
+            - name: Warning about Ansible version
+              ansible.builtin.debug:
+                msg: "Failed to install ansible-core>={{ provision_ansible_version }}. OneProvision might not be compatible or require manual intervention"
+
+    - name: Download and install Terraform
+      ansible.builtin.unarchive:
+        dest: /usr/local/bin/
+        src: "{{ provision_terraform_url }}"
+        remote_src: true
+        mode: u=rwx,go=rx
+        creates: /usr/local/bin/terraform
+      register: unarchive
+      until: unarchive is success
+      retries: 6
+      delay: 5
