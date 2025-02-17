@@ -9,12 +9,14 @@
       register: systemd_unattended_upgrades
       no_log: true
 
-    - name: Stop, disable and mask unattended-upgrades.service
-      ansible.builtin.systemd_service:
+    # NOTE: We found the hard way that stopping and masking the unattended-upgrades.service
+    #       is ineffective. If you don't want it removed and purged, then either please
+    #       don't set unattend_disable to true or stop/mask the service yourself.
+    - name: Purge unattended-upgrades.service
+      ansible.builtin.package:
         name: unattended-upgrades.service
-        state: stopped
-        enabled: false
-        masked: true
+        state: absent
+        purge: true
       register: result
       until: result is success
       retries: 12
