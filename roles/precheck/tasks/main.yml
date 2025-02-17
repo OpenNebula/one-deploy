@@ -5,15 +5,18 @@
     msg: Please use ansible version >= 2.14.0.
   run_once: true
 
-- name: Ensure string type for critical vars
+- name: Ensure correct type for critical vars
   ansible.builtin.assert:
     that:
       - context.PASSWORD is undefined or context.PASSWORD is string
-      - one_pass is undefined or one_pass is none or one_pass is string
+                                      or context.PASSWORD | type_debug == 'AnsibleVaultEncryptedUnicode'
+      - one_pass is undefined or one_pass is string
+                              or one_pass | type_debug == 'AnsibleVaultEncryptedUnicode'
+                              or one_pass is none
       - one_token is undefined or one_token is string
+                               or one_token | type_debug == 'AnsibleVaultEncryptedUnicode'
       - one_version is string
     msg: Please make sure [context.PASSWORD, one_pass, one_token, one_version] are valid strings.
-  run_once: true
 
 - name: Validate passwords strength
   ansible.builtin.assert:
@@ -53,7 +56,6 @@
   when:
     - prod_env | d(false) | bool is true
     - _items[item].condition
-  run_once: true
 
 - name: Check if one_vip/force_ha settings are valid
   ansible.builtin.assert:
