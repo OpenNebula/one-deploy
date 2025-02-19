@@ -19,3 +19,4 @@ __pycache__/
 !/inventory/evpn-ha.yml
 /.env.yml
 .vscode
+.ansible/
