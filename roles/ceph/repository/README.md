@@ -13,7 +13,8 @@ Role Variables
 
 | Name        | Type  | Default  | Example | Description                                                     |
 |-------------|-------|----------|---------|-----------------------------------------------------------------|
-| `ceph.repo` | `str` | `distro` |         | Defines type of Ceph repository to use `distro` or `community`. |
+| `ceph.repo` | `str` |  | `distro` | Defines type of Ceph repository to use `distro` or `community`. Tasks ignored if not set. |
+| `ceph_stable_release` | `str` |  | `squid` | Defines Ceph version to use. |
 
 Dependencies
 ------------

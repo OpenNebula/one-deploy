@@ -42,6 +42,7 @@ ceph:
     ? osds
   vars:
     osd_auto_discovery: true
+    public_network: 172.20.0.0/24
 
 mons:
   hosts:

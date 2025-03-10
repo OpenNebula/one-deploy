@@ -145,6 +145,20 @@
       - kvm
       - qemu
 
+ # We only support active Ceph releases (https://docs.ceph.com/en/latest/releases/index.html)
+- name: Check if specified ceph version is supported
+  ansible.builtin.assert:
+    that: ceph_stable_release in {{ _supported }}
+  vars:
+    _supported:
+      - reef
+      - squid
+
+# We only support active Ceph releases (https://docs.ceph.com/en/latest/releases/index.html)
+# and recommended distro families (https://docs.ceph.com/en/latest/start/os-recommendations/)
+# Other useful links:
+# - https://sigs.centos.org/storage/general/
+# - https://ubuntu.com/ceph/docs/supported-ceph-versions
 - name: Check if Ceph feature is supported for current distro family
   ansible.builtin.assert:
     that: (features.ceph is undefined)
@@ -154,26 +168,33 @@
           (inventory_hostname not in _hosts)
           or
           ((_repos is defined) and (_repo in _repos))
-    msg: Please use one of the supported linux distro families to run Ceph
+    msg: Please use one of the supported linux distro families to run Ceph {{ ceph_stable_release }} version
          ({{ ansible_distribution }}/{{ ansible_distribution_major_version }}/{{ _repo }} combination is unsupported).
   vars:
     _repo: "{{ ceph.repo | d('distro') }}"
-    _repos: "{{ _supported[ansible_distribution][ansible_distribution_major_version] }}"
+    _repos: "{{ _supported[ceph_stable_release][ansible_distribution][ansible_distribution_major_version] }}"
     _supported:
-      Debian:
-        '10': []
-        '11': [community]
-        '12': []
-      Ubuntu:
-        '20': [community]
-        '22': [distro, community]
-        '24': []
-      AlmaLinux:
-        '8': [distro, community]
-        '9': [community]
-      RedHat:
-        '8': [community]
-        '9': [community]
+      reef: # Ceph 18.2.z
+        Debian:
+          '11': [community]
+          '12': [community]
+        Ubuntu:
+          '22': [distro, community]
+        AlmaLinux:
+          '9': [distro, community]
+        RedHat:
+          '9': [distro, community]
+      squid: # Ceph 19.2.z
+        Debian:
+          '12': [community]
+        Ubuntu:
+          '20': [community]
+          '22': [distro, community]
+          '24': [distro, community]
+        AlmaLinux:
+          '9': [community]
+        RedHat:
+          '9': [community]
     _hosts: "{{ federation.groups.node | d([]) | unique }}"
   tags: [preinstall]
 
