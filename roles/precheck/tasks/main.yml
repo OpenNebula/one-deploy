@@ -181,9 +181,9 @@
         Ubuntu:
           '22': [distro, community]
         AlmaLinux:
-          '9': [distro, community]
+          '9': [] # Not supported: https://tracker.ceph.com/issues/68802
         RedHat:
-          '9': [distro, community]
+          '9': [] # Not supported: https://tracker.ceph.com/issues/68802
       squid: # Ceph 19.2.z
         Debian:
           '12': [community]
