@@ -58,6 +58,7 @@ ceph:
         ? osd memory target
         : "{{ osd_memory_target | int }}"
     osd_auto_discovery: true
+    public_network: 172.20.0.0/24
 
 mons:
   hosts:

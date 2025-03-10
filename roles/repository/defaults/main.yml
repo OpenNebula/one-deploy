@@ -49,8 +49,8 @@ ceph_repo_path_defaults:
   RedHat: /etc/yum.repos.d/ceph.repo
 
 ceph_repo_url_defaults:
-  Debian: https://download.ceph.com/debian-quincy
-  RedHat: https://download.ceph.com/rpm-quincy
+  Debian: https://download.ceph.com/debian-{{ ceph_stable_release }}
+  RedHat: https://download.ceph.com/rpm-{{ ceph_stable_release }}
 
 ###
 
