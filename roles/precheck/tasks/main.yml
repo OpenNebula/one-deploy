@@ -190,7 +190,7 @@
         Ubuntu:
           '20': [community]
           '22': [distro, community]
-          '24': [distro, community]
+          '24': [distro]
         AlmaLinux:
           '9': [community]
         RedHat:
