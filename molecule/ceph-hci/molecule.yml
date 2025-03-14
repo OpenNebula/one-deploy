@@ -48,9 +48,12 @@ provisioner:
               GATEWAY: "{{ '${ONE_SUBNET}' | ansible.utils.nthhost(1) }}"
               DNS: 1.1.1.1 8.8.8.8
         ceph_origin: distro
+        public_network: "{{ '${ONE_SUBNET}' }}"
         configure_firewall: false
         no_log_on_ceph_key_tasks: false
         osd_auto_discovery: true
+      ceph:
+        ceph_stable_release: squid
     host_vars:
       ceph-hci-f1:
         monitor_address: "{{ ansible_host }}"
@@ -80,9 +83,9 @@ provisioner:
 
 platforms:
   - name: ceph-hci-f1
-    groups: [frontend, mons, mgrs]
+    groups: [frontend, ceph, mons, mgrs]
     template:
-      name: alma8
+      name: alma9
       content: &content
         CONTEXT:
           GROW_FS: /
@@ -99,9 +102,9 @@ platforms:
       pswd: ${ONE_PSWD}
 
   - name: ceph-hci-n1
-    groups: [node, osds]
+    groups: [node, ceph, osds]
     template:
-      name: ubuntu2204
+      name: debian12
       content: *content
     datablocks: &datablocks
       - PERSISTENT: "NO"
@@ -117,9 +120,9 @@ platforms:
     auth: *auth
 
   - name: ceph-hci-n2
-    groups: [node, osds]
+    groups: [node, ceph, osds]
     template:
-      name: ubuntu2404
+      name: ubuntu2204
       content: *content
     datablocks: *datablocks
     auth: *auth
