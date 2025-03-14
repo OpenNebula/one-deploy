@@ -148,11 +148,26 @@
  # We only support active Ceph releases (https://docs.ceph.com/en/latest/releases/index.html)
 - name: Check if specified ceph version is supported
   ansible.builtin.assert:
-    that: ceph_stable_release in {{ _supported }}
+    that: (features.ceph is undefined)
+          or
+          (features.ceph | bool is false)
+          or
+          (inventory_hostname not in _hosts)
+          or
+          ((ceph_stable_release is defined) and (ceph_stable_release in _supported))
+    msg: Please specify one of the supported Ceph versions {{ _supported }} in ceph_stable_release variable.
   vars:
     _supported:
       - reef
       - squid
+    _hosts: >-
+      {{ (
+          groups.get(node_group | d('node'), [])
+          + groups.get(mon_group_name | d('mons'), [])
+          + groups.get(mgr_group_name | d('mgrs'), [])
+          + groups.get(osd_group_name | d('osds'), [])
+        ) | unique }}
+  tags: [preinstall]
 
 # We only support active Ceph releases (https://docs.ceph.com/en/latest/releases/index.html)
 # and recommended distro families (https://docs.ceph.com/en/latest/start/os-recommendations/)
@@ -167,12 +182,12 @@
           or
           (inventory_hostname not in _hosts)
           or
-          ((_repos is defined) and (_repo in _repos))
-    msg: Please use one of the supported linux distro families to run Ceph {{ ceph_stable_release }} version
+          ((ceph_stable_release is defined) and (_repos is defined) and (_repo in _repos))
+    msg: Please use one of the supported linux distro families to run Ceph {{ (ceph_stable_release | d('')) }} version
          ({{ ansible_distribution }}/{{ ansible_distribution_major_version }}/{{ _repo }} combination is unsupported).
   vars:
     _repo: "{{ ceph.repo | d('distro') }}"
-    _repos: "{{ _supported[ceph_stable_release][ansible_distribution][ansible_distribution_major_version] }}"
+    _repos: "{{ _supported[(ceph_stable_release | d(''))][ansible_distribution][ansible_distribution_major_version] }}"
     _supported:
       reef: # Ceph 18.2.z
         Debian:
@@ -195,7 +210,13 @@
           '9': [community]
         RedHat:
           '9': [community]
-    _hosts: "{{ federation.groups.node | d([]) | unique }}"
+    _hosts: >-
+      {{ (
+          groups.get(node_group | d('node'), [])
+          + groups.get(mon_group_name | d('mons'), [])
+          + groups.get(mgr_group_name | d('mgrs'), [])
+          + groups.get(osd_group_name | d('osds'), [])
+        ) | unique }}
   tags: [preinstall]
 
 - name: Prevent Ceph deployment in the parallel federation deployment mode
