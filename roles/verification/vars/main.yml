@@ -1,0 +1,13 @@
+---
+# vars file for verification
+test_vnet_name: 'Test Network'
+test_bridge_name: 'br-test'
+test_phydev: 
+
+test_ip_net: '10.0.0.0'
+test_subnet_mask: '255.255.255.0'
+test_dns: '10.0.0.1'
+test_gw: '10.0.0.1'
+
+# Marketplace App name for test VM instantiation
+test_vm_name: 'Alpine Linux 3.21'

@@ -1,0 +1,18 @@
+<html>
+<head>
+
+
+</head>
+<title> Cloud verification report. Executed on {{ date }} </title>
+
+<body>
+
+ <!-- Table with the individual tests  -->
+ <table style="width:auto;text-align:left;background: #f9f9f9 none repeat scroll 0 0;">
+      {% for k, v in verification_result.items() %}
+      <tr><th> {{ k }}</th></tr>
+      <tr><td>{{ v }}</td></tr>
+      {% endfor %}
+    </table>
+</body>
+</html>

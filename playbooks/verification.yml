@@ -1,0 +1,7 @@
+---
+# Will launch verification framework on the frontends
+- hosts: "{{ frontend_group | d('frontend') }}"
+
+  # Include cloud verification framework role
+  roles:
+    - role: verification
