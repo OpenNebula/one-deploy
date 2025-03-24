@@ -11,7 +11,7 @@
         _common: []
         _specific:
           Debian: [qemu-utils]
-          RedHat: [qemu-img, centos-release-ceph-quincy]
+          RedHat: [qemu-img, "centos-release-ceph-{{ ceph_stable_release }}"]
       register: package
       until: package is success
       retries: 12
