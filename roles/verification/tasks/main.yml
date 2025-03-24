@@ -1,0 +1,385 @@
+---
+# tasks file for OpenNebula cloud post-deployment verification
+#
+#
+
+
+# Gagther min subset of facts for datetime
+- setup:
+    gather_subset:
+    - min
+
+      # !!! Might be reasonable to discuss alternative approach for this check
+- name: Validate xml-rpc API
+  ansible.builtin.shell: >
+    oneuser list
+  register: oneuser_result
+  failed_when: "oneuser_result.rc != 0"
+
+- name: Save xml-rpc status
+  set_fact:
+    verification_result:
+      'XML-RPC API status': 'ok'
+  
+- name: Check oned service enabled
+  ansible.builtin.shell: >
+    systemctl status opennebula | grep enabled
+  register: onestatus
+  failed_when: "onestatus.rc != 0"
+
+- name: Save oned service status
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Oned is enabled': 'ok'}) }}"
+      
+- name: Restart oned
+  ansible.builtin.shell: |
+    systemctl stop opennebula && systemctl start opennebula
+    sleep 3
+    systemctl status opennebula | grep Active | grep -ow '(running)'
+  register: oned_status
+  failed_when: "'running' not in oned_status.stdout"
+
+- name: Save oned service status
+  set_fact:
+    verification_result: "{{ verification_result | combine({'OpenNebula restart': 'ok'}) }}"
+
+- name: Check oned version
+  ansible.builtin.shell: >
+    oned -v  
+  register: oned_version
+
+- name: Save oned version
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Oned version': oned_version.stdout}) }}"
+
+
+- name: Debug
+  debug:
+    var: verification_result
+
+- name: Printout oned version
+  debug:
+    msg: "Installed oned version: {{ oned_version.stdout }}"
+
+- name: Verify OpenNebula private repos
+  ansible.builtin.shell: >
+    cd  /etc/apt/sources.list.d/ && grep -Rn opennebula . | awk '{print $2}'
+  register: repos_list
+  failed_when: "repos_list.rc != 0"
+
+- name: Save OpenNebula repositories
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Configured OpenNebula repository': repos_list.stdout}) }}"
+
+
+- name: Verify OpenNebula scheduler can contact oned
+  ansible.builtin.shell: |
+    systemctl stop opennebula-scheduler && systemctl start opennebula-scheduler
+    sleep 3
+    grep 'oned successfully contacted' /var/log/one/sched.log
+  register: one_scheduler
+  failed_when: "one_scheduler.rc != 0"
+
+- name: Save OpenNebula scheduler can contact oned
+  set_fact:
+    verification_result: "{{ verification_result | combine({'OpenNebula scheduler can contact oned': 'ok'}) }}"
+
+
+- name: OpenNebula Gate service starts and shutdown
+  ansible.builtin.shell: |
+    systemctl stop opennebula-gate && systemctl start opennebula-gate
+    sleep 3
+    systemctl status opennebula-gate | grep Active  | grep -o '(running)'
+  register: onegate_status
+  failed_when: "'running' not in onegate_status.stdout"
+
+- name: Save OpenNebula scheduler can contact oned
+  set_fact:
+    verification_result: "{{ verification_result | combine({'OpenNebula Gate service restart' : 'ok'}) }}"
+
+- name: Verify one-gate is configured to start at boot
+  ansible.builtin.shell: >
+   systemctl status opennebula-gate | grep enabled
+  register: onegate_enabled
+  failed_when: "'enabled' not in onegate_enabled.stdout"
+
+- name: Save OpenNebula scheduler can contact oned
+  set_fact:
+    verification_result: "{{ verification_result | combine({'OpenNebula Gate is configured to start at boot' : 'ok'}) }}"
+
+- name: Verify one-gate listen & port on the server
+  ansible.builtin.shell: >
+    ss -tlp | grep $(grep :port: /etc/one/onegate-server.conf | awk {'print $2'})
+  register: onegate_service
+
+- name: Save one-gate listen & port on the server
+  set_fact:
+    verification_result: "{{ verification_result | combine({'OpenNebula one-gate service listens on the server' : 'ok'}) }}"
+
+
+- name: Verify one-flow is configue to start at boot
+  ansible.builtin.shell: >
+   systemctl status opennebula-flow | grep enabled
+  register: oneflow_enabled
+  failed_when: "'enabled' not in oneflow_enabled.stdout"
+
+- name: Save one-flow listen & port on the server
+  set_fact:
+    verification_result: "{{ verification_result | combine({'OpenNebula one-flow service is enabled' : 'ok'}) }}"
+
+- name: Verify one-flow stops and starts
+  ansible.builtin.shell: |
+    systemctl stop opennebula-flow && systemctl start opennebula-flow
+    sleep 3
+    systemctl status opennebula-flow | grep Active | grep -ow '(running)'
+  register: oneflow_status
+  failed_when: "'running' not in oneflow_status.stdout"
+
+- name: Save one-flow listen & port on the server
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Verify one-flow stops and starts' : 'ok'}) }}"
+
+
+- name: Verify oneflow listen & port on the server
+  ansible.builtin.shell: >
+    ss -tlp | grep -o $(grep :port: /etc/one/oneflow-server.conf | awk {'print $2'})
+  register: oneflow_status
+  failed_when: "oneflow_status.rc != 0"
+    
+- name: Save one-flow listen & port on the server
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Verify one-flow service port is open on the server' : 'ok'}) }}"
+
+- name: Verify fireedge GUI stops and starts
+  ansible.builtin.shell: |
+    systemctl stop opennebula-fireedge && systemctl start opennebula-fireedge
+    sleep 3
+    systemctl status opennebula-fireedge | grep Active | grep -o '(running)'
+  register: fireedge_status
+  failed_when: "'running' not in fireedge_status.stdout"
+
+- name: Verify fireedge GUI stops & starts
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Verify fireedge GUI stops and starts' : 'ok'}) }}"
+
+- name: Verify fireedge service is configured to start at boot time
+  ansible.builtin.shell: >
+    systemctl status opennebula-fireedge | grep enabled
+  register: fireedge_enabled
+  failed_when: "'enabled' not in fireedge_enabled.stdout"
+
+- name: Verify fireedge GUI enabled
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Verify fireedge GUI is enabled to start automatically' : 'ok'}) }}"
+
+- name: Fireedge service listens on the server
+  ansible.builtin.shell: >
+    ss -tlp | grep $(grep -A1 'FireEdge server port' /etc/one/fireedge-server.conf | grep port: | awk '{print $2}')
+  register: firedge_socket
+  failed_when: "firedge_socket.rc != 0"
+
+- name: Verify fireedge GUI listens on the server
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Verify fireedge GUI listens port' : 'ok'}) }}"
+
+- name: Connect to a fireedge server
+  ansible.builtin.shell: >
+    curl "{{ firedge_socket.stdout.split()[3] }}"
+  register: connection_status
+  failed_when: "connection_status.rc != 0"
+
+- name: Verify connection to a fireedge server
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Verify connection to a fireedge server' : 'ok'}) }}"
+
+- name: Get registered hosts
+  ansible.builtin.shell: >
+    onehost list -j
+  register: onehost_list
+  failed_when: "onehost_list.rc != 0"
+
+- name: Get hosts list
+  set_fact:
+    hosts_list: "{{ onehost_list.stdout | from_json | json_query('HOST_POOL.HOST.ID') }}"
+#  failed_when: "connection_status.rc != 0"
+
+- name: Verify hosts list
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Number of registered HV hosts' : hosts_list |length }) }}"
+
+# !!! Validate behavior for multiple hosts
+- name: Check monitoring status for each registered host
+  ansible.builtin.shell: >
+    onehost show "{{ item }}" -j
+  register: host_status
+  failed_when: " host_status.rc != 0 "
+  loop:  "{{ hosts_list | list }}"
+
+- name: Get host status
+  debug:
+    msg: "{{ host_status.results[0].stdout | from_json | json_query('HOST.STATE') }}"
+  
+- name: Verify hosts monitoring
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Check monitoring status for each registered host' : 'ok' }) }}"
+
+- name: Set host offline and then set online
+  ansible.builtin.shell: |
+    onehost disable "{{ item }}"
+    sleep 1
+    onehost enable "{{ item }}"
+    sleep 1
+    onehost show "{{ item }}" -j
+  register: host_monitoring
+  loop: "{{ hosts_list | list }}" 
+
+- name: Verify host offline and then set online
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Put host offline and then set online. Host status' : host_monitoring.results[0].stdout | from_json | json_query('HOST.STATE') }) }}"
+    
+- name: Get host status
+  debug:
+    msg: "{{ host_monitoring.results[0].stdout | from_json | json_query('HOST.STATE') }}"
+
+- name: Create vnet
+  block:
+    - name: Render vnet config
+      template:
+        src: test_vnet.j2
+        dest: /tmp/test_vnet
+
+    - name: Create network
+      ansible.builtin.shell: >
+        onevnet create /tmp/test_vnet
+      register: test_network
+      failed_when: "test_network.rc != 0"
+
+    - name: Delete vnet definition
+      file:
+        path: /etc/foo.conf
+        state: absent
+
+- name: Verify host offline and then set online
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Test network creation' : 'ok'}) }}"
+
+- name: Get datastores list
+  ansible.builtin.shell: >
+    onedatastore list -j
+  register: datastore_list
+  failed_when: "datastore_list.rc != 0"
+
+- name: Verify datastores list
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Datastores list' : datastore_list.stdout | from_json | json_query('DATASTORE_POOL.DATASTORE[*].NAME')}) }}"
+
+- name: Get DS capacity
+  assert:
+    that:
+      - item['FREE_MB'] | int  >= 0
+    quiet: true
+    fail_msg: "{{item['NAME'] }} datastore  has no free space ({{ item['FREE_MB'] }}MB is available)"   
+  when: "item['NAME'] != 'system'"  
+  loop: "{{ datastore_list.stdout | from_json | json_query('DATASTORE_POOL.DATASTORE') }}"
+
+- name: Verify DS capacity
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Datastore capacity more than 0' : 'ok'}) }}"
+
+  
+  # We just checking how many marketplaces are registered, if no marketplaces -> fail
+- name: Check marketplace
+  ansible.builtin.shell: >
+    onemarket list -j
+  register: marketplace_list
+  failed_when: marketplace_list.stdout | from_json | json_query('MARKETPLACE_POOL.MARKETPLACE') | length == 0
+
+- name: Verify Marketplaces
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Registered marketplaces' : marketplace_list.stdout | from_json | json_query('MARKETPLACE_POOL.MARKETPLACE[*].NAME')}) }}"
+
+
+- name: Get marketplace status
+  debug:
+    msg: "{{ marketplace_list.stdout | from_json | json_query('MARKETPLACE_POOL.MARKETPLACE') | length }}"
+
+- name: Download test VM template and image from the Marketplace
+  ansible.builtin.shell: >
+     onemarketapp export $(onemarketapp list -f NAME='{{ test_vm_name }}' -l ID --no-header) -d $(onedatastore list -f TYPE=img -l ID --no-header) '{{test_vm_name}}' | grep -A1 VMTEMPLATE | grep ID | awk '{print $2}'
+  register: vm_template_id
+  failed_when: "vm_template_id.rc != 0"
+
+# We have to check that image was downlodaded before attempting to instantiate VM
+- name: Get image ID
+  ansible.builtin.shell: >
+    onetemplate show {{ vm_template_id.stdout }} -j
+  register: image_output
+  failed_when: "image_output.rc != 0"
+
+- name: Verify that VM image is in ready state
+  ansible.builtin.shell: >
+    oneimage list --f ID={{image_output.stdout | from_json | json_query('VMTEMPLATE.TEMPLATE.DISK.IMAGE_ID')}} -l STAT --no-header
+  register: image_state
+  until: image_state.stdout == "rdy" 
+  retries: 10
+  delay: 10
+
+- name: Verify Marketplaces
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Download test VM template from the marketplace' : 'ok' }) }}"
+   
+- name: Instantiate test VM
+  ansible.builtin.shell: >
+    onetemplate instantiate {{ vm_template_id.stdout }} --nic '{{ test_vnet_name }}'
+  register: vm_id
+  failed_when: "vm_id.rc != 0" 
+
+- name: Wait for VM come up
+  ansible.builtin.shell: >
+    onevm list --f ID={{vm_id.stdout.split(':')[1] | trim}} -l STAT --no-header
+  register: vm_state
+  failed_when: "vm_state.rc != 0"
+  until: vm_state.stdout == "runn"
+  retries: 10
+  delay: 10
+
+- name: Verify test VM
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Test VM instantiation' : 'ok' }) }}"
+
+- name: Get VM IP
+  ansible.builtin.shell: >
+    onevm list --f ID={{vm_id.stdout.split(':')[1] | trim}} -l IP --no-header
+  register: vm_ip
+  failed_when: "vm_state.rc != 0"
+
+- name: Verify connection to the test VM
+  ansible.builtin.shell: >
+    ping -c 2 {{ vm_ip.stdout }}
+  register: vm_ping_result
+  until: vm_ping_result.rc == 0
+  retries: 10
+  delay: 10
+
+- name: Verify connectivity to test VM
+  set_fact:
+    verification_result: "{{ verification_result | combine({'Connection to the test VM instance' : 'ok' }) }}"
+
+
+- name: Render report
+  delegate_to: localhost
+  vars:
+    date: "{{ '%Y-%m-%d %H:%M:%S' | strftime(ansible_date_time.epoch) }}"  
+  template:
+    src: report_template.j2
+    dest: /tmp/cloud_verification_report.html
+  ignore_errors: True
+
+- name: Cleanup test resources
+  ansible.builtin.shell: |
+    onevm terminate --hard {{vm_id.stdout.split(':')[1]}}
+    sleep 3
+    onevnet delete {{ test_vnet_name }}
+    onetemplate delete -R {{ vm_template_id.stdout }}
+  register: cleanup_result
+  failed_when: "cleanup_result.rc != 0"
