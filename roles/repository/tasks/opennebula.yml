@@ -7,19 +7,23 @@
           set -o errexit
 
           {% if _config_manager | count > 0 %}
-          dnf config-manager -y --enable {{ _config_manager | join(' ') }}
+          dnf config-manager -y --enable {{ _config_manager | map('regex_replace', '^(.*)$', "'\g<1>'") | join(' ') }}
           {% endif %}
 
           {% if _subscription_manager | count > 0 %}
-          subscription-manager repos {{ _subscription_manager | map('regex_replace', '^(.*)$', '--enable \g<1>') | join(' ') }}
+          subscription-manager repos {{ _subscription_manager | map('regex_replace', '^(.*)$', "--enable '\g<1>'") | join(' ') }}
           {% endif %}
         executable: /bin/bash
       changed_when: false
       vars:
         _config_manager: >-
-          {{ opennebula_repo_pre_enable[ansible_distribution].config_manager[ansible_distribution_major_version] | d([]) }}
+          {{ opennebula_repo_pre_enable[ansible_distribution].config_manager[ansible_distribution_major_version]
+             | d([])
+             | map('replace', "'", '') }}
         _subscription_manager: >-
-          {{ opennebula_repo_pre_enable[ansible_distribution].subscription_manager[ansible_distribution_major_version] | d([]) }}
+          {{ opennebula_repo_pre_enable[ansible_distribution].subscription_manager[ansible_distribution_major_version]
+             | d([])
+             | map('replace', "'", '') }}
 
 - vars:
     # Merge repository config with defaults.
