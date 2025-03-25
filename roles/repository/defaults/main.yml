@@ -142,3 +142,19 @@ opennebula_repo_url_defaults:
     {%- else -%}
       https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }}
     {%- endif -%}
+
+opennebula_repo_pre_enable:
+  AlmaLinux:
+    config_manager:
+      '8': [epel, powertools, ha]
+      '9': [epel, crb, highavailability]
+    subscription_manager:
+      '8': []
+      '9': []
+  RedHat:
+    config_manager:
+      '8': [epel]
+      '9': [epel]
+    subscription_manager:
+      '8': [codeready-builder-for-rhel-8-x86_64-rpms, rhel-8-for-x86_64-highavailability-rpms]
+      '9': [codeready-builder-for-rhel-9-x86_64-rpms, rhel-9-for-x86_64-highavailability-rpms]
