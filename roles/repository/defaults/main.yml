@@ -143,7 +143,7 @@ opennebula_repo_url_defaults:
       https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }}
     {%- endif -%}
 
-opennebula_repo_pre_enable:
+opennebula_repo_pre_enable_defaults:
   AlmaLinux:
     config_manager:
       '8': [epel, powertools, ha]

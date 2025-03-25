@@ -1,6 +1,11 @@
 ---
 - when: ansible_pkg_mgr == 'dnf'
   block:
+    - name: Compute facts (DNF)
+      ansible.builtin.set_fact:
+        opennebula_repo_pre_enable: >-
+          {{ opennebula_repo_pre_enable_defaults | combine(opennebula_repo_pre_enable | d({}), recursive=true) }}
+
     - name: Enable required DNF extra repos
       ansible.builtin.shell:
         cmd: |
