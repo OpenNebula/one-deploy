@@ -378,8 +378,8 @@
 - name: Cleanup test resources
   ansible.builtin.shell: |
     onevm terminate --hard {{vm_id.stdout.split(':')[1]}}
-    sleep 3
-    onevnet delete {{ test_vnet_name }}
+    sleep 10
+    onevnet delete "{{ test_vnet_name }}"
     onetemplate delete -R {{ vm_template_id.stdout }}
   register: cleanup_result
   failed_when: "cleanup_result.rc != 0"
