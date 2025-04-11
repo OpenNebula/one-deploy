@@ -361,9 +361,88 @@
   retries: 10
   delay: 10
 
-- name: Verify connectivity to test VM
+- name: Record connection status to test VM
   set_fact:
     verification_result: "{{ verification_result | combine({'Connection to the test VM instance' : 'ok' }) }}"
+    
+
+- name: Delete test VM
+  ansible.builtin.shell: |
+    onevm terminate --hard {{vm_id.stdout.split(':')[1]}}
+  register: cleanup_result
+  failed_when: "cleanup_result.rc != 0"
+
+# Storage banchmarking
+# apk update
+# apk add fio
+# fio --name=fiotest --blocksize=4k --directory=/tmp --size=5g --ioengine=libaio --iodepth=256 --runtime=60 --rw=randwrite --direct=1 --group_reporting  --output-format=json | jq '.jobs[0].write'
+#  fio --name=fiotest --blocksize=4k --directory=/tmp --size=5g --ioengine=libaio --iodepth=256 --runtime=60 --rw=randread --direct=1 --group_reporting  --output-format=json | jq '.jobs[0].read'
+
+###
+# Storage benchmarking
+###
+
+- name: Instantiate benchmark VM
+  ansible.builtin.shell: >
+    onetemplate instantiate {{ vm_template_id.stdout }} --nic '{{test_vnet_name}}' --disk {{image_output.stdout | from_json | json_query('VMTEMPLATE.TEMPLATE.DISK.IMAGE_ID')}}:size=10000 --mem 2g
+  register: benchmarkvm_id
+  failed_when: "benchmarkvm_id.rc != 0"
+
+- name: Wait for benchmark VM to come up
+  ansible.builtin.shell: >
+    onevm list --f ID={{benchmarkvm_id.stdout.split(':')[1] | trim}} -l STAT --no-header
+  register: benchmarkvm_state
+  failed_when: "benchmarkvm_state.rc != 0"
+  until: benchmarkvm_state.stdout == "runn"
+  retries: 10
+  delay: 10
+
+- name: Get Benchmark VM IP
+  ansible.builtin.shell: >
+    onevm list --f ID={{benchmarkvm_id.stdout.split(':')[1] | trim}} -l IP --no-header
+  register: vm_ip
+  failed_when: "vm_state.rc != 0"
+
+- name: Verify ssh connection to the benchmark VM
+  ansible.builtin.shell: >
+    ssh -i ~oneadmin/.ssh/id_rsa -q -oStrictHostKeyChecking=no root@{{vm_ip.stdout}}
+  register: ssh_conn_result
+  until: ssh_conn_result.rc == 0
+  retries: 10
+  delay: 10
+
+- name: Run Storage benchmark for write
+  ansible.builtin.shell: |
+    ssh -i ~oneadmin/.ssh/id_rsa -q -oStrictHostKeyChecking=no root@{{vm_ip.stdout}} apk update > /dev/null
+    ssh -i ~oneadmin/.ssh/id_rsa -q -oStrictHostKeyChecking=no root@{{vm_ip.stdout}} apk add fio > /dev/null
+    ssh -i ~oneadmin/.ssh/id_rsa -q -oStrictHostKeyChecking=no root@{{vm_ip.stdout}} "fio --name=fiotest --blocksize=4k --directory=/tmp --size=5g --ioengine=libaio --iodepth=256 --runtime=60 --rw=randwrite --direct=1 --group_reporting  --output-format=json | jq  -rc '.jobs[0] | {\"iodepth\": .\"job options\".iodepth, bs: .\"job options\".bs, \"clat_ms\": (.write.clat_ns.mean/1000)|floor, \"bw_mbs\": (.write.bw_mean/1024)|floor, iops: .write.iops_mean|floor}'"
+  register: write_benchmark
+  failed_when: "write_benchmark.rc != 0"
+
+- name: Save write benchmark Results
+  set_fact:
+    write:
+      bs: "{{ write_benchmark.stdout | from_json | json_query('bs') }}"
+      bw_mbs: "{{ write_benchmark.stdout | from_json | json_query('bw_mbs') }}"
+      clat_ms: "{{ write_benchmark.stdout | from_json | json_query('clat_ms') }}"
+      iodepth: "{{ write_benchmark.stdout | from_json | json_query('iodepth') }}"
+      iops: "{{ write_benchmark.stdout | from_json | json_query('iops') }}"
+
+
+- name: Run Storage benchmark for read
+  ansible.builtin.shell: >
+    ssh -i ~oneadmin/.ssh/id_rsa -q -oStrictHostKeyChecking=no root@{{vm_ip.stdout}} "fio --name=fiotest --blocksize=4k --directory=/tmp --size=5g --ioengine=libaio --iodepth=256 --runtime=60 --rw=randread --direct=1 --group_reporting  --output-format=json | jq -rc '.jobs[0] | {\"iodepth\": .\"job options\".iodepth, bs: .\"job options\".bs, \"clat_ms\": (.read.clat_ns.mean/1000)|floor, \"bw_mbs\": (.read.bw_mean/1024)|floor, iops: .read.iops_mean|floor}'"
+  register: read_benchmark
+  failed_when: "read_benchmark.rc != 0"   
+
+- name: Save read benchmark Results
+  set_fact:
+    read:
+      bs: "{{ read_benchmark.stdout | from_json | json_query('bs') }}"
+      bw_mbs: "{{ read_benchmark.stdout | from_json | json_query('bw_mbs') }}"
+      clat_ms: "{{ read_benchmark.stdout | from_json | json_query('clat_ms') }}"
+      iodepth: "{{ read_benchmark.stdout | from_json | json_query('iodepth') }}"
+      iops: "{{ read_benchmark.stdout | from_json | json_query('iops') }}"
 
 
 - name: Render report
@@ -377,9 +456,12 @@
 
 - name: Cleanup test resources
   ansible.builtin.shell: |
-    onevm terminate --hard {{vm_id.stdout.split(':')[1]}}
+    onevm terminate --hard {{benchmarkvm_id.stdout.split(':')[1]}}
     sleep 10
     onevnet delete "{{ test_vnet_name }}"
     onetemplate delete -R {{ vm_template_id.stdout }}
   register: cleanup_result
   failed_when: "cleanup_result.rc != 0"
+
+
+

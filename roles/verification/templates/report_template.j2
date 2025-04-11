@@ -52,5 +52,27 @@
       {% endfor %}
     </table>
 </div>
+
+<div class="table_component" role="region" tabindex="0">
+
+ <!-- Table with the individual tests  -->
+ <table>
+      <tr><th>Storage Benmarking</th><th></th></tr>
+      <tr><th> Banchmark param</th><th>Benachmark value</th></tr>
+      <tr><td> Read blocksize, bytes</td>  <td> {{ read.bs }}</td></tr>
+     <tr><td> Read bandwidth, MB/s</td>  <td>{{ read.bw_mbs }}MBs</td></tr>
+     <tr><td> Read Completion latency, ms </td>  <td> {{ read.clat_ms }}ms</td></tr>
+     <tr><td> Read IO depth </td>  <td> {{read.iodepth}}</td></tr>
+     <tr><td> Read IOps </td>  <td> {{read.iops}}</td></tr>
+     <tr><td> Write blocksize, bytes</td>  <td>{{write.bs}}</td></tr>
+     <tr><td> Write bandwidth, MB/s</td>  <td>{{write.bw_mbs}}ms</td></tr>
+     <tr><td> Write Completion latency, ms</td>  <td>{{write.clat_ms}}</td></tr>
+     <tr><td> Write IO depth</td>  <td>{{write.iodepth}}</td></tr>
+     <tr><td> Write IOps</td>  <td>{{write.iops}}</td></tr>
+
+
+    </table>
+</div>
+
 </body>
 </html>

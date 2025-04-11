@@ -9,7 +9,7 @@ BRIDGE = {{ test_bridge_name | default('br-test') }}
 PHYDEV = {{ test_phydev }}
 {% endif %}
 
-NETWORK_ADDRESS = {{ test_ip_net | default('10.0.0.0') }}
+NETWORK_ADDRESS = {{ test_ip_net | default('10.0.0.10') }}
 NETWORK_MASK    = {{ test_subnet_mask | default('255.255.255.0') }}
 DNS             = {{ test_dns | default('10.0.0.1') }}
 GATEWAY         = {{ test_gw | default('10.0.0.1') }}
