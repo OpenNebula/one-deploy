@@ -16,7 +16,7 @@
   ansible.builtin.replace:
     path: "{{ sched.config_path }}"
     regexp: '(?<=^{{ item.name }}:)((?:\n)+([ \t]+.*?(\n|\Z))+|(?!\s*\n).*)'
-    replace: "{{ '\n' + item.content + '\n' if '\n' in item.content else item.content }}"
+    replace: "{{ ('\n' ~ item.content ~ '\n') if '\n' in item.content else item.content }}"
   loop:
     - name: DEFAULT_SCHED
       content: |2-
