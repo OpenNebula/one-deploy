@@ -1,0 +1,17 @@
+---
+sched_defaults:
+  config_path: /etc/one/schedulers/one_drs.conf
+  solver: "CBC"
+  solver_path: "/usr/lib/one/python/pulp/solverdir/cbc/linux/64/cbc"
+  place:
+    policy: "BALANCE"
+    weights:
+      cpu: 1
+  optimize:
+    policy: "BALANCE"
+    migration_threshold: -1
+    weights:
+      cpu_usage: 1
+  predictive: 0
+  memory_system_ds_scale: 0
+  different_vnets: "YES"

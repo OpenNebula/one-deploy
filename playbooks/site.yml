@@ -21,6 +21,7 @@
     - opennebula.deploy
   roles:
     - role: database
+    - role: scheduler
     - role: opennebula/server
     - role: gate
       tags: [gate]
