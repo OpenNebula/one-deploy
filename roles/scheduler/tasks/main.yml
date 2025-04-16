@@ -1,0 +1,62 @@
+---
+- name: Compute facts
+  ansible.builtin.set_fact:
+    sched: "{{ sched_defaults | combine(sched | d({}), recursive=true) }}"
+
+- name: Check if scheduler configuration exists
+  ansible.builtin.stat:
+    path: "{{ sched.config_path }}"
+    get_attributes: false
+    get_checksum: false
+    get_mime: false
+  register: stat
+
+- name: Configure scheduler
+  when: stat.stat.exists is true
+  ansible.builtin.replace:
+    path: "{{ sched.config_path }}"
+    regexp: '(?<=^{{ item.name }}:)((?:\n)+([ \t]+.*?(\n|\Z))+|(?!\s*\n).*)'
+    replace: "{{ '\n' + item.content + '\n' if '\n' in item.content else item.content }}"
+  loop:
+    - name: DEFAULT_SCHED
+      content: |2-
+          SOLVER: "{{ sched.solver }}"
+          SOLVER_PATH: "{{ sched.solver_path }}"
+    - name: PLACE
+      content: |2-
+          POLICY: "{{ sched.place.policy }}"
+          {%+ if _place_weights is defined and
+                 _place_weights is mapping and
+                 _place_weights.items() | length > 0 +%}WEIGHTS:
+          {% for key, value in _place_weights.items() %}
+          {{ key | upper }}: {{ value}}
+          {% endfor %}
+          {% endif %}
+    - name: OPTIMIZE
+      content: |2-
+          POLICY: "{{ sched.optimize.policy }}"
+          MIGRATION_THRESHOLD: {{ sched.optimize.migration_threshold }}
+          {%+ if _optimize_weights is defined and
+                 _optimize_weights is mapping and
+                 _optimize_weights.items() | length > 0 +%}WEIGHTS:
+          {% for key, value in _optimize_weights.items() %}
+          {{ key | upper }}: {{ value}}
+          {% endfor %}
+          {% endif %}
+    - name: PREDICTIVE
+      content: " {{ sched.predictive }}"
+    - name: MEMORY_SYSTEM_DS_SCALE
+      content: " {{ sched.memory_system_ds_scale }}"
+    - name: DIFFERENT_VNETS
+      content: " {{ sched.different_vnets }}"
+  vars:
+    _optimize_weights: >-
+      {{
+        sched.optimize.weights if sched.optimize.weights is defined
+        else sched_defaults.optimize.weights
+      }}
+    _place_weights: >-
+      {{
+        sched.place.weights if sched.place.weights is defined
+        else sched_defaults.place.weights
+      }}
