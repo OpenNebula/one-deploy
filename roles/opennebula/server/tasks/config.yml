@@ -126,3 +126,97 @@
           MONITOR_ADDRESS\g<1>= "{{ one_vip }}"\g<2>
       notify:
         - Restart OpenNebula
+
+- name: Check if drs configuration exists
+  ansible.builtin.stat:
+    path: /etc/one/schedulers/one_drs.conf
+    get_attributes: false
+    get_checksum: false
+    get_mime: false
+  register: drs_stat
+
+- name: Configure drs scheduler
+  when:
+    - drs_stat.stat.exists is true
+    - drs is defined
+  ansible.builtin.replace:
+    path: /etc/one/schedulers/one_drs.conf
+    regexp: '^{{ item.key }}:[\s\S]*?(?=\n^\w+:|\Z)'
+    replace: "{{ {item.key: item.value} | to_nice_yaml(indent=2) }}"
+  loop: "{{ (drs if drs is not none else {}) | dict2items }}"
+
+- name: Check if rank configuration exists
+  ansible.builtin.stat:
+    path: /etc/one/schedulers/rank.conf
+    get_attributes: false
+    get_checksum: false
+    get_mime: false
+  register: rank_stat
+
+- name: Configure rank scheduler
+  ansible.builtin.replace:
+    path: /etc/one/schedulers/rank.conf
+    regexp: "{{ item.regexp | d(omit) }}"
+    replace: "{{ item.replace | d(omit) }}"
+  loop: "{{ _rank_config | selectattr('update') | list }}"
+  vars:
+    _rank_config:
+      - regexp: 'MEMORY_SYSTEM_DS_SCALE( *)= *.*([\s])$'
+        update: "{{ rank.MEMORY_SYSTEM_DS_SCALE is defined }}"
+        replace: >-
+          MEMORY_SYSTEM_DS_SCALE\g<1>= {{ rank.MEMORY_SYSTEM_DS_SCALE | d(omit) }}\g<2>
+      - regexp: 'MAX_HOST( *)= *.*([\s])$'
+        update: "{{ rank.MAX_HOST is defined }}"
+        replace: >-
+          MAX_HOST\g<1>= {{ rank.MAX_HOST | d(omit) }}\g<2>
+      - regexp: 'DIFFERENT_VNETS( *)= *.*([\s])$'
+        update: "{{ rank.DIFFERENT_VNETS is defined }}"
+        replace: >-
+          DIFFERENT_VNETS\g<1>= {{ ("YES" if (rank.DIFFERENT_VNETS | d(omit)) else "NO") }}\g<2>
+      - regexp: '^(DEFAULT_SCHED( *)= *\[)[\S\s]*?(\])$'
+        update: "{{ rank.DEFAULT_SCHED is defined }}"
+        replace: |-
+          \g<1>
+          {% if rank.DEFAULT_SCHED.POLICY | d(false) %}
+             POLICY = {{ rank.DEFAULT_SCHED.POLICY | d(omit) }}
+          {% endif %}
+          {% if rank.DEFAULT_SCHED.RANK | d(false) %}
+             RANK = "{{ rank.DEFAULT_SCHED.RANK | d(omit) }}"
+          {% endif %}
+          \g<3>
+      - regexp: '^(DEFAULT_DS_SCHED( *)= *\[)[\S\s]*?(\])$'
+        update: "{{ rank.DEFAULT_DS_SCHED is defined }}"
+        replace: |-
+          \g<1>
+          {% if rank.DEFAULT_DS_SCHED.POLICY | d(false) %}
+             POLICY = {{ rank.DEFAULT_DS_SCHED.POLICY | d(omit) }}
+          {% endif %}
+          {% if rank.DEFAULT_DS_SCHED.RANK | d(false) %}
+             RANK = "{{ rank.DEFAULT_DS_SCHED.RANK | d(omit) }}"
+          {% endif %}
+          \g<3>
+      - regexp: '^(DEFAULT_NIC_SCHED( *)= *\[)[\S\s]*?(\])$'
+        update: "{{ rank.DEFAULT_NIC_SCHED is defined }}"
+        replace: |-
+          \g<1>
+          {% if rank.DEFAULT_NIC_SCHED.POLICY | d(false) %}
+             POLICY = {{ rank.DEFAULT_NIC_SCHED.POLICY | d(omit) }}
+          {% endif %}
+          {% if rank.DEFAULT_NIC_SCHED.RANK | d(false) %}
+             RANK = "{{ rank.DEFAULT_NIC_SCHED.RANK | d(omit) }}"
+          {% endif %}
+          \g<3>
+      - regexp: '^(LOG( *)= *\[)[\S\s]*?(\])$'
+        update: "{{ rank.LOG is defined }}"
+        replace: |-
+          \g<1>
+          {% if rank.LOG.SYSTEM | d(false) %}
+            SYSTEM = "{{ rank.LOG.SYSTEM | d(omit) }}"
+          {% endif %}
+          {% if rank.LOG.DEBUG_LEVEL | d(false) %}
+            DEBUG_LEVEL = {{ rank.LOG.DEBUG_LEVEL | d(omit) }}
+          {% endif %}
+          \g<3>
+  when:
+    - rank_stat.stat.exists is true
+    - rank is defined
