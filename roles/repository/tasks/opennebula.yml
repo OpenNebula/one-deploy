@@ -1,29 +1,34 @@
 ---
 - when: ansible_pkg_mgr == 'dnf'
   block:
+    - name: Compute facts (DNF)
+      ansible.builtin.set_fact:
+        opennebula_repo_pre_enable: >-
+          {{ opennebula_repo_pre_enable_defaults | combine(opennebula_repo_pre_enable | d({}), recursive=true) }}
+
     - name: Enable required DNF extra repos
       ansible.builtin.shell:
         cmd: |
           set -o errexit
-          {{ _script[ansible_distribution][ansible_distribution_major_version] }}
+
+          {% if _config_manager | count > 0 %}
+          dnf config-manager -y --enable {{ _config_manager | map('regex_replace', '^(.*)$', "'\g<1>'") | join(' ') }}
+          {% endif %}
+
+          {% if _subscription_manager | count > 0 %}
+          subscription-manager repos {{ _subscription_manager | map('regex_replace', '^(.*)$', "--enable '\g<1>'") | join(' ') }}
+          {% endif %}
         executable: /bin/bash
       changed_when: false
       vars:
-        _script:
-          AlmaLinux:
-            '8': |
-              dnf config-manager -y --enable epel powertools ha
-            '9': |
-              dnf config-manager -y --enable epel crb highavailability
-          RedHat:
-            '8': |
-              dnf config-manager -y --enable epel
-              subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-rpms \
-                                         --enable rhel-8-for-x86_64-highavailability-rpms
-            '9': |
-              dnf config-manager -y --enable epel
-              subscription-manager repos --enable codeready-builder-for-rhel-9-x86_64-rpms \
-                                         --enable rhel-9-for-x86_64-highavailability-rpms
+        _config_manager: >-
+          {{ opennebula_repo_pre_enable[ansible_distribution].config_manager[ansible_distribution_major_version]
+             | d([])
+             | map('replace', "'", '') }}
+        _subscription_manager: >-
+          {{ opennebula_repo_pre_enable[ansible_distribution].subscription_manager[ansible_distribution_major_version]
+             | d([])
+             | map('replace', "'", '') }}
 
 - vars:
     # Merge repository config with defaults.

@@ -40,6 +40,7 @@ Role Variables
 | `opennebula_repo_key_url`       | `dict` |               |                     | OpenNebula GPG key urls for Debian/RedHat distros.                    |
 | `opennebula_repo_path`          | `dict` |               |                     | OpenNebula repo definition paths for Debian/RedHat distros.           |
 | `opennebula_repo_url`           | `dict` |               | (check below)       | OpenNebula repo url for Debian/RedHat distros.                        |
+| `opennebula_repo_pre_enable`    | `dict` |               | (check below)       | Definition of DNF repos to pre-enable in RedHat-like distros.         |
 
 Dependencies
 ------------
@@ -55,6 +56,12 @@ Example Playbook
 
         # Enable OpenNebula EE repo.
         one_token: 'asd123as:123asd12'
+
+        # Enable only 'epel' and 'crb' DNF repos in Alma Linux 9
+        opennebula_repo_pre_enable:
+          AlmaLinux:
+            config_manager:
+              '9': [epel, crb]
 
         # Use custom / local / insecure OpenNebula repo.
         opennebula_repo_force_trusted: true
