@@ -142,32 +142,7 @@
       ansible.builtin.replace:
         path: /etc/one/schedulers/one_drs.conf
         regexp: '^{{ item.key }}:[\s\S]*?(?=\n^\w+:|\Z)'
-        replace: "{{ {item.key: _merged_with_defaults} | to_nice_yaml(indent=2) }}"
-      vars:
-        _merged_with_defaults: >-
-          {%- if _defaults[item.key] is mapping -%}
-            {{- _defaults[item.key] | combine(item.value | d({}), recursive=true) -}}
-          {%- elif _defaults[item.key] is boolean -%}
-            {{- item.value | d(_defaults[item.key]) | bool -}}
-          {%- else -%}
-            {{- item.value | d(_defaults[item.key]) | d(omit) -}}
-          {%- endif -%}
-        _defaults:
-          DEFAULT_SCHED:
-            SOLVER: CBC
-            SOLVER_PATH: /usr/lib/one/python/pulp/solverdir/cbc/linux/64/cbc
-          PLACE:
-            POLICY: BALANCE
-            WEIGHTS:
-              CPU: 1
-          OPTIMIZE:
-            POLICY: BALANCE
-            MIGRATION_THRESHOLD: -1
-            WEIGHTS:
-              CPU_USAGE: 1
-          PREDICTIVE: 0
-          MEMORY_SYSTEM_DS_SCALE: 0
-          DIFFERENT_VNETS: true
+        replace: "{{ {item.key: item.value} | to_nice_yaml(indent=2) }}"
       loop: "{{ sched_drs | dict2items }}"
       when: stat_drs_conf.stat.exists is true
 
