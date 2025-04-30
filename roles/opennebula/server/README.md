@@ -26,6 +26,8 @@ Role Variables
 | `db_password`       | `str`  | `opennebula` |               | Password used by OpenNebula to authenticate the user.                                                           |
 | `gate_endpoint`     | `str`  | conditional  | (check below) | An URL used to reach the OneGate endpoint (HTTP).                                                               |
 | `admin_pubkey`      | `str`  | loaded       | (check below) | SSH pubkey loaded from `/var/lib/one/.ssh/id_rsa.pub`, provided by the user (as string) or ignored when `null`. |
+| `sched_rank`        | `dict` | undefined    | (check below) | Rank scheduler configuration.                                                                                   |
+| `sched_drs`         | `dict` | undefined    | (check below) | OpenNebula Distributed Resource Scheduler configuration.                                                        |
 
 Dependencies
 ------------
@@ -39,6 +41,35 @@ Example Playbook
       vars:
         gate_endpoint: "http://10.11.12.13:5030"
         admin_pubkey: null  # ignore it
+
+        sched_rank:
+          DIFFERENT_VNETS: false
+
+          DEFAULT_SCHED:
+            POLICY: 3
+            RANK: "- (RUNNING_VMS * 50  + FREE_CPU)"
+
+        sched_drs:
+          PREDICTIVE: 0.3
+          MEMORY_SYSTEM_DS_SCALE: 0
+          DIFFERENT_VNETS: true
+          DEFAULT_SCHED:
+            SOLVER: "CBC"
+            SOLVER_PATH: "/usr/lib/one/python/pulp/solverdir/cbc/linux/64/cbc"
+
+          PLACE:
+            POLICY: "PACK"
+
+          OPTIMIZE:
+            POLICY: "BALANCE"
+            MIGRATION_THRESHOLD: 10
+            WEIGHTS:
+              CPU_USAGE: 0.2
+              CPU: 0.2
+              MEMORY: 0.4
+              DISK: 0.1
+              NET: 0.1
+
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.database
