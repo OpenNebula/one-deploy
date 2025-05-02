@@ -1,58 +1,241 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 🧠 Global variables
-SELF="$(dirname $(readlink -f ${0}))"
-INVENTORY="${INVENTORY:-${SELF}/inventory/example.yml}"
-TAGS="${TAGS:-}"
-SKIP_TAGS="${SKIP_TAGS:-}"
-VERBOSE="${VERBOSE:-vv}"
+### This tool supports both environmental variables and command line arguments
+### enabling retrocompatibility with the existing makefile, + adding additional features
+
+
+#######################################
+# 🔰 HEADER SECTION
+#######################################
+
+SELF="$(dirname "$(readlink -f "${0}")")"
 HATCH_BIN="$(command -v hatch || true)"
-ENV_DEFAULT=""
-ENV_CEPH=""
-
-
 # 🔍 If Hatch is available, try to find the 'default' and 'ceph' environments
 if [[ -n "${HATCH_BIN}" ]]; then
     ENV_DEFAULT="$(${HATCH_BIN} env find default 2>/dev/null || true)"
     ENV_CEPH="$(${HATCH_BIN} env find ceph 2>/dev/null || true)"
 fi
 
-# 🔐 If $INVENTORY contains variable $ANSIBLE_VAULT, include option --ask-vault-pass
-ASK_VAULT=""
-if grep -q '\$ANSIBLE_VAULT;' "${INVENTORY}"; then
-    ASK_VAULT="--ask-vault-pass"
+# 🧠 Default variables (overridable by env-vars or CLI arguments)
+INVENTORY="${INVENTORY:-${SELF}/inventory/example.yml}"
+TAGS="${TAGS:-}"
+SKIP_TAGS="${SKIP_TAGS:-}"
+VERBOSE="${VERBOSE:-vv}"
+DRY_RUN="${DRY_RUN:-false}"   # For --check
+
+# 🔓 Make sure we source ANSIBLE_ settings from ansible.cfg exclusively.
+unset "$(compgen -v | grep '^ANSIBLE_')" || true
+
+
+#######################################
+# 🎛 Argument parsing (GNU-style)
+#######################################
+
+ARGS=()
+while [[ ${#} -gt 0 ]]; do
+    case "${1}" in
+        --inventory|-i|-I)
+            INVENTORY="${2}"
+            shift 2
+            ;;
+        --tags|-t|-T)
+            TAGS="${2}"
+            shift 2
+            ;;
+        --skip-tags|-s|-S)
+            SKIP_TAGS="${2}"
+            shift 2
+            ;;
+        --verbosity|-v|-V)
+            VERBOSE="${2}"
+            shift 2
+            ;;
+        --check|--dry-run|-c|-C)
+            DRY_RUN="true"
+            shift
+            ;;
+        --help|-h|-H)
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "❌ Unknown option: ${1}"
+            usage
+            exit 1
+            ;;
+        *)
+            ARGS+=("${1}")
+            shift
+            ;;
+    esac
+done
+
+# Treat remaining arguments as subcommands
+set -- "${ARGS[@]}"
+SUBCOMMAND="${1:-}"
+
+
+#######################################
+# ✅ Argument validation
+#######################################
+
+# Validate INVENTORY
+if [[ ! -e "${INVENTORY}" ]]; then
+    echo "❌ Inventory path '${INVENTORY}' does not exist."
+    exit 1
+fi
+if [[ -f "${INVENTORY}" ]]; then
+    if [[ ! -s "${INVENTORY}" ]]; then
+        echo "❌ Inventory file '${INVENTORY}' exists but is empty."
+        exit 1
+    fi
+elif [[ -d "${INVENTORY}" ]]; then
+    shopt -s nullglob
+    inventory_files=("${INVENTORY}"/*.{yml,yaml,ini})
+    if [[ ${#inventory_files[@]} -eq 0 ]]; then
+        echo "❌ Inventory directory '${INVENTORY}' does not contain any YAML/INI files."
+        exit 1
+    fi
+    shopt -u nullglob
+else
+    echo "❌ Inventory '${INVENTORY}' is neither a file nor a valid directory."
+    exit 1
+fi
+# Validate TAGS and SKIP_TAGS
+ALLOWED_TAGS=(
+    bastion ceph datastore flow frontend fstab gate grafana gui
+    hosts infra keys libvirt network node preinstall prometheus
+    provision stage1 stage2 stage3
+)
+for var in TAGS SKIP_TAGS; do
+    value="${!var}"
+    IFS=',' read -ra input_tags <<< "${value}"
+
+    for tag in "${input_tags[@]}"; do
+        if [[ -z "${tag}" ]]; then
+            continue
+        fi
+        found=0
+        for allowed in "${ALLOWED_TAGS[@]}"; do
+            if [[ "${tag}" == "${allowed}" ]]; then
+                found=1
+                break
+            fi
+        done
+        if [[ ${found} -eq 0 ]]; then
+            echo "❌ Invalid ${var} value: '${tag}'. Allowed tags are: ${ALLOWED_TAGS[*]}"
+            exit 1
+        fi
+    done
+done
+# Validate VERBOSE
+if [[ ! "${VERBOSE}" =~ ^v{1,6}$ ]]; then
+    echo "❌ Invalid verbosity value: ${VERBOSE}"
+    echo "It can only be from 0 to 6 consecutive 'v's: v, vv, vvv, vvvv, vvvvv or vvvvvv"
+    exit 1
+fi
+# Validate DRY_RUN
+if [[ "${DRY_RUN}" != "true" && "${DRY_RUN}" != "false" ]]; then
+    echo "❌ Invalid DRY_RUN value: ${DRY_RUN}"
+    echo "It can only be 'true' or 'false'"
+    exit 1
 fi
 
 
+if [[ ${#VERBOSE} -ge 3 ]]; then
+    echo "[i] INVENTORY:   ${INVENTORY}"
+    echo "[i] TAGS:        ${TAGS}"
+    echo "[i] SKIP_TAGS:   ${SKIP_TAGS}"
+    echo "[i] VERBOSE:     ${VERBOSE}"
+    echo "[i] DRY_RUN:     ${DRY_RUN}"
+    if [[ -n "${HATCH_BIN}" ]]; then
+        echo "[i] HATCH_BIN:   ${HATCH_BIN}"
+        echo "[i] ENV_DEFAULT: ${ENV_DEFAULT:-<not found>}"
+        echo "[i] ENV_CEPH:    ${ENV_CEPH:-<not found>}"
+    else
+        echo "[i] Hatch not detected in the system."
+    fi
+fi
+
+
+#######################################
+# 🛠 Functions
+#######################################
+
+# 🐣 Create a Hatch environment if it doesn't exist
+_create_env_if_needed() {
+    local env_name="${1}"
+    local env_path
+
+    if [[ "${env_name}" == "default" ]]; then
+        env_path="${ENV_DEFAULT}"
+    elif [[ "${env_name}" == "ceph" ]]; then
+        env_path="${ENV_CEPH}"
+    fi
+
+    if [[ -z "${env_path}" || ! -d "${env_path}" ]]; then
+        echo "[+] Creating Hatch '${env_name}' environment..."
+        ${HATCH_BIN} env create "${env_name}"
+    else
+        echo "[+] Using Hatch '${env_name}' environment..."
+    fi
+}
 
 # 🛠 Generic function to run an Ansible playbook
 run_playbook() {
     local playbook_name="${1}"
-    local env_name="${2}"       # If Hatch is available, environment 'default' or 'ceph'
+    local env_name="${2}"       # If Hatch is available, environment can be 'default' or 'ceph'
 
-    local tag_flags=""
-    [[ -n "${TAGS}" ]] && tag_flags="-t ${TAGS}"
-    [[ -n "${SKIP_TAGS}" ]] && tag_flags="$tag_flags --skip-tags ${SKIP_TAGS}"
+    _create_env_if_needed "${env_name}"
 
     cd "${SELF}"
+    cmd=(ansible-playbook "-${VERBOSE}" -i "${INVENTORY}" --ask-become-pass)
+
+    # 🔐 If INVENTORY contains variable $ANSIBLE_VAULT, include option --ask-vault-pass
+    if grep -q '\$ANSIBLE_VAULT;' "${INVENTORY}"; then
+        cmd+=(--ask-vault-pass)
+    fi
+
+    if [[ -n "${TAGS}" ]]; then
+        cmd+=(--tags "${TAGS}")
+    fi
+
+    if [[ -n "${SKIP_TAGS}" ]]; then
+        cmd+=(--skip-tags "${SKIP_TAGS}")
+    fi
+
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        cmd+=(--check)
+    fi
+    
+    cmd+=("opennebula.deploy.${playbook_name}")
+
     if [[ -n "${HATCH_BIN}" && -n "${env_name}" ]]; then
-        $HATCH_BIN env run -e "${env_name}" -- \
-            ansible-playbook -${VERBOSE} -i "$INVENTORY" $ASK_VAULT --ask-become-pass ${tag_flags} "opennebula.deploy.${playbook_name}"
+        "${HATCH_BIN}" env run -e "${env_name}" -- "${cmd[@]}"
     else
-        ansible-playbook -${VERBOSE} -i "$INVENTORY" $ASK_VAULT --ask-become-pass ${tag_flags} "opennebula.deploy.${playbook_name}"
+        "${cmd[@]}"
     fi
 }
 
 # 📦 Install project's requirements (Python + Galaxy). Creates virtualenvs if Hatch is available
 install_requirements() {
     if [[ -n "${HATCH_BIN}" && -n "${ENV_DEFAULT}" ]]; then
-        echo "[+] Installing dependencies using Hatch (pyproject.toml)..."
-        ${HATCH_BIN} env run -e default -- ansible-galaxy collection install --requirements-file "${SELF}/requirements.yml"
-    elif [[ -f "${SELF}/requirements.txt" ]]; then
-        echo "[+] Installing dependencies usingn pip..."
-        pip3 install -r "${SELF}/requirements.txt"                                          # TODO: Rename to python-requirements.txt
-        ansible-galaxy collection install --requirements-file "${SELF}/requirements.yml"    # TODO: Rename to galaxy-requirements.yaml
+        echo "[+] Installing dependencies in the corresponding environments using Hatch (pyproject.toml)..."
+        _create_env_if_needed "default"
+        ${HATCH_BIN} env run -e default -- ansible-galaxy collection install \
+            --requirements-file "${SELF}/requirements.yml"
+        _create_env_if_needed "ceph"
+        ${HATCH_BIN} env run -e ceph -- ansible-galaxy collection install \
+            --requirements-file "${SELF}/requirements.yml"
+    elif [[ -f "${SELF}/requirements.txt" &&  -f "${SELF}/requirements.yml" ]]; then      
+        echo "[+] Hatch not found in the system. Installing python requirements using pip and ansible-galaxy..."
+        pip3 install -r "${SELF}/requirements.txt"             # TODO: Rename to python-requirements.txt                                 
+        ansible-galaxy collection install --requirements-file "${SELF}/requirements.yml"  # TODO: Rename to galaxy-requirements.yaml
     fi
 }
 
@@ -61,10 +244,12 @@ clean_requirements() {
     echo "[+] Cleaning Ansible Galaxy Collections (except opennebula)..."
     find "${SELF}/ansible_collections/" -mindepth 1 -maxdepth 1 -type d ! -name opennebula -exec rm -rf {} +
 
-    if [[ -n "$ENV_DEFAULT" ]]; then
+    if [[ -n "${ENV_DEFAULT}" ]]; then
+        echo "[+] Cleaning Hatch 'default' environment..."
         ${HATCH_BIN} env remove default
     fi
-    if [[ -n "$ENV_CEPH" ]]; then
+    if [[ -n "${ENV_CEPH}" ]]; then
+        echo "[+] Cleaning Hatch 'ceph' environment..."
         ${HATCH_BIN} env remove ceph
     fi
 }
@@ -81,9 +266,27 @@ lint_ansible() {
 # 📚 Show usage information
 usage() {
     cat <<EOF
-Usage: ${0} <subcommand>
+This script is a wrapper for ansible-playbook, providing a simple interface to run OpenNebula playbooks
+It supports running playbooks in different environments using Hatch, and allows for setting various options via environment variables or command line arguments
+It also provides a way to install project requirements and clean up environments
+It is recommended to use this script instead of running ansible-playbook directly, as it handles some common tasks and provides a consistent interface
+This script is part of the OpenNebula project and is licensed under the Apache License, Version 2.0
+Copyright (C) 2025 OpenNebula Systems, S.L. <
 
-Available subcommands:
+Usage: ${0} [OPTIONS] <subcommand>
+
+Note: Always set at least the INVENTORY env-var or '--inventory' option.
+Note: Run the 'requirements' subcommand before any playbook to install the project's software requirements.
+
+OPTIONS:
+  -i | -I | --inventory PATH          Local/absolute path to an Ansible inventory file. Overrides the INVENTORY env-var (default: inventory/example.yml)
+  -t | -T | --tags ANSIBLE_TAGS       Additional Ansible tags. Overrides the TAGS env-var (default: empty)
+  -s | -S | --skip-tags ANSIBLE_TAGS  Blacklisted Ansible tags. Overrides the SKIP_TAGS env-var (default: empty)
+  -v | -V | --verbosity LEVEL         Verbosity level (v, vv, vvv, vvvv, vvvvv or vvvvvv). Overrides the VERBOSE env-var (default: vv)
+  -c | -C | --check | --dry-run       Run playbooks in dry-run mode. Overrides the DRY_RUN env-var (default: false)
+  -h | -H | --help                    Show this help
+
+SUBCOMMANDS:
   infra          → 🛠 Run playbook infra.yml
   pre            → 🛠 Run playbook pre.yml
   ceph           → 🛠 Run playbook ceph.yml
@@ -94,20 +297,19 @@ Available subcommands:
   lint           → 🧽 Run ansible-lint over roles and playbooks
   help           → 📚 Show this usage information
 
-Optional environment variables:
-  INVENTORY      → Local/absolute path to an inventory file (default: inventory/example.yml)
-  TAGS           → Additional tags (-t)
-  SKIP_TAGS      → Blacklisted tags (--skip-tags)
-  VERBOSE        → Verbosity level (v, vv, ... vvvvvv). Default: vv
 For a list of the available tags, check https://github.com/OpenNebula/one-deploy/wiki/sys_use#available-tags
+
 EOF
 }
 
 
-# 🧠 Subcommand menu
-case "${1:-}" in
+#######################################
+# 🧠 Subcommand dispatcher
+#######################################
+
+case "${SUBCOMMAND}" in
     infra|pre|site|main)
-        run_playbook "${1}" "default"
+        run_playbook "${SUBCOMMAND}" "default"
         ;;
     ceph)
         run_playbook "ceph" "ceph"
