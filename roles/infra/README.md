@@ -23,7 +23,7 @@ Role Variables
 | `vcpu_static`            | `str`  | `1`                |                     | VCPU amount to be set in XML in Libvirt.                          |
 | `vnc_max_port`           | `str`  | `65535`            |                     | Upper limit for VNC ports to start counting-down from.            |
 | `infra_bridge`           | `str`  | `br0`              |                     | Pre-defined bridge interface to insert VM NICs to.                |
-| `passthrough_fs`         | `list` | `[]`               | (check below)       | Shared HV filesystems to attach to the Front-end VMs.             |
+| `infra_shared_paths`     | `list` | `[]`               | (check below)       | Shared HV filesystems to attach to the Front-end VMs.             |
 |                          |        |                    |                     |                                                                   |
 | `infra_hostname`         | `str`  |                    | `n1a1`              | Defines on which HV machine the Front-end VM should be deployed.  |
 | `context.ETH0_DNS`       | `str`  |                    | `1.1.1.1`           | DNS server.                                                       |
@@ -51,7 +51,7 @@ Example Playbook
     - hosts: infra
       vars:
         os_image_url: https://d24fmfybwxpuhu.cloudfront.net/ubuntu2204-6.10.0-1-20240514.qcow2
-        passthrough_fs:
+        infra_shared_paths:
           - driver_type: virtiofs
             source_dir: /var/lib/one/datastores
             target_dir: /var/lib/one/datastores

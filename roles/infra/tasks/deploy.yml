@@ -1,7 +1,7 @@
 ---
 - vars:
     _dirs: >-
-      {{ [runtime_dir] + ((passthrough_fs | map(attribute='source_dir')) if (passthrough_fs is truthy) else []) }}
+      {{ [runtime_dir] + ((infra_shared_paths | map(attribute='source_dir')) if (infra_shared_paths is truthy) else []) }}
   block:
     - name: Create dirs
       ansible.builtin.file:

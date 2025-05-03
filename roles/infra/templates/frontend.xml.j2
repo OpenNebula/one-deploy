@@ -22,7 +22,7 @@
   <on_reboot>restart</on_reboot>
   <on_crash>destroy</on_crash>
 
-{% if 'virtiofs' in (passthrough_fs | map(attribute='driver_type')
+{% if 'virtiofs' in (infra_shared_paths | map(attribute='driver_type')
                                     | map('default', None)
                                     | select
                                     | map('lower')) %}
@@ -67,7 +67,7 @@
       <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
     </controller>
 
-{% for fs in passthrough_fs %}
+{% for fs in infra_shared_paths %}
     <filesystem type='mount' accessmode='passthrough'>
 {% if fs.driver_type is defined and fs.driver_type is truthy %}
       <driver type='{{ fs.driver_type }}'/>
