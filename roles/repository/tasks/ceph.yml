@@ -6,7 +6,7 @@
     _repo_path: "{{ ceph_repo_path_defaults | combine(ceph_repo_path, recursive=true) }}"
     _repo_url: "{{ ceph_repo_url_defaults | combine(ceph_repo_url, recursive=true) }}"
   block:
-    - when: ceph_repo_force_trusted | bool is false
+    - when: ceph_repo_force_trusted | bool
       block:
         - name: Check if Ceph GPG key is installed
           ansible.builtin.stat:
@@ -44,10 +44,10 @@
       vars:
         _content:
           Debian: |
-            {% if ceph_repo_force_trusted | bool is false %}
-            deb {{ _repo_url.Debian | trim }} {{ ansible_distribution_release }} main
-            {% else %}
+            {% if ceph_repo_force_trusted | bool %}
             deb [trusted=yes] {{ _repo_url.Debian | trim }} {{ ansible_distribution_release }} main
+            {% else %}
+            deb {{ _repo_url.Debian | trim }} {{ ansible_distribution_release }} main
             {% endif %}
           RedHat: |
             [ceph_stable]
@@ -55,7 +55,7 @@
             baseurl={{ _repo_url.RedHat | trim }}/el{{ ansible_distribution_major_version }}/$basearch
             priority=2
             enabled=1
-            {% if ceph_repo_force_trusted | bool is false %}
+            {% if ceph_repo_force_trusted | bool %}
             repo_gpgcheck=1
             gpgcheck=1
             gpgkey=file://{{ _repo_key_path.RedHat | trim }}
@@ -72,7 +72,7 @@
             baseurl={{ _repo_url.RedHat | trim }}/el{{ ansible_distribution_major_version }}/noarch
             priority=2
             enabled=1
-            {% if ceph_repo_force_trusted | bool is false %}
+            {% if ceph_repo_force_trusted | bool %}
             repo_gpgcheck=1
             gpgcheck=1
             gpgkey=file://{{ _repo_key_path.RedHat | trim }}
