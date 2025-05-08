@@ -77,6 +77,28 @@
     - federation.role != 'STANDALONE'
     - hostvars.master is undefined
 
+- name: Overwrite ceph_defaults if it is using a separate network (Ceph)
+  ansible.builtin.set_fact:
+    ceph_defaults:
+      pool: one
+      user: libvirt
+      uuid: null
+      repo: community
+      host: >-
+        {%- set result = [] -%}
+        {%- for host in groups[mon_group_name | d('mons')] -%}
+          {%- set h = hostvars[host] -%}
+          {%- if h.monitor_address is defined and h.monitor_address | length > 0 -%}
+            {{ result.append(h.monitor_address) }}
+          {%- else -%}
+            {{ result.append(h.ansible_host) }}
+          {%- endif -%}
+        {%- endfor -%}
+        {{ result | join(d = ' ') }}
+  when:
+    - features.ceph | bool is true
+    - groups[mon_group_name | d('mons')] is defined
+
 - name: Compute facts (Ceph)
   ansible.builtin.set_fact:
     ceph: >-
