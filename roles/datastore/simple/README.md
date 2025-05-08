@@ -13,7 +13,7 @@ Role Variables
 
 | Name          | Type   | Default   | Example                                | Description                                                                    |
 |---------------|--------|-----------|----------------------------------------|--------------------------------------------------------------------------------|
-| `ds.mode`     | `str`  | `ssh`     |                                        | OpenNebula Datastore configuration mode: `ssh`, `ceph`, `shared` or `generic`. |
+| `ds.mode`     | `str`  | `ssh`     |                                        | OpenNebula Datastore configuration mode: `ssh`, `shared`, `ceph` or `generic`. |
 | `ds.config`   | `dict` | `{}`      | (check below)                          | OpenNebula Datastore configuration for a specifc mode.                         |
 | `ds_defaults` | `dict` |           |                                        | Defaults that are merged with user configs.                                    |
 | `ceph.pool`   | `str`  | `one`     |                                        | Name of the Ceph pool dedicated to OpenNebula.                                 |

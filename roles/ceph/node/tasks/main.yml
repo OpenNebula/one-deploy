@@ -134,6 +134,20 @@
     content: |
       {{ shell_keyring.stdout | trim }}
 
+- name: Build ceph monitor hosts list
+  set_fact:
+    _ceph_host_var_list: >-
+      {%- set result = [] -%}
+      {%- for host in groups[mon_group_name | d('mons')] -%}
+        {%- set h = hostvars[host] -%}
+        {%- if h.monitor_address is defined and h.monitor_address | length > 0 -%}
+          {{ result.append(h.monitor_address) }}
+        {%- else -%}
+          {{ result.append(h.ansible_host) }}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ result }}
+
 - name: Create /etc/ceph/ceph.conf
   ansible.builtin.copy:
     dest: /etc/ceph/ceph.conf
@@ -148,11 +162,9 @@
       rbd_default_format = 2
       mon host = {{ _mons }}
   vars:
-    _hosts: >-
-      {{ groups[mon_group_name | d('mons')] | map('extract', hostvars, ['ansible_host']) | list }}
     _mons: >-
       {%- set output = [] -%}
-      {%- for host in _hosts -%}
+      {%- for host in _ceph_host_var_list -%}
       {{- output.append('[v2:%(host)s:3300,v1:%(host)s:6789]' | format(host=host)) -}}
       {%- endfor -%}
       {{- output | join(_sep) -}}
