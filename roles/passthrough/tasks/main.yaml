@@ -91,12 +91,6 @@
   ansible.builtin.import_tasks:
     file: "{{ role_path }}/tasks/nvidia-gpu.yaml"
 
-echo "vfio" >> /etc/modules
-echo "vfio_iommu_type1" >> /etc/modules
-echo "vfio_pci" >> /etc/modules
-update-initramfs -u -k all
-systemctl reboot
-
 
 
 # 1. Check cpu architecture, and verify if virtualization is enabled: DONE

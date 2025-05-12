@@ -21,8 +21,8 @@
 # - modprobe: less stable
 # - initramfs + kernel parameters
 
-# Load vfio-pci drivers before any GPU/nvidia one
 
+# Load vfio-pci drivers before any GPU/nvidia one
 
 
 # Bind placeholder driver 'vfio-pci' by device IDs
