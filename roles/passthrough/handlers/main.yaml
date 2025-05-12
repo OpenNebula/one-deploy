@@ -1,0 +1,6 @@
+---
+- name: Reboot machine
+  ansible.builtin.reboot:
+    reboot_timeout: 3600  # Default 600, 10mins
+    msg: "Rebooting machine in 5 seconds"
+    test_command: uptime

@@ -292,6 +292,7 @@ SUBCOMMANDS:
   ceph           → 🛠 Run playbook ceph.yml
   site           → 🛠 Run playbook site.yml
   main           → 🛠 Run playbook main.yml
+  passthrough    → 🛠 Run playbook passthrough.yml
   requirements   → 📦 Install project's requirements (Python + Galaxy). Creates virtualenvs if Hatch is available
   clean          → 🧹 Clean Ansible Galaxy Collections and Hatch environments
   lint           → 🧽 Run ansible-lint over roles and playbooks
@@ -308,7 +309,7 @@ EOF
 #######################################
 
 case "${SUBCOMMAND}" in
-    infra|pre|site|main)
+    infra|pre|site|main|passthrough)
         run_playbook "${SUBCOMMAND}" "default"
         ;;
     ceph)
