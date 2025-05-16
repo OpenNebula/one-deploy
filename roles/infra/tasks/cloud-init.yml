@@ -1,0 +1,30 @@
+---
+- name: Steps vefified only in Debian-based distros
+  when: ansible_os_family == 'Debian'
+  block:
+    - name: Verify content from datasource_list
+      ansible.builtin.stat:
+        path: /etc/cloud/cloud.cfg.d/90_dpkg.cfg
+      register: _infra_cloud_init_datasource_list
+      ignore_errors: true
+
+    - name: Empty datasource_list   # dpkg-reconfigure cloud-init 
+      ansible.builtin.lineinfile:
+        path: /etc/cloud/cloud.cfg.d/90_dpkg.cfg
+        regex: '^datasource_list:.*'
+        line: 'datasource_list: [ None ]'
+      when: _infra_cloud_init_datasource_list.stat.exists
+
+    - name: Uninstall package cloud-init
+      ansible.builtin.apt:
+        name: cloud-init
+        state: absent
+        purge: true
+
+    - name: Remove leftover files
+      ansible.builtin.file:
+        state: absent
+        path: "{{ item }}"
+      loop:
+        - /etc/cloud/
+        - /var/lib/cloud/

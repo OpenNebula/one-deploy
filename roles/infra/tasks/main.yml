@@ -1,9 +1,13 @@
 ---
+- name: Purge cloud-init from system
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/cloud-init.yml"
+
 - name: Install required OS packages
   ansible.builtin.package:
     name: "{{ _common + _specific[ansible_os_family] }}"
   vars:
-    _common: [acl, genisoimage, python3-libvirt, python3-lxml]
+    _common: [acl, genisoimage, python3-libvirt, python3-lxml. libvirt-clients, libvirt-daemon-system, qemu-kvm, bridge-utils]
     _specific:
       Debian: [qemu-utils]
       RedHat: [qemu-img]
