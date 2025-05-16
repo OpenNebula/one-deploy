@@ -1,73 +1,63 @@
 ---
-- name: Check for NVIDIA GPUs
-  # Search for VGA device class: [0300] https://admin.pci-ids.ucw.cz/read/PD/03/00
-  # Search for NVIDIA vendor ID: [10de:] https://admin.pci-ids.ucw.cz/read/PC/10de
-  ansible.builtin.shell: "lspci -nnD | grep -i '\[0300\].*\[10de:' | awk '{print $1}'"
-  # ansible.builtin.shell: "lspci -nnD | grep -i '\[0300\].*\[10de:' | awk '{print $1}' | tr '\n' ','"
-  register: nvidia_devices
-  failed_when: false
+- name: Get information about the NVIDIA GPUs of each host
+  ansible.builtin.script: "{{ role_path }}/scripts/nvidia_gpus.sh"
+  register: passthrough_nvidia_devices
   changed_when: false
 
+# TODO: Verify first if each task is needed
 - name: Tasks will only apply to hosts with at least 1 NVIDIA GPU
-  when: nvidia_devices.stdout != ''
+  when: passthrough_nvidia_devices.stdout | from_json | length > 0
   block:
-
-
-# gpu="0000:06:00.0"
-# gpu_vd="$(cat /sys/bus/pci/devices/$gpu/vendor):$(cat /sys/bus/pci/devices/$gpu/device)"
-
-
-# 2 Ways to proceed now:
-# - modprobe: less stable
-# - initramfs + kernel parameters
-
-
-# Load vfio-pci drivers before any GPU/nvidia one
-
-
-# Bind placeholder driver 'vfio-pci' by device IDs
-
-# Get all IDs from the same IOMMU group as the GPU
-# Verify they are NOT PCI root ports or bridges. In this case GPUs need the ACL patch (optional) ¿¿How can I communicate this to the user??
-
-# Crear fichero grub.d con 'vfio-pci.ids=10de:1e84,10de:10f8,10de:1ad8,10de:1ad9''
-
-
-
-
-    - name: Update GRUB for IOMMU and vfio-pci
-      ansible.builtin.lineinfile:
-        path: /etc/default/grub
-        regexp: '^GRUB_CMDLINE_LINUX='
-        line: >-
-          GRUB_CMDLINE_LINUX="modprobe.blacklist=nouveau rd.driver.blacklist=nouveau"
-      when: has_nvidia_gpu
-      notify: Update grub config
-
-    - name: Create vfio-pci override for NVIDIA devices
+    - name: Load vfio kernel modules
       ansible.builtin.copy:
-        dest: /etc/modprobe.d/vfio.conf
-        content: |
-          options vfio-pci ids={{ nvidia_pci_ids.stdout | regex_replace(',$', '') }}
-      when: has_nvidia_gpu
-
-    - name: Add vfio modules to initramfs
-      ansible.builtin.copy:
-        dest: /etc/modules-load.d/vfio.conf
+        dest: "/etc/modules-load.d/60-vfio-pci.conf"
+        owner: root
+        group: root
+        mode: '0644'
         content: |
           vfio
           vfio_iommu_type1
           vfio_pci
-          vfio_virqfd
-      when: has_nvidia_gpu
+      notify:
+        - Update Initramfs
+        - Reboot Machine
 
-    - name: Rebuild initramfs
-      ansible.builtin.command: dracut -f --regenerate-all
-      when: has_nvidia_gpu
+    - name: Blacklist nouveau and nvidia drivers
+      ansible.builtin.copy:
+        dest: "/etc/modprobe.d/60-blacklist-nouveau-nvidia.conf"
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          blacklist nouveau
+          blacklist nvidia
+          options nouveau modeset=0
+          options nvidia modeset=0
+      notify:
+        - Update Initramfs
+        - Reboot Machine
 
+    - name: Assign vfio-pci driver to NVIDIA GPUs and the devices in the their IOMMU group
+      ansible.builtin.copy:
+        dest: "/etc/modprobe.d/70-vfio-devices.conf"
+        owner: root
+        group: root
+        mode: '0644'
+        content: "options vfio-pci ids={{ _vendor_device_ids }}"
+      notify:
+        - Update Initramfs
+        - Reboot Machine
+      vars:
+        _vendor_device_ids: >-
+          {{
+            passthrough_nvidia_devices.stdout
+            | from_json
+            | map(attribute='iommu_group_devices')
+            | map('map', attribute='vendor_device_id')
+            | flatten
+            | unique
+            | join(',')
+          }}
 
-echo "vfio" >> /etc/modules
-echo "vfio_iommu_type1" >> /etc/modules
-echo "vfio_pci" >> /etc/modules
-update-initramfs -u -k all
-systemctl reboot
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers

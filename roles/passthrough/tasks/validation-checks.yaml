@@ -1,0 +1,43 @@
+---
+- name: Get CPU architecture
+  ansible.builtin.command: "uname -m"
+  register: passthrough_cpu_arch
+  changed_when: false
+  failed_when: false
+
+- name: Assert CPU architecture is x86_64
+  ansible.builtin.assert:
+    that: passthrough_cpu_arch.stdout == 'x86_64'
+    fail_msg: |
+      Passthrough is only supported on x86_64 architecture.
+      Please ensure you are using a compatible CPU architecture.
+      Current architecture: {{ passthrough_cpu_arch.stdout }}
+
+
+- name: Run lscpu to gather CPU info
+  ansible.builtin.command: "lscpu"
+  register: passthrough_cpuinfo
+  changed_when: false
+
+- name: Extract CPU Vendor ID (GenuineIntel/AuthenticAMD) and Flags
+  ansible.builtin.set_fact:
+    passthrough_cpu_vendor_id: "{{ passthrough_cpuinfo.stdout_lines | select('search', '^Vendor ID') | first | regex_replace('^Vendor ID:\\s+', '') | trim }}"
+    passthrough_cpu_flags: "{{ passthrough_cpuinfo.stdout_lines | select('search', '^Flags') | first | regex_replace('^Flags:\\s+', '') | trim }}"
+
+- name: Assert CPU supports Hardware virtualization
+  ansible.builtin.assert:
+    that:
+      - _virtualization_flag | length > 0
+      - _virtualization_flag in passthrough_cpu_flags
+      - _slat_flag in passthrough_cpu_flags
+    fail_msg: |
+      Virtualization requirements not met. Please ensure:
+      - Hardware virtualization ({{ _virtualization_flag }}) is enabled in BIOS/UEFI
+      - Extended paging ({{ _slat_flag }}) is enabled in BIOS/UEFI
+  vars:
+    _virtualization_flag: >-
+      {{ 'vmx' if passthrough_cpu_vendor_id == 'GenuineIntel' else
+         'svm' if passthrough_cpu_vendor_id == 'AuthenticAMD' else '' }}
+    _slat_flag: >-
+      {{ 'ept' if passthrough_cpu_vendor_id == 'GenuineIntel' else
+         'npt' if passthrough_cpu_vendor_id == 'AuthenticAMD' else '' }}

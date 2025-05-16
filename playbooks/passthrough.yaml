@@ -1,14 +1,13 @@
 ---
-- name: Enable passthrough in the hosts
-  hosts:
-    - "{{ node_group | d('node') }}"
-  tags: [passthrough, node]
+- name: Enable passthrough functionalities in OpenNebula
+  hosts: all 
+  tags: [passthrough, node, frontend]
   collections:
     - opennebula.deploy
   roles:
     # - role: helper/facts
     #   tags: [always]
-  
+
     # # Make sure all facts are usable on the playbook level.
     # - role: common
 
@@ -19,45 +18,46 @@
 
     - role: passthrough
 
-# 1. Identify the device(s) to passthrough. Look only for Nvidia GPUs for now, and store their device ID, vendor ID, and PCI address.
-# 2. Check cpu architecture, and verify (again) if virtualization is enabled
-#    If disabled, playbook stops
-#   - In intel, search flags for vmx and ept
-#   - In amd, search flags for svm and npt
-#   - If not x86_64, stop playbook, passthrough not supported
-# 3. Check cpu architecture, and verify if IOMMU is enabled
-#    If enabled, skip to step 5
-#   - Run 'dmesg | grep -i -e DMAR -e IOMMU -e AMD-Vi'
-#   - Search for string 'DMAR: IOMMU enabled'
-#   - Parse and save lines like "[    1.624973] pci 0000:5d:00.0: Adding to iommu group 0" if they appear.
-# 4. Enable IOMMU in the kernel
-#   - For intel, add "intel_iommu=on" to the kernel command line
-#   - For amd, add "amd_iommu=on" to the kernel command line (they say its unnecessary, idk)
-#   - For both, add "iommu=pt" to the kernel command line (unchecked improvements, but it works)
-#   - Study if disabling MSR (Model-Specific Register) due to error doing passthrough to Windows VMs.
-#   - Reboot the host
-# 5. Validate each passtrhough device has a separate IOMMU group. If not, error? the ACS Override Patch?? (MoBo must support it)
-# 6. Check if the devices are in use. If so, error
-# 7. Check if the devices (and all devices from same IOMMU group) are bound to vfio-pci.
-#    If bounded, skip to step 8
-#   - Check if the vfio-pci module is loaded. If not, modprobe it
-#   - Override the device's default driver with vfio-pci
-#   - Blacklist the nouveau/nvidia drivers
-#   - Reboot the host
-#   - Repeat step
-# 8. Add udev rule so that libvirt can use vfio devices
+# si linea está puesta
+# DMAR: IOMMU enabled
+# si está funcionando
+# DMAR: Intel(R) Virtualization Technology for Directed I/O
 
 
-# - name: Enable passthrough functionality for Nvidia GPUs in the Frontends
-#   tags: [passthrough,frontend]
-#   hosts:
-#     - "{{ node_group | d('frontend') }}"
-#   collections:
-#     - opennebula.deploy
-#   roles:
-#     - role: helper/facts
-#     - role: passthrough/frontend
 
+# -------------------------------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------- NODES -----------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------------------------------
+
+# 1. Check the node's CPU and perform some initial assessments. If they fail, passthrough is not available for the node
+#   - Verify CPUs have x86_64 architecture.
+#   - In intel CPUs, verify flags 'vmx' and 'ept'
+#   - In AMD CPUs, verify flags 'svm' and 'npt'
+#
+# 2. Enable IOMMU in the kernel.
+#   - Verify if IOMMU is already enabled from dmesg. If so, skip to step 5.
+#   - For intel, add "intel_iommu=on iommu=pt" to the kernel command line.
+#   - For AMD, add "iommu=pt" to the kernel command line.
+#   - Reconfig GRUB and reboot
+#   - Verify again that IOMMU is enabled in all hosts
+#
+# 3. Add udev rule so that libvirt (oneadmin:kvm)  can use vfio devices
+#
+#### FOCUSING ON NVIDIA GPUs ####
+# 4. Identify hosts with NVIDIA GPU's and theirthe device(s) to passthrough. Look only for Nvidia GPUs for now, and store their device ID, vendor ID, and PCI address.
+# 5. If vfio modules are not loaded, load them.
+# 6. If nvidia and nouveau modules are loaded, blacklist them.
+# 7. If the GPUs are not bound to vfio-pci, bind them.
+# 8. Update the initramfs and reboot the node.
+
+# Aditional checks:
+# - Validate each passtrhough device has a separate IOMMU group. If not, error? the ACS Override Patch?? (MoBo must support it)
+# - Check if the devices are in use before manipulating their drivers. 
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------- FRONTENDS -----------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------------------------------
 
 # 1. Edit /var/lib/one/remotes/etc/im/kvm-probes.d/pci.conf with:
 # :filter:

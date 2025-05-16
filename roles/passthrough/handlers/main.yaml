@@ -1,5 +1,20 @@
 ---
-- name: Reboot machine
+- name: Reload udev rules
+  ansible.builtin.shell:
+  args:
+    cmd: "set -o pipefail && udevadm control --reload  && udevadm trigger"
+    executable: /bin/bash
+  changed_when: false
+
+- name: Update GRUB
+  ansible.builtin.command: grub-mkconfig -o /boot/grub/grub.cfg
+  changed_when: false
+
+- name: Update Initramfs
+  ansible.builtin.command: update-initramfs -u -k all
+  changed_when: false
+
+- name: Reboot Machine
   ansible.builtin.reboot:
     reboot_timeout: 3600  # Default 600, 10mins
     msg: "Rebooting machine in 5 seconds"
