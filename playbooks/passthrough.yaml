@@ -44,7 +44,7 @@
 # 3. Add udev rule so that libvirt (oneadmin:kvm)  can use vfio devices
 #
 #### FOCUSING ON NVIDIA GPUs ####
-# 4. Identify hosts with NVIDIA GPU's and theirthe device(s) to passthrough. Look only for Nvidia GPUs for now, and store their device ID, vendor ID, and PCI address.
+# 4. Identify hosts with NVIDIA GPU's and theirthe device(s) to passthrough. Look only for Nvidia GPUs for now, and store their device ID, vendor ID, and PCI address
 # 5. If vfio modules are not loaded, load them.
 # 6. If nvidia and nouveau modules are loaded, blacklist them.
 # 7. If the GPUs are not bound to vfio-pci, bind them.
@@ -52,7 +52,7 @@
 
 # Aditional checks:
 # - Validate each passtrhough device has a separate IOMMU group. If not, error? the ACS Override Patch?? (MoBo must support it)
-# - Check if the devices are in use before manipulating their drivers. 
+# - Check if the devices are in use before manipulating their drivers.
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------

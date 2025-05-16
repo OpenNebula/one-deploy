@@ -22,7 +22,6 @@
 
 - name: Update drivers in the rest of the nodes
   when: inventory_hostname == leader
-  # become: true
   become_user: oneadmin
   ansible.builtin.command: onehost sync --force
   changed_when: false

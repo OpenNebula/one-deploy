@@ -44,6 +44,15 @@
       failed_when:
         - shell.rc != 0 and shell.rc != 78
 
+    - name: Ensure pool is associated to RBD activity
+      ansible.builtin.shell:
+        cmd: "ceph osd pool application enable {{ ceph.pool }} rbd"
+        executable: /bin/bash
+      register: shell
+      changed_when: true
+      failed_when:
+        - shell.rc != 0
+
     - name: Ensure user exists
       ansible.builtin.shell:
         cmd: |
