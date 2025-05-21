@@ -126,3 +126,99 @@
           MONITOR_ADDRESS\g<1>= "{{ one_vip }}"\g<2>
       notify:
         - Restart OpenNebula
+
+- when: sched_drs is mapping
+  block:
+    - name: Check if drs configuration exists
+      ansible.builtin.stat:
+        path: /etc/one/schedulers/one_drs.conf
+        get_attributes: false
+        get_checksum: false
+        get_mime: false
+      register: stat_drs_conf
+
+    # NOTE: Adding global unknown/custom options has no effect!
+    - name: Configure drs scheduler
+      ansible.builtin.replace:
+        path: /etc/one/schedulers/one_drs.conf
+        regexp: '^{{ item.key }}:[\s\S]*?(?=\n^\w+:|\Z)'
+        replace: "{{ {item.key: item.value} | to_nice_yaml(indent=2) }}"
+      loop: "{{ sched_drs | dict2items }}"
+      when: stat_drs_conf.stat.exists is true
+
+- when: sched_rank is mapping
+  block:
+    - name: Check if rank configuration exists
+      ansible.builtin.stat:
+        path: /etc/one/schedulers/rank.conf
+        get_attributes: false
+        get_checksum: false
+        get_mime: false
+      register: stat_rank_conf
+
+    # NOTE: Adding global unknown/custom options has no effect!
+    - name: Configure rank scheduler
+      ansible.builtin.replace:
+        path: /etc/one/schedulers/rank.conf
+        regexp: "{{ item.regexp | d(omit) }}"
+        replace: "{{ item.replace | d(omit) }}"
+      loop: "{{ _rank_config | selectattr('update') | list }}"
+      vars:
+        _rank_config:
+          - regexp: 'MEMORY_SYSTEM_DS_SCALE( *)= *.*([\s])$'
+            update: "{{ sched_rank.MEMORY_SYSTEM_DS_SCALE is defined }}"
+            replace: >-
+              MEMORY_SYSTEM_DS_SCALE\g<1>= {{ sched_rank.MEMORY_SYSTEM_DS_SCALE | d(omit) }}\g<2>
+          - regexp: 'MAX_HOST( *)= *.*([\s])$'
+            update: "{{ sched_rank.MAX_HOST is defined }}"
+            replace: >-
+              MAX_HOST\g<1>= {{ sched_rank.MAX_HOST | d(omit) }}\g<2>
+          - regexp: 'DIFFERENT_VNETS( *)= *.*([\s])$'
+            update: "{{ sched_rank.DIFFERENT_VNETS is defined }}"
+            replace: >-
+              DIFFERENT_VNETS\g<1>= {{ ("YES" if (sched_rank.DIFFERENT_VNETS | d(omit) | bool) else "NO") }}\g<2>
+          - regexp: '^(DEFAULT_SCHED( *)= *\[)[\S\s]*?(\])$'
+            update: "{{ sched_rank.DEFAULT_SCHED is defined }}"
+            replace: |-
+              \g<1>
+              {% if sched_rank.DEFAULT_SCHED.POLICY | d(false) %}
+                 POLICY = {{ sched_rank.DEFAULT_SCHED.POLICY | d(omit) }}
+              {% endif %}
+              {% if sched_rank.DEFAULT_SCHED.RANK | d(false) %}
+                 RANK = "{{ sched_rank.DEFAULT_SCHED.RANK | d(omit) }}"
+              {% endif %}
+              \g<3>
+          - regexp: '^(DEFAULT_DS_SCHED( *)= *\[)[\S\s]*?(\])$'
+            update: "{{ sched_rank.DEFAULT_DS_SCHED is defined }}"
+            replace: |-
+              \g<1>
+              {% if sched_rank.DEFAULT_DS_SCHED.POLICY | d(false) %}
+                 POLICY = {{ sched_rank.DEFAULT_DS_SCHED.POLICY | d(omit) }}
+              {% endif %}
+              {% if sched_rank.DEFAULT_DS_SCHED.RANK | d(false) %}
+                 RANK = "{{ sched_rank.DEFAULT_DS_SCHED.RANK | d(omit) }}"
+              {% endif %}
+              \g<3>
+          - regexp: '^(DEFAULT_NIC_SCHED( *)= *\[)[\S\s]*?(\])$'
+            update: "{{ sched_rank.DEFAULT_NIC_SCHED is defined }}"
+            replace: |-
+              \g<1>
+              {% if sched_rank.DEFAULT_NIC_SCHED.POLICY | d(false) %}
+                 POLICY = {{ sched_rank.DEFAULT_NIC_SCHED.POLICY | d(omit) }}
+              {% endif %}
+              {% if sched_rank.DEFAULT_NIC_SCHED.RANK | d(false) %}
+                 RANK = "{{ sched_rank.DEFAULT_NIC_SCHED.RANK | d(omit) }}"
+              {% endif %}
+              \g<3>
+          - regexp: '^(LOG( *)= *\[)[\S\s]*?(\])$'
+            update: "{{ sched_rank.LOG is defined }}"
+            replace: |-
+              \g<1>
+              {% if sched_rank.LOG.SYSTEM | d(false) %}
+                SYSTEM = "{{ sched_rank.LOG.SYSTEM | d(omit) }}"
+              {% endif %}
+              {% if sched_rank.LOG.DEBUG_LEVEL | d(false) %}
+                DEBUG_LEVEL = {{ sched_rank.LOG.DEBUG_LEVEL | d(omit) }}
+              {% endif %}
+              \g<3>
+      when: stat_rank_conf.stat.exists is true
