@@ -23,7 +23,7 @@ Role Variables
 | `vcpu_static`            | `str`  | `1`                |                     | VCPU amount to be set in XML in Libvirt.                          |
 | `vnc_max_port`           | `str`  | `65535`            |                     | Upper limit for VNC ports to start counting-down from.            |
 | `infra_bridge`           | `str`  | `br0`              |                     | Pre-defined bridge interface to insert VM NICs to.                |
-| `passthrough_fs`         | `list` | `[]`               | (check below)       | Shared HV filesystems to attach to the Front-end VMs.             |
+| `infra_shared_paths`     | `list` | `[]`               | (check below)       | Shared HV filesystems to attach to the Front-end VMs.             |
 |                          |        |                    |                     |                                                                   |
 | `infra_hostname`         | `str`  |                    | `n1a1`              | Defines on which HV machine the Front-end VM should be deployed.  |
 | `context.ETH0_DNS`       | `str`  |                    | `1.1.1.1`           | DNS server.                                                       |
@@ -51,13 +51,52 @@ Example Playbook
     - hosts: infra
       vars:
         os_image_url: https://d24fmfybwxpuhu.cloudfront.net/ubuntu2204-6.10.0-1-20240514.qcow2
-        passthrough_fs:
+        infra_shared_paths:
           - driver_type: virtiofs
             source_dir: /var/lib/one/datastores
             target_dir: /var/lib/one/datastores
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.infra
+
+Example Inventory
+-----------------
+```yaml
+...
+infra:
+  vars:
+    update_pkg_cache: true             # From role helper/cache
+    #runtime_dir: /var/one-deploy/     # Where the VM Image is stored
+    os_image_url: https://marketplace.opennebula.io//appliance/4562be1a-4c11-4e9e-b60a-85a045f1de05/download/0   # https://d24fmfybwxpuhu.cloudfront.net/ubuntu2204-6.8.1-1-20240131.qcow2
+    os_image_size: 100G            # Default: 20G
+    memory_KiB: 41943040           # Default 2097152, 2 GiB
+    vcpu_static: 1                 # Default 1
+    infra_bridge: br_management    # Default: br0
+    infra_shared_paths:     # Host-guest shared directories. Useful but usually unnecessary
+      - driver_type: virtiofs
+        source_dir: /var/lib/one/datastores
+        target_dir: /var/lib/one/datastores
+  hosts:
+    node01: { ansible_host: 192.168.0.41 }
+    node02: { ansible_host: 192.168.0.42 }
+    node03: { ansible_host: 192.168.0.43 }
+
+frontend:
+  vars:
+    context:
+      ETH0_NETWORK: "192.168.0.0"
+      ETH0_MASK: "255.255.255.0"
+      ETH0_GATEWAY: "192.168.0.1"
+      ETH0_DNS: "8.8.8.8"
+      ETH0_IP: "{{ ansible_host }}"
+      USERNAME: "myuser"
+      PASSWORD: "mypassword"
+  hosts:
+    fe1: { ansible_host: 192.168.0.11, infra_hostname: node01, ansible_user: root }
+    fe2: { ansible_host: 192.168.0.12, infra_hostname: node02, ansible_user: root }
+    fe3: { ansible_host: 192.168.0.13, infra_hostname: node03, ansible_user: root }
+```
+
 
 License
 -------
