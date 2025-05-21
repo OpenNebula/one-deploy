@@ -29,141 +29,6 @@ unset "$(compgen -v | grep '^ANSIBLE_')" || true
 
 
 #######################################
-# 🎛 Argument parsing (GNU-style)
-#######################################
-
-ARGS=()
-while [[ ${#} -gt 0 ]]; do
-    case "${1}" in
-        --inventory|-i|-I)
-            INVENTORY="${2}"
-            shift 2
-            ;;
-        --tags|-t|-T)
-            TAGS="${2}"
-            shift 2
-            ;;
-        --skip-tags|-s|-S)
-            SKIP_TAGS="${2}"
-            shift 2
-            ;;
-        --verbosity|-v|-V)
-            VERBOSE="${2}"
-            shift 2
-            ;;
-        --check|--dry-run|-c|-C)
-            DRY_RUN="true"
-            shift
-            ;;
-        --help|-h|-H)
-            usage
-            exit 0
-            ;;
-        --)
-            shift
-            break
-            ;;
-        -*)
-            echo "❌ Unknown option: ${1}"
-            usage
-            exit 1
-            ;;
-        *)
-            ARGS+=("${1}")
-            shift
-            ;;
-    esac
-done
-
-# Treat remaining arguments as subcommands
-set -- "${ARGS[@]}"
-SUBCOMMAND="${1:-}"
-
-
-#######################################
-# ✅ Argument validation
-#######################################
-
-# Validate INVENTORY
-if [[ ! -e "${INVENTORY}" ]]; then
-    echo "❌ Inventory path '${INVENTORY}' does not exist."
-    exit 1
-fi
-if [[ -f "${INVENTORY}" ]]; then
-    if [[ ! -s "${INVENTORY}" ]]; then
-        echo "❌ Inventory file '${INVENTORY}' exists but is empty."
-        exit 1
-    fi
-elif [[ -d "${INVENTORY}" ]]; then
-    shopt -s nullglob
-    inventory_files=("${INVENTORY}"/*.{yml,yaml,ini})
-    if [[ ${#inventory_files[@]} -eq 0 ]]; then
-        echo "❌ Inventory directory '${INVENTORY}' does not contain any YAML/INI files."
-        exit 1
-    fi
-    shopt -u nullglob
-else
-    echo "❌ Inventory '${INVENTORY}' is neither a file nor a valid directory."
-    exit 1
-fi
-# Validate TAGS and SKIP_TAGS
-ALLOWED_TAGS=(
-    bastion ceph datastore flow frontend fstab gate grafana gui
-    hosts infra keys libvirt network node preinstall prometheus
-    provision stage1 stage2 stage3
-)
-for var in TAGS SKIP_TAGS; do
-    value="${!var}"
-    IFS=',' read -ra input_tags <<< "${value}"
-
-    for tag in "${input_tags[@]}"; do
-        if [[ -z "${tag}" ]]; then
-            continue
-        fi
-        found=0
-        for allowed in "${ALLOWED_TAGS[@]}"; do
-            if [[ "${tag}" == "${allowed}" ]]; then
-                found=1
-                break
-            fi
-        done
-        if [[ ${found} -eq 0 ]]; then
-            echo "❌ Invalid ${var} value: '${tag}'. Allowed tags are: ${ALLOWED_TAGS[*]}"
-            exit 1
-        fi
-    done
-done
-# Validate VERBOSE
-if [[ ! "${VERBOSE}" =~ ^v{1,6}$ ]]; then
-    echo "❌ Invalid verbosity value: ${VERBOSE}"
-    echo "It can only be from 0 to 6 consecutive 'v's: v, vv, vvv, vvvv, vvvvv or vvvvvv"
-    exit 1
-fi
-# Validate DRY_RUN
-if [[ "${DRY_RUN}" != "true" && "${DRY_RUN}" != "false" ]]; then
-    echo "❌ Invalid DRY_RUN value: ${DRY_RUN}"
-    echo "It can only be 'true' or 'false'"
-    exit 1
-fi
-
-
-if [[ ${#VERBOSE} -ge 3 ]]; then
-    echo "[i] INVENTORY:   ${INVENTORY}"
-    echo "[i] TAGS:        ${TAGS}"
-    echo "[i] SKIP_TAGS:   ${SKIP_TAGS}"
-    echo "[i] VERBOSE:     ${VERBOSE}"
-    echo "[i] DRY_RUN:     ${DRY_RUN}"
-    if [[ -n "${HATCH_BIN}" ]]; then
-        echo "[i] HATCH_BIN:   ${HATCH_BIN}"
-        echo "[i] ENV_DEFAULT: ${ENV_DEFAULT:-<not found>}"
-        echo "[i] ENV_CEPH:    ${ENV_CEPH:-<not found>}"
-    else
-        echo "[i] Hatch not detected in the system."
-    fi
-fi
-
-
-#######################################
 # 🛠 Functions
 #######################################
 
@@ -302,6 +167,160 @@ For a list of the available tags, check https://github.com/OpenNebula/one-deploy
 
 EOF
 }
+
+
+#######################################
+# 🎛 Argument parsing (GNU-style)
+#######################################
+
+ARGS=()
+while [[ ${#} -gt 0 ]]; do
+    case "${1}" in
+        --inventory|-i|-I)
+            if [[ $# -lt 2 ]]; then
+                echo "❌ Option '${1}' requires an argument: Local/absolute path to an Ansible inventory file"
+                exit 1
+            fi
+            INVENTORY="${2}"
+            shift 2
+            ;;
+        --tags|-t|-T)
+            if [[ $# -lt 2 ]]; then
+                echo "❌ Option '${1}' requires an argument: Additional Ansible tags"
+                exit 1
+            fi
+            TAGS="${2}"
+            shift 2
+            ;;
+        --skip-tags|-s|-S)
+            if [[ $# -lt 2 ]]; then
+                echo "❌ Option '${1}' requires an argument: Blacklisted Ansible tags"
+                exit 1
+            fi
+            SKIP_TAGS="${2}"
+            shift 2
+            ;;
+        --verbosity|-v|-V)
+            if [[ $# -lt 2 ]]; then
+                echo "❌ Option '${1}' requires an argument: Verbosity level (v, vv, vvv, vvvv, vvvvv or vvvvvv)"
+                exit 1
+            fi
+            VERBOSE="${2}"
+            shift 2
+            ;;
+        --check|--dry-run|-c|-C)
+            DRY_RUN="true"
+            shift
+            ;;
+        --help|-h|-H)
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "❌ Unknown option: ${1}"
+            usage
+            exit 1
+            ;;
+        *)
+            ARGS+=("${1}")
+            shift
+            ;;
+    esac
+done
+
+# Treat remaining arguments as subcommands
+set -- "${ARGS[@]}"
+SUBCOMMAND="${1:-}"
+
+
+#######################################
+# ✅ Argument validation
+#######################################
+
+# Validate INVENTORY
+if [[ ! -e "${INVENTORY}" ]]; then
+    echo "❌ Inventory path '${INVENTORY}' does not exist."
+    exit 1
+fi
+if [[ -f "${INVENTORY}" ]]; then
+    if [[ ! -s "${INVENTORY}" ]]; then
+        echo "❌ Inventory file '${INVENTORY}' exists but is empty."
+        exit 1
+    fi
+elif [[ -d "${INVENTORY}" ]]; then
+    shopt -s nullglob
+    inventory_files=("${INVENTORY}"/*.{yml,yaml,ini})
+    if [[ ${#inventory_files[@]} -eq 0 ]]; then
+        echo "❌ Inventory directory '${INVENTORY}' does not contain any YAML/INI files."
+        exit 1
+    fi
+    shopt -u nullglob
+else
+    echo "❌ Inventory '${INVENTORY}' is neither a file nor a valid directory."
+    exit 1
+fi
+# Validate TAGS and SKIP_TAGS
+ALLOWED_TAGS=(
+    bastion ceph datastore flow frontend fstab gate grafana gui
+    hosts infra keys libvirt network node preinstall prometheus
+    provision stage1 stage2 stage3
+)
+for var in TAGS SKIP_TAGS; do
+    value="${!var}"
+    IFS=',' read -ra input_tags <<< "${value}"
+
+    for tag in "${input_tags[@]}"; do
+        if [[ -z "${tag}" ]]; then
+            continue
+        fi
+        found=0
+        for allowed in "${ALLOWED_TAGS[@]}"; do
+            if [[ "${tag}" == "${allowed}" ]]; then
+                found=1
+                break
+            fi
+        done
+        if [[ ${found} -eq 0 ]]; then
+            echo "❌ Invalid ${var} value: '${tag}'. Allowed tags are: ${ALLOWED_TAGS[*]}"
+            exit 1
+        fi
+    done
+done
+# Validate VERBOSE
+if [[ ! "${VERBOSE}" =~ ^v{1,6}$ ]]; then
+    echo "❌ Invalid verbosity value: ${VERBOSE}"
+    echo "It can only be from 0 to 6 consecutive 'v's: v, vv, vvv, vvvv, vvvvv or vvvvvv"
+    exit 1
+fi
+# Validate DRY_RUN
+if [[ "${DRY_RUN}" != "true" && "${DRY_RUN}" != "false" ]]; then
+    echo "❌ Invalid DRY_RUN value: ${DRY_RUN}"
+    echo "It can only be 'true' or 'false'"
+    exit 1
+fi
+
+
+if [[ ${#VERBOSE} -ge 3 ]]; then
+    echo "Verbosity level: ${VERBOSE}, greater than 3, showing debug information..."
+    echo
+    echo "[i] INVENTORY:   ${INVENTORY}"
+    echo "[i] TAGS:        ${TAGS}"
+    echo "[i] SKIP_TAGS:   ${SKIP_TAGS}"
+    echo "[i] DRY_RUN:     ${DRY_RUN}"
+    if [[ -n "${HATCH_BIN}" ]]; then
+        echo "[i] HATCH_BIN:   ${HATCH_BIN}"
+        echo "[i] ENV_DEFAULT: ${ENV_DEFAULT:-<not found>}"
+        echo "[i] ENV_CEPH:    ${ENV_CEPH:-<not found>}"
+    else
+        echo "[i] Hatch not detected in the system."
+    fi
+    echo
+    echo
+fi
 
 
 #######################################
