@@ -22,6 +22,7 @@ INVENTORY="${INVENTORY:-${SELF}/inventory/example.yml}"
 TAGS="${TAGS:-}"
 SKIP_TAGS="${SKIP_TAGS:-}"
 VERBOSE="${VERBOSE:-vv}"
+NON_INTERACTIVE="${NON_INTERACTIVE:-false}"   # Do not use --ask-pass and --ask-become-pass
 DRY_RUN="${DRY_RUN:-false}"   # For --check
 
 # 🔓 Make sure we source ANSIBLE_ settings from ansible.cfg exclusively.
@@ -59,12 +60,7 @@ run_playbook() {
     _create_env_if_needed "${env_name}"
 
     cd "${SELF}"
-    cmd=(ansible-playbook "-${VERBOSE}" -i "${INVENTORY}" --ask-become-pass)
-
-    # 🔐 If INVENTORY contains variable $ANSIBLE_VAULT, include option --ask-vault-pass
-    if grep -q '\$ANSIBLE_VAULT;' "${INVENTORY}"; then
-        cmd+=(--ask-vault-pass)
-    fi
+    cmd=(ansible-playbook "-${VERBOSE}" -i "${INVENTORY}")
 
     if [[ -n "${TAGS}" ]]; then
         cmd+=(--tags "${TAGS}")
@@ -72,6 +68,15 @@ run_playbook() {
 
     if [[ -n "${SKIP_TAGS}" ]]; then
         cmd+=(--skip-tags "${SKIP_TAGS}")
+    fi
+
+    if [[ "${NON_INTERACTIVE}" == "false" ]]; then
+        cmd+=(--ask-pass --ask-become-pass)
+
+        # 🔐 If INVENTORY contains variable $ANSIBLE_VAULT, include also option --ask-vault-pass
+        if grep -q '\$ANSIBLE_VAULT;' "${INVENTORY}"; then
+            cmd+=(--ask-vault-pass)
+        fi
     fi
 
     if [[ "${DRY_RUN}" == "true" ]]; then
@@ -144,6 +149,7 @@ Note: Always set at least the INVENTORY env-var or '--inventory' option.
 Note: Run the 'requirements' subcommand before any playbook to install the project's software requirements.
 
 OPTIONS:
+  -n | -N | --non-interactive         Do not ask for passwords from the user prompt, for ssh and sudo access (Avoid flags --ask-pass and --ask-become-pass). Overrides the NON_INTERACTIVE env-var (default: false)
   -i | -I | --inventory PATH          Local/absolute path to an Ansible inventory file. Overrides the INVENTORY env-var (default: inventory/example.yml)
   -t | -T | --tags ANSIBLE_TAGS       Additional Ansible tags. Overrides the TAGS env-var (default: empty)
   -s | -S | --skip-tags ANSIBLE_TAGS  Blacklisted Ansible tags. Overrides the SKIP_TAGS env-var (default: empty)
@@ -207,6 +213,10 @@ while [[ ${#} -gt 0 ]]; do
             fi
             VERBOSE="${2}"
             shift 2
+            ;;
+        --non-interactive|-n|-N)
+            NON_INTERACTIVE="true"
+            shift
             ;;
         --check|--dry-run|-c|-C)
             DRY_RUN="true"
@@ -296,6 +306,12 @@ if [[ ! "${VERBOSE}" =~ ^v{1,6}$ ]]; then
     echo "It can only be from 0 to 6 consecutive 'v's: v, vv, vvv, vvvv, vvvvv or vvvvvv"
     exit 1
 fi
+# Validate NON_INTERACTIVE
+if [[ "${NON_INTERACTIVE}" != "true" && "${NON_INTERACTIVE}" != "false" ]]; then
+    echo "❌ Invalid NON_INTERACTIVE value: ${NON_INTERACTIVE}"
+    echo "It can only be 'true' or 'false'"
+    exit 1
+fi
 # Validate DRY_RUN
 if [[ "${DRY_RUN}" != "true" && "${DRY_RUN}" != "false" ]]; then
     echo "❌ Invalid DRY_RUN value: ${DRY_RUN}"
@@ -307,10 +323,11 @@ fi
 if [[ ${#VERBOSE} -ge 3 ]]; then
     echo "Verbosity level: ${VERBOSE}, greater than 3, showing debug information..."
     echo
-    echo "[i] INVENTORY:   ${INVENTORY}"
-    echo "[i] TAGS:        ${TAGS}"
-    echo "[i] SKIP_TAGS:   ${SKIP_TAGS}"
-    echo "[i] DRY_RUN:     ${DRY_RUN}"
+    echo "[i] INVENTORY:        ${INVENTORY}"
+    echo "[i] TAGS:             ${TAGS}"
+    echo "[i] SKIP_TAGS:        ${SKIP_TAGS}"
+    echo "[i] NON_INTERACTIVE:  ${NON_INTERACTIVE}"
+    echo "[i] DRY_RUN:          ${DRY_RUN}"
     if [[ -n "${HATCH_BIN}" ]]; then
         echo "[i] HATCH_BIN:   ${HATCH_BIN}"
         echo "[i] ENV_DEFAULT: ${ENV_DEFAULT:-<not found>}"
