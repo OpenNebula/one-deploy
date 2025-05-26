@@ -1,4 +1,10 @@
 ---
+- name: Wait until all hosts are reachable again. Important in HCI deployments, where the host where FEs are has just been rebooted
+  wait_for_connection:
+    timeout: 300
+    delay: 10
+    sleep: 5
+
 - name: Modify PCI monitoring probe. Case with empty list
   ansible.builtin.replace:
     path: /var/lib/one/remotes/etc/im/kvm-probes.d/pci.conf

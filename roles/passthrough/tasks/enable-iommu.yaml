@@ -2,25 +2,7 @@
 #### RISK: I MUST assume GRUB is the bootloader being used.
 
 # Developer note: Looking for line 'DMAR: IOMMU enabled' actually only verifies the presence of 'intel_iommu=on' as a kernel command line parameter.
-#                  If VT-d is not enabled in the BIOS, the line will still apear but won't mean anything.
-
-# Developer note: Kernel parameter 'iommu=pt' results in a change in dmesg from:
-#                  'iommu: Default domain type: Translated' to 'iommu: Default domain type: Passthrough (set via kernel command line)'
-#                  According to RedHat documentation, it provides a slight performance improvement, but it is not necessary.
-#                  Other sources however mention that the improvement is unnoticeable and that it is at the expense of security/device isolation.
-#                  TODO: Add it only according to a variable
-# https://docs.redhat.com/en/documentation/red_hat_virtualization/4.1/html/installation_guide/appe-configuring_a_hypervisor_host_for_pci_passthrough
-
-# Developer note: IOMMU also needs 'interrupt remapping' to be enabled for passthrough to work properly.
-#                  This is more likely always enabled by default in the kernel at the same time as IOMMU, but it can be verified with the following command:
-#                  dmesg | grep 'remapping'
-#                  A line like "AMD-Vi: Interrupt remapping enabled" or "DMAR-IR: Enabled IRQ remapping in x2apic mode" should be present.
-#                  The exact present line depends on the CPU vendor, and due to the lack of documentation, we can't contemplate all possible cases.
-#                  If no line about the enablement of remapping is found, it can be enabled by force with:
-#                  echo "options vfio_iommu_type1 allow_unsafe_interrupts=1" > /etc/modprobe.d/iommu_unsafe_interrupts.conf
-#                  update-initramfs -u -k all && reboot
-#                  TODO: Add it only according to a variable
-
+#                 If VT-d is not enabled in the BIOS, the line will still apear but won't mean anything.
 - name: Check if passthrough is enabled in CPU and IOMMU groups are present
   ansible.builtin.shell:
   args:
@@ -34,26 +16,38 @@
       {{ 'Intel\(R\) Virtualization Technology for Directed I/O' if passthrough_cpu_vendor_id == 'GenuineIntel' else
          'AMD-Vi: Virtual APIC enabled' if passthrough_cpu_vendor_id == 'AuthenticAMD' else '' }}
 
-# It would never apply in AMD CPUs, but just for completion
+# Developer note: The check is expected to never apply in AMD CPUs, but just for completion
 - name: Enable IOMMU in the nodes where necessary
+# - name: Generate GRUB config override file
   when: not (passthrough_iommu_enabled.stdout | bool)
-  block:
-    - name: Generate GRUB config override file
-      ansible.builtin.copy:
-        dest: "/etc/default/grub.d/iommu_enable.cfg"
-        owner: "root"
-        group: "root"
-        mode: "0600"
-        content: "{{ _file_content }}"
-      notify:
-        - Update GRUB
-        - Reboot Machine
-      vars:
-        _file_content: >-
-          {{ 'GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT intel_iommu=on"'
-              if passthrough_cpu_vendor_id == 'GenuineIntel' else
-              'GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT amd_iommu=on"'
-              if passthrough_cpu_vendor_id == 'AuthenticAMD' else '' }}
+  ansible.builtin.copy:
+    dest: "/etc/default/grub.d/iommu_enable.cfg"
+    owner: "root"
+    group: "root"
+    mode: "0600"
+    content: "{{ _file_content }}"
+  notify:
+    - Update GRUB
+    - Reboot Machine
+  vars:
+    _file_content: >-
+      {{ 'GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT intel_iommu=on"'
+          if passthrough_cpu_vendor_id == 'GenuineIntel' else
+          'GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT amd_iommu=on"'
+          if passthrough_cpu_vendor_id == 'AuthenticAMD' else '' }}
+
+- name: Set IOMMU default domain type to passthrough
+  when: passthrough_iommu_pt | bool
+  ansible.builtin.copy:
+    dest: "/etc/default/grub.d/iommu_type.cfg"
+    owner: "root"
+    group: "root"
+    mode: "0600"
+    content: >-
+      {{ 'GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT iommu=pt"' }}
+  notify:
+    - Update GRUB
+    - Reboot Machine
 
 
 - name: Flush handlers
