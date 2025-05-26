@@ -1,6 +1,18 @@
 ---
 - when: ensure_keys_for is sequence and ensure_keys_for | count > 0
   block:
+    - name: Ensure .ssh directory exists
+      ansible.builtin.file:
+        path: "~{{ item.1 }}/.ssh"
+        state: directory
+        owner: "{{ item.1 }}"
+        group: "{{ item.1 }}"
+        mode: "0700"
+      loop: >-
+        {{ [inventory_hostname] | product(ensure_keys_for) }}
+      when:
+        - inventory_hostname in federation.groups.frontend
+        
     - name: Create id_rsa/.pub keypairs
       community.crypto.openssh_keypair:
         path: "~{{ item.1 }}/.ssh/id_rsa"
