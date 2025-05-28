@@ -149,11 +149,11 @@ Note: Always set at least the INVENTORY env-var or '--inventory' option.
 Note: Run the 'requirements' subcommand before any playbook to install the project's software requirements.
 
 OPTIONS:
-  -n | -N | --non-interactive         Do not ask for passwords from the user prompt, for ssh and sudo access (Avoid flags --ask-pass and --ask-become-pass). Overrides the NON_INTERACTIVE env-var (default: false)
   -i | -I | --inventory PATH          Local/absolute path to an Ansible inventory file. Overrides the INVENTORY env-var (default: inventory/example.yml)
   -t | -T | --tags ANSIBLE_TAGS       Additional Ansible tags. Overrides the TAGS env-var (default: empty)
   -s | -S | --skip-tags ANSIBLE_TAGS  Blacklisted Ansible tags. Overrides the SKIP_TAGS env-var (default: empty)
   -v | -V | --verbosity LEVEL         Verbosity level (v, vv, vvv, vvvv, vvvvv or vvvvvv). Overrides the VERBOSE env-var (default: vv)
+  -n | -N | --non-interactive         Do not ask for passwords from the user prompt, for ssh and sudo access (Avoid flags --ask-pass and --ask-become-pass). Overrides the NON_INTERACTIVE env-var (default: false)
   -c | -C | --check | --dry-run       Run playbooks in dry-run mode. Overrides the DRY_RUN env-var (default: false)
   -h | -H | --help                    Show this help
 
