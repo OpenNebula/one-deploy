@@ -104,8 +104,8 @@ install_requirements() {
             --requirements-file "${SELF}/requirements.yml"
     elif [[ -f "${SELF}/requirements.txt" &&  -f "${SELF}/requirements.yml" ]]; then      
         echo "[+] Hatch not found in the system. Installing python requirements using pip and ansible-galaxy..."
-        pip3 install -r "${SELF}/requirements.txt"             # TODO: Rename to python-requirements.txt                                 
-        ansible-galaxy collection install --requirements-file "${SELF}/requirements.yml"  # TODO: Rename to galaxy-requirements.yaml
+        pip3 install -r "${SELF}/requirements.txt"                             
+        ansible-galaxy collection install --requirements-file "${SELF}/requirements.yml"
     fi
 }
 
