@@ -1,0 +1,59 @@
+---
+- name: Get information about the NVIDIA GPUs of each host
+  ansible.builtin.script: "{{ role_path }}/scripts/nvidia_gpus.sh"
+  register: passthrough_nvidia_devices
+  changed_when: false
+
+- name: Tasks will only apply to hosts with at least 1 NVIDIA GPU
+  when: passthrough_nvidia_devices.stdout | from_json | length > 0
+  block:
+    - name: Blacklist nouveau and nvidia drivers
+      ansible.builtin.copy:
+        dest: "/etc/modprobe.d/60-blacklist-nouveau-nvidia.conf"
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          blacklist nouveau
+          blacklist nvidia
+          options nouveau modeset=0
+          options nvidia modeset=0
+      notify:
+        - Update Initramfs
+        - Reboot Machine
+
+    - name: Load vfio kernel modules
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: present
+        persistent: present
+      loop:
+        - vfio
+        - vfio_iommu_type1
+      notify:
+        - Update Initramfs
+        - Reboot Machine
+
+    - name: Load vfio-pci kernel module and asign its driver to NVIDIA GPUs and all the devices in the their IOMMU group
+      community.general.modprobe:
+        name: vfio-pci
+        state: present
+        persistent: present
+        params: "ids={{ _vendor_device_ids }}"
+      vars:
+        _vendor_device_ids: >-
+          {{
+            passthrough_nvidia_devices.stdout
+            | from_json
+            | map(attribute='iommu_group_devices')
+            | map('map', attribute='vendor_device_id')
+            | flatten
+            | unique
+            | join(',')
+          }}
+      notify:
+        - Update Initramfs
+        - Reboot Machine
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
