@@ -27,29 +27,38 @@ all:
 
 infra:
   vars:
+    #runtime_dir: /var/one-deploy/     # Where the VM Image is stored
     os_image_url: https://d24fmfybwxpuhu.cloudfront.net/ubuntu2204-6.8.1-1-20240131.qcow2
-    os_image_size: 20G
-    infra_bridge: br0
+    os_image_size: 100G            # Default: 20G
+    memory_KiB: 41943040           # Default 2097152, 2 GiB
+    infra_bridge: br_management    # Default: br0
+    infra_shared_paths:            # Host-guest shared directories. Useful but usually unnecessary
+      - driver_type: virtiofs
+        source_dir: /var/lib/one/datastores
+        target_dir: /var/lib/one/datastores
   hosts:
-    n1a1: { ansible_host: 10.2.50.10 }
-    n1a2: { ansible_host: 10.2.50.11 }
+    node01: { ansible_host: 192.168.0.41 }
+    node02: { ansible_host: 192.168.0.42 }
+    node03: { ansible_host: 192.168.0.43 }
 
 frontend:
   vars:
     context:
-      ETH0_DNS: 10.2.50.1
-      ETH0_GATEWAY: 10.2.50.1
-      ETH0_MASK: 255.255.255.0
-      ETH0_NETWORK: 10.2.50.0
+      ETH0_NETWORK: "192.168.0.0"
+      ETH0_MASK: "255.255.255.0"
+      ETH0_GATEWAY: "192.168.0.1"
+      ETH0_DNS: "8.8.8.8"
       ETH0_IP: "{{ ansible_host }}"
-      PASSWORD: opennebula
+      USERNAME: "myuser"
+      PASSWORD: "mypassword"
       SSH_PUBLIC_KEY: |
         ssh-rsa AAA... mopala@opennebula.io
         ssh-rsa AAA... sk4zuzu@gmail.com
   # NOTE: Must use IPv4 addresses for ansible_host vars.
   hosts:
-    f1: { ansible_host: 10.2.50.100, infra_hostname: n1a1 }
-    f2: { ansible_host: 10.2.50.101, infra_hostname: n1a2 }
+    fe1: { ansible_host: 192.168.0.11, infra_hostname: node01 }
+    fe2: { ansible_host: 192.168.0.12, infra_hostname: node02 }
+    fe3: { ansible_host: 192.168.0.13, infra_hostname: node03 }
 
 node:
   hosts:
