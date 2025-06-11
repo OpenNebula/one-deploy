@@ -1,0 +1,37 @@
+---
+- hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  collections:
+    - opennebula.deploy
+  tasks:
+    # - name: Instantiate named_vm3 from an existing VM template attaching a NIC device (eth0)
+    #   opennebula.deploy.named_vm:
+    #     name: named_vm3
+    #     template:
+    #       name: "Alpine Linux 3.21 (aarch64)"
+    #       content:
+    #         NIC:
+    #           NETWORK: "vxlan"
+    #     auth:
+    #       host: http://10.0.1.22:2633/RPC2
+    #       user: oneadmin
+    #       pswd: hofvambyWiv0
+
+    # - name: Terminate named_vm3
+    #   opennebula.deploy.named_vm:
+    #     name: named_vm3
+    #     state: absent
+    #     auth:
+    #       host: http://10.0.1.22:2633/RPC2
+    #       user: oneadmin
+    #       pswd: hofvambyWiv0
+
+    - name: Set DEFAULT_CDROM_DEVICE_PREFIX in oned.conf using Augeas
+      opennebula.deploy.augeas:
+        lens: oned
+        file: /etc/one/oned.conf
+        command: set
+        path: DEFAULT_CDROM_DEVICE_PREFIX
+        value: '"/dev/sr0"'
