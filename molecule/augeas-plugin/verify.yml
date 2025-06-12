@@ -1,0 +1,15 @@
+---
+- name: Verify Augeas plugin results
+  hosts: all
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check that test_hosts file contains updated hostname
+      command: grep '192.168.1.99   mynewhost' ../resources/files/test_hosts.target
+      register: grep_result
+      failed_when: grep_result.rc != 0
+
+    - name: Assert that canonical hostname was set
+      command: grep 'mynewhost-by-canonical' ../resources/files/test_hosts.target
+      register: grep_canon
+      failed_when: grep_canon.rc != 0

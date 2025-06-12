@@ -20,3 +20,4 @@ __pycache__/
 /.env.yml
 .vscode
 .ansible/
+/molecule/resources/files/test_hosts.target

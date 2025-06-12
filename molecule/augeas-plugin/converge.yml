@@ -1,0 +1,39 @@
+---
+- hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  collections:
+    - opennebula.deploy
+  tasks:
+    - name: Set hostname for 192.168.1.10 in test_hosts using Augeas
+      opennebula.deploy.augeas_module:
+        lens: Simplelines
+        file: "../resources/files/test_hosts.target"
+        command: set
+        path: 1
+        value: "192.168.1.99   mynewhost"
+
+    - name: Show test_hosts after Augeas
+      ansible.builtin.shell: cat "../resources/files/test_hosts.target"
+      register: hosts_out
+      changed_when: false
+
+    - debug:
+        var: hosts_out.stdout
+
+    - name: Set canonical hostname in test_hosts using Augeas hosts lens
+      opennebula.deploy.augeas_module:
+        lens: Hosts
+        file: "../resources/files/test_hosts.target"
+        command: set
+        path: 2/canonical
+        value: "mynewhost-by-canonical"
+
+    - name: Show test_hosts after Augeas
+      ansible.builtin.shell: cat "../resources/files/test_hosts.target"
+      register: hosts_out
+      changed_when: false
+
+    - debug:
+        var: hosts_out.stdout

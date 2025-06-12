@@ -118,7 +118,7 @@ def main():
         module.fail_json(msg="The python-augeas package is required for this module.")
 
     lens = module.params['lens']
-    file = module.params['file']
+    file = os.path.abspath(module.params['file'])
     command = module.params['command']
     path = module.params['path']
     value = module.params['value']

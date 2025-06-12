@@ -16,6 +16,7 @@ dependencies = [
   "molecule",
   "netaddr",
   "pyone",
+  "python-augeas"
 ]
 
 [tool.hatch.envs.ceph]

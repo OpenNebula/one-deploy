@@ -1,0 +1,13 @@
+---
+- name: Prepare test environment for Augeas plugin
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  tasks:
+    # the python bindings for Augeas are installed as a dependency for the hatch project
+
+    - name: Copy test_hosts file from workspace if present
+      ansible.builtin.copy:
+        src: ../resources/files/test_hosts
+        dest: ../resources/files/test_hosts.target

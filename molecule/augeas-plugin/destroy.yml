@@ -1,0 +1,10 @@
+- name: Cleanup after Molecule tests
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Remove test_hosts file
+      file:
+        path: "../resources/files/test_hosts.target"
+        state: absent
+      ignore_errors: yes
