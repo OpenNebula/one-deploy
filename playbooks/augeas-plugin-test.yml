@@ -28,10 +28,40 @@
     #       user: oneadmin
     #       pswd: hofvambyWiv0
 
-    - name: Set DEFAULT_CDROM_DEVICE_PREFIX in oned.conf using Augeas
-      opennebula.deploy.augeas:
-        lens: oned
-        file: /etc/one/oned.conf
+    # - name: Set DEFAULT_CDROM_DEVICE_PREFIX in oned.conf using Augeas
+    #   opennebula.deploy.augeas:
+    #     lens: oned
+    #     file: /etc/one/oned.conf
+    #     command: set
+    #     path: DEFAULT_CDROM_DEVICE_PREFIX
+    #     value: '"/dev/sr0"'
+
+    # - name: Show test_hosts after Augeas
+    #   ansible.builtin.shell: cat "{{ playbook_dir }}/test_hosts"
+    #   register: hosts_out
+
+    # - debug:
+    #     var: hosts_out.stdout
+
+    - name: Set hostname for 192.168.1.10 in test_hosts using Augeas
+      opennebula.deploy.augeas_module:
+        lens: Simplelines
+        file: "{{ playbook_dir }}/test_hosts"
         command: set
-        path: DEFAULT_CDROM_DEVICE_PREFIX
-        value: '"/dev/sr0"'
+        path: 2
+        value: "192.168.1.99   mynewhost"
+
+    - name: Show test_hosts after Augeas
+      ansible.builtin.shell: cat "{{ playbook_dir }}/test_hosts"
+      register: hosts_out
+
+    - debug:
+        var: hosts_out.stdout
+
+    - name: Set canonical hostname in test_hosts using Augeas hosts lens
+      opennebula.deploy.augeas_module:
+        lens: Hosts
+        file: "{{ playbook_dir }}/test_hosts"
+        command: set
+        path: 2/canonical
+        value: "mynewhost-by-canonical"

@@ -73,6 +73,9 @@ new_value:
 """
 
 from ansible.module_utils.basic import AnsibleModule
+import os
+
+# os.environ.setdefault('AUGEAS_LENS_LIB', '/home/bnemeth/repo/_forks/one-deploy/plugins/modules/augeas-lenses')
 
 try:
     import augeas
@@ -81,9 +84,9 @@ except ImportError:
     HAS_AUGEAS = False
 
 def run_augeas_set(module, lens, file, path, value):
+    # Always use manual loading for custom files
     aug = augeas.Augeas(flags=augeas.Augeas.NO_MODL_AUTOLOAD)
-    # Load the lens and file
-    aug.set("/augeas/load/{}/lens".format(lens), lens)
+    aug.set("/augeas/load/{}/lens".format(lens), lens + ".lns")
     aug.set("/augeas/load/{}/incl".format(lens), file)
     aug.load()
     # Compose the full Augeas path
@@ -94,7 +97,6 @@ def run_augeas_set(module, lens, file, path, value):
     if not module.check_mode and changed:
         aug.set(full_path, value)
         aug.save()
-    # Re-read after save (or for check mode)
     new_value = value if changed else old_value
     return changed, old_value, new_value
 
