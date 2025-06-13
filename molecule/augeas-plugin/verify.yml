@@ -13,3 +13,18 @@
       command: grep 'mynewhost-by-canonical' ../resources/files/test_hosts.target
       register: grep_canon
       failed_when: grep_canon.rc != 0
+
+    - name: Assert DEFAULT_CDROM_DEVICE_PREFIX was set in oned.conf
+      shell: grep 'DEFAULT_CDROM_DEVICE_PREFIX' ../resources/files/oned.conf.target | grep '"new-value-cdrom"'
+      register: grep_cdrom
+      failed_when: grep_cdrom.rc != 0
+
+    - name: Assert HOOK_LOG_CONF/LOG_RETENTION was set in oned.conf
+      shell: grep -A2 'HOOK_LOG_CONF' ../resources/files/oned.conf.target | grep 'LOG_RETENTION' | grep '9999'
+      register: grep_hook
+      failed_when: grep_hook.rc != 0
+
+    - name: Assert RAW was set in vmm_exec_kvm.conf
+      shell: grep 'RAW' ../resources/files/vmm_exec_kvm.conf.target | grep "<devices><input type='keyboard' bus='virtio'/></devices>"
+      register: grep_raw
+      failed_when: grep_raw.rc != 0

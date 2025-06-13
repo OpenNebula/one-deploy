@@ -6,8 +6,22 @@
   gather_facts: false
   tasks:
     # the python bindings for Augeas are installed as a dependency for the hatch project
-
-    - name: Copy test_hosts file from workspace if present
+    - name: Copy test_hosts file from workspace
       ansible.builtin.copy:
         src: ../resources/files/test_hosts
         dest: ../resources/files/test_hosts.target
+        mode: '0644'
+
+    - name: Download oned.conf from GitHub
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/OpenNebula/one/master/share/etc/oned.conf
+        dest: ../resources/files/oned.conf.target
+        mode: '0644'
+
+
+    - name: Download vmm_exec_kvm.conf from GitHub
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/OpenNebula/one/refs/heads/master/src/vmm_mad/exec/vmm_exec_kvm.conf
+        dest: ../resources/files/vmm_exec_kvm.conf.target
+        mode: '0644'
+

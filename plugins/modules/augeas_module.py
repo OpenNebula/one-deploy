@@ -75,8 +75,6 @@ new_value:
 from ansible.module_utils.basic import AnsibleModule
 import os
 
-# os.environ.setdefault('AUGEAS_LENS_LIB', '/home/bnemeth/repo/_forks/one-deploy/plugins/modules/augeas-lenses')
-
 try:
     import augeas
     HAS_AUGEAS = True

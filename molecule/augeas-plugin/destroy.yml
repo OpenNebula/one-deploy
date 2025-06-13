@@ -3,8 +3,20 @@
   connection: local
   gather_facts: false
   tasks:
-    - name: Remove test_hosts file
-      file:
-        path: "../resources/files/test_hosts.target"
+    - name: Remove test_hosts.target
+      ansible.builtin.file:
+        path: ../resources/files/test_hosts.target
+        state: absent
+      ignore_errors: yes
+
+    - name: Remove oned.conf.target
+      ansible.builtin.file:
+        path: ../resources/files/oned.conf.target
+        state: absent
+      ignore_errors: yes
+
+    - name: Remove vmm_exec_kvm.conf.target
+      ansible.builtin.file:
+        path: ../resources/files/vmm_exec_kvm.conf.target
         state: absent
       ignore_errors: yes
