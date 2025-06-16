@@ -1,0 +1,21 @@
+---
+dependency:
+  name: galaxy
+
+platforms:
+  - name: localhost
+    hostname: localhost
+    groups:
+      - all
+
+provisioner:
+  name: ansible
+  playbooks:
+    converge: converge.yml
+
+verifier:
+  name: ansible
+
+lint: |
+  yamllint .
+  ansible-lint

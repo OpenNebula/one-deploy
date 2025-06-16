@@ -1,0 +1,80 @@
+---
+- hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  collections:
+    - opennebula.deploy
+  tasks:
+    - name: Set hostname for 192.168.1.10 in test_hosts using Augeas
+      opennebula.deploy.augeas_module:
+        lens: Simplelines
+        file: "../resources/files/test_hosts.target"
+        command: set
+        path: 1
+        value: "192.168.1.99   mynewhost"
+
+    - name: Show test_hosts after Augeas
+      ansible.builtin.shell: cat "../resources/files/test_hosts.target"
+      register: hosts_out
+      changed_when: false
+
+    - debug:
+        var: hosts_out.stdout
+
+    - name: Set canonical hostname in test_hosts using Augeas hosts lens
+      opennebula.deploy.augeas_module:
+        lens: Hosts
+        file: "../resources/files/test_hosts.target"
+        command: set
+        path: 2/canonical
+        value: "mynewhost-by-canonical"
+
+    - name: Show test_hosts after Augeas
+      ansible.builtin.shell: cat "../resources/files/test_hosts.target"
+      register: hosts_out
+      changed_when: false
+
+    - debug:
+        var: hosts_out.stdout
+
+    # The .conf files are fetched from github
+    - name: Test custom lens for OpenNebula 
+      opennebula.deploy.augeas_module:
+        lens: oned
+        file: "../resources/files/oned.conf.target"
+        command: set
+        path: DEFAULT_CDROM_DEVICE_PREFIX
+        value: '"new-value-cdrom"'
+
+    - name: Test custom lens for OpenNebula 
+      opennebula.deploy.augeas_module:
+        lens: oned
+        file: "../resources/files/oned.conf.target"
+        command: set
+        path: HOOK_LOG_CONF/LOG_RETENTION
+        value: "9999"
+
+    - name: Show test_hosts after Augeas
+      ansible.builtin.shell: cat "../resources/files/oned.conf.target" | grep -A2 -E 'DEFAULT_CDROM_DEVICE_PREFIX|HOOK_LOG_CONF'
+      register: oned_out
+      changed_when: false
+
+    - debug:
+        var: oned_out.stdout
+
+    - name: Test custom lens for OpenNebula 
+      opennebula.deploy.augeas_module:
+        lens: oned
+        file: "../resources/files/vmm_exec_kvm.conf.target"
+        command: set
+        path: RAW
+        value: "\"<devices><input type='keyboard' bus='virtio'/></devices>\""
+
+    - name: Show vmm_exec_kvm.conf after Augeas 
+      ansible.builtin.shell: cat "../resources/files/vmm_exec_kvm.conf.target" | grep -A2 -E 'RAW'
+      register: vmm_out
+      changed_when: false
+
+    - debug:
+        var: vmm_out.stdout
