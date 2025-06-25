@@ -14,7 +14,7 @@
     #       don't set unattend_disable to true or stop/mask the service yourself.
     - name: Purge unattended-upgrades.service
       ansible.builtin.package:
-        name: unattended-upgrades.service
+        name: unattended-upgrades
         state: absent
         purge: true
       register: result
