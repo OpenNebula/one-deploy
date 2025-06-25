@@ -9,6 +9,7 @@
       tags: [bastion]
 
 - hosts:
+    - "{{ router_group | d('router') }}"
     - "{{ frontend_group | d('frontend') }}"
     - "{{ node_group | d('node') }}"
     - "{{ grafana_group | d('grafana') }}"

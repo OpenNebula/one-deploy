@@ -1,4 +1,8 @@
 ---
+- name: Store evpn_if in hostvars
+  ansible.builtin.set_fact:
+    evpn_if: "{{ evpn_if }}"
+
 - name: Configure BGP
   ansible.builtin.template:
     dest: /etc/frr/bgpd.conf

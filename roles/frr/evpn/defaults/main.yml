@@ -18,6 +18,8 @@ evpn_pfxlen: >-
 # NOTE: If you don't define the "router" inventory group and override the "evpn_rr_servers" variable, then
 #       you can use existing RRs (that are unmanaged by one-deploy).
 evpn_rr_servers: >-
-  {{ (groups[router_group | d('router')] | map('extract', hostvars, ['ansible_' ~ evpn_if, 'ipv4', 'address']) | list)
-     if (groups[router_group | d('router')] is defined) else
-     [] }}
+  {%- set output = [] -%}
+  {%- for _host in (groups[router_group | d('router')] | d([])) -%}
+  {{- output.append(hostvars[_host]['ansible_' ~ hostvars[_host].evpn_if].ipv4.address) -}}
+  {%- endfor -%}
+  {{- output -}}
