@@ -47,6 +47,9 @@
   collections:
     - opennebula.deploy
   roles:
+    - role: helper/facts
+      tags: [always]
+
     - role: frr/evpn
       when: &evpn
         - features.evpn | bool is true
