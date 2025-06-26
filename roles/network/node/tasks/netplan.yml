@@ -41,6 +41,7 @@
           netplan set 'bridges.{{ _bridge }}.{{ key }}={{ value | to_json }}'
           {% endfor %}
           netplan set 'bridges.{{ _bridge }}.interfaces=["{{ _phydev }}"]'
+          netplan set 'bridges.{{ _bridge }}.macaddress={{ _macaddress }}'
 
           {% for key, value in _cleanup.items() %}
           netplan set '{{ phydev_cfg[_phydev].type }}.{{ _phydev }}.{{ key }}={{ value | to_json }}'
@@ -54,6 +55,8 @@
           {{ phydev_cfg[_phydev].config | dict2items
                                         | selectattr('key', 'in', _cleanup.keys())
                                         | items2dict }}
+        _macaddress: >-
+          {{ ansible_facts[_phydev]['macaddress'] }}
         _cleanup:
           dhcp4: false
           dhcp6: false
