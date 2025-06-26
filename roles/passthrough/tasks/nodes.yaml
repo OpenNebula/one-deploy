@@ -1,0 +1,12 @@
+---
+- name: Import validation tasks
+  ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/validation-checks.yaml"
+
+- name: Import tasks to ensure IOMMU is enabled tasks
+  ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/enable-iommu.yaml"
+
+- name: Import tasks specific for NVIDIA GPUs
+  ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/nvidia-gpu.yaml"
