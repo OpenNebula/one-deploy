@@ -10,12 +10,14 @@
 # NOTE: ONEGATE_ENDPOINT is automatically propagated (as an environment variable)
 #       to VMs that are expected to be using OneGate.
 - name: Configure oned (ONEGATE_ENDPOINT)
-  ansible.builtin.lineinfile:
-    path: /etc/one/oned.conf
-    regexp: '^[#\s]*ONEGATE_ENDPOINT\s*=.*$'
-    line: 'ONEGATE_ENDPOINT = "{{ _endpoint }}"'
+  opennebula.deploy.cfgtool:
+    dest: /etc/one/oned.conf
+    parser: One
+    operation: Put
+    path: ONEGATE_ENDPOINT
+    value: '"{{ _gate_endpoint }}"'
   vars:
-    _endpoint: >-
+    _gate_endpoint: >-
       {{ gate_endpoint | d(_default) }}
     _default: >-
       {{ 'http://' ~ (one_vip | d(_host)) ~ ':5030' }}
