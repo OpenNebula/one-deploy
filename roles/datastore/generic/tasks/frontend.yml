@@ -1,6 +1,8 @@
 ---
 - ansible.builtin.import_tasks:
     file: "{{ role_path }}/tasks/common.yml"
+  vars:
+    common_task: init
 
 - ansible.builtin.include_role:
     name: opennebula/leader
@@ -73,6 +75,37 @@
         executable: /bin/bash
       changed_when: true
       loop: "{{ _missing }}"
+      register: new_ds
       vars:
         _missing: >-
           {{ ds_names | reject('in', ds_names_parsed) }}
+
+    - name: Map created datastores
+      ansible.builtin.set_fact:
+        ds_map: >-
+          {{ (ds_map | default({})) | combine({
+              (item.item): {
+                'id': (item.stdout.splitlines()[-1].split(':')[-1] | trim),
+                'src': ds_dict[item.item].symlink.src | default('/var/lib/one/datastores/') | normpath,
+                'groups': ds_dict[item.item].symlink.groups | default([])
+              }
+            }) }}
+      loop: "{{ new_ds.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      run_once: true
+      when: new_ds is defined
+
+    - name: Publish datastore mapping
+      ansible.builtin.add_host:
+        name: datastore_mapping_host
+        groups: datastore_map
+        ds_map: "{{ hostvars[inventory_hostname].ds_map | default({}) }}"
+      run_once: true
+      when:
+        - hostvars[inventory_hostname].ds_map is defined
+
+- ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/common.yml"
+  vars:
+    common_task: symlink
