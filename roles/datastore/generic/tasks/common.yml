@@ -14,6 +14,7 @@
              | map('dict2items')
              | flatten
              | rejectattr('value.managed', 'false') }}
+  when: common_task in ['init', 'all']
 
 - name: Ensure /var/lib/one/datastores/ exists
   ansible.builtin.file:
@@ -22,52 +23,56 @@
     owner: 9869 # oneadmin
     group: 9869 # oneadmin
     mode: u=rwx,g=rx,o=
+  when: common_task in ['init', 'all']
 
-- name: Setup datastore symlinks
-  ansible.builtin.shell:
-    cmd: |
-      set -o errexit
+- name: Convert Datastore directories into symlinks
+  ansible.builtin.shell: |
+    set -o errexit
 
-      if [[ -L '{{ _base_path }}' ]]; then exit 0; fi
+    [[ ! -d "{{ _mount_path }}" ]] && echo "Symlink target {{ _mount_path }} does not exist." >&2 && exit 1
 
-      if ! [[ -d '{{ _mount_path }}' ]]; then
-        echo "Symlink target does not exist or is not a directory." >&2
-        exit 1
+    mkdir -p "{{ _mount_path }}/{{ item.value.id }}"
+    TARGET_PATH="{{ _mount_path }}/{{ item.value.id }}"
+
+    if [[ -L "{{ _base_path }}" ]]; then
+      TARGET="$(readlink -f "{{ _base_path }}")"
+      [[ "${TARGET}" == "${TARGET_PATH}" ]] && exit 0
+      rm -f "{{ _base_path }}"
+    fi
+
+    if [[ -d "{{ _base_path }}" ]]; then
+      if rmdir "{{ _base_path }}"; then
+        ln -s "${TARGET_PATH}" "{{ _base_path }}"
+      else
+        echo "Directory {{ _base_path }} exists and is not empty; skipping" >&2
+        exit 0
       fi
+    else
+      ln -s "${TARGET_PATH}" "{{ _base_path }}"
+    fi
 
-      if [[ -d '{{ _base_path }}' ]] && ! rmdir '{{ _base_path }}'; then exit 1; fi
-
-      if ! ln -s '{{ _mount_path }}' '{{ _base_path }}'; then exit 1; fi
-
-      exit 78
+    exit 78
+  args:
     executable: /bin/bash
-  when:
-    - inventory_hostname in _hosts
-    # NOTE: It doesn't really make sense to symlink /var/lib/one/datastores/,
-    #       so we use that as a skip condition.
-    - _mount_path != '/var/lib/one/datastores'
-    - ds_dict[item].id is defined
   vars:
-    # This isn't strictly a "mountpoint" (that's completely irrelevant).
     _mount_path: >-
-      {{ ds_dict[item].symlink.src | d('/var/lib/one/datastores/') | normpath }}
-    # NOTE: 1. In OpenNebula all user-created datastores start from ID=100.
-    #       2. If the ds_dict[item].id refers to an existing datastore, then one-deploy tries to update it (later).
-    #       3. If 2. is false, then a new datastore is created using the next available ID (later).
-    #       4. If 3. is true, then at this exact point in time one-deploy does *NOT* know the ID.
-    #       5. The 'generic' mode has been specifically designed in such a way that reduces code complexity.
-    #          Users *MUST* provide the 'id' attribute for each new entry in the 'ds.config' dict
-    #          (starting from 100, then incrementing by 1 further down the line).
+      {{ item.value.src | d('/var/lib/one/datastores/') | normpath }}
     _base_path: >-
-      /var/lib/one/datastores/{{ ds_dict[item].id }}
+      /var/lib/one/datastores/{{ item.value.id }}
     _hosts: >-
-      {{ ds_dict[item].symlink.groups | d([])
-                                      | map('extract', groups)
-                                      | flatten
-                                      | unique }}
+      {{ item.value.groups | d([])
+                           | map('extract', groups)
+                           | flatten
+                           | unique }}
+  loop: "{{ hostvars['datastore_mapping_host'].ds_map | dict2items }}"
+  loop_control:
+    label: "{{ item.key }} -> {{ item.value.id }}"
   register: shell
   changed_when:
-    - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
+    - shell.rc == 78
   failed_when:
-    - shell.rc != 0 and shell.rc != 78
-  loop: "{{ ds_names }}"
+    - shell.rc not in [0, 78]
+  when:
+    - inventory_hostname in _hosts
+    - _mount_path != '/var/lib/one/datastores'
+    - common_task in ['symlink', 'all']

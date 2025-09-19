@@ -1,3 +1,5 @@
 ---
 - ansible.builtin.import_tasks:
     file: "{{ role_path }}/tasks/common.yml"
+  vars:
+    common_task: all

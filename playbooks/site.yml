@@ -1,6 +1,6 @@
 ---
 - hosts: all
-  tags: [frontend, node, grafana, stage1, stage2, stage3]
+  tags: [frontend, node, grafana, stage1, stage2, stage3, stage4]
   collections:
     - opennebula.deploy
   roles:
@@ -68,6 +68,7 @@
 
     - role: datastore/node
       tags: [datastore]
+      when: ds.mode is defined and ds.mode != 'generic'
 
     - role: frr/evpn
       tags: [network]
@@ -106,6 +107,15 @@
     - role: prometheus/server
       tags: [prometheus]
       when: *prometheus
+
+- hosts: "{{ node_group | d('node') }}"
+  tags: [node, stage4]
+  collections:
+    - opennebula.deploy
+  roles:
+    - role: datastore/node
+      tags: [datastore]
+      when: ds.mode is defined and ds.mode == 'generic'
 
 - hosts: "{{ grafana_group | d('grafana') }}"
   collections:
