@@ -1,0 +1,8 @@
+---
+- name: Enable passthrough functionalities in OpenNebula
+  hosts: all
+  tags: [passthrough, node, frontend]
+  collections:
+    - opennebula.deploy
+  roles:
+    - role: passthrough

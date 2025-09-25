@@ -1,0 +1,12 @@
+---
+- name: Run passthrough tasks for nodes
+  ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/nodes.yaml"
+  when: inventory_hostname in groups.get(node_group | d('node'), [])
+  tags: [passthrough, node]
+
+- name: Run passthrough tasks for frontends
+  ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/frontends.yaml"
+  when: inventory_hostname in groups.get(frontend_group | d('frontend'), [])
+  tags: [passthrough, frontend]
