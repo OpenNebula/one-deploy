@@ -48,20 +48,17 @@
   vars: *vars
 
 - name: Configure oned (FEDERATION/SERVER_ID)
-  ansible.builtin.replace:
-    path: /etc/one/oned.conf
-    after: '\nFEDERATION *= *\[' # find the start
-    regexp: "{{ item.regexp }}"  # match the option
-    before: '\] *\n'             # find the end
-    replace: "{{ item.replace }}"
-  loop:
-    - regexp: 'SERVER_ID( *)= *.*([,\s])$'
-      replace: >-
-        SERVER_ID\g<1>= {{ server_id }}\g<2>
-  register: replace
+  opennebula.deploy.cfgtool:
+    dest: /etc/one/oned.conf
+    parser: One
+    actions:
+      - put:
+          path: [FEDERATION, SERVER_ID]
+          value: '{{ server_id }}'
+  register: cfgtool
 
 - name: Restart OpenNebula (NOW)
   ansible.builtin.service:
     name: opennebula
     state: restarted
-  when: replace is changed
+  when: cfgtool is changed

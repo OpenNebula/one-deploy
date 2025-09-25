@@ -9,36 +9,40 @@
     backup: true
   when: one_pass is defined and one_pass is truthy
 
-- name: Configure oned (DB)
-  ansible.builtin.replace:
-    path: /etc/one/oned.conf
-    # NOTE: \s     <- matches also newlines
-    #       .      <- does *not* match newlines
-    #       [\S\s] <- matches anything (including newlines)
-    after: '\nDB *= *\[' # find the start
-    regexp: '^[\S\s]*$'  # match anything in between
-    before: '\] *\n'     # find the end
-    replace: "\n{{ _replace }} "
+- name: Configure oned (DB + ONEGATE_ENDPOINT)
+  opennebula.deploy.cfgtool:
+    dest: /etc/one/oned.conf
+    parser: One
+    actions: "{{ item.actions }}"
+  no_log: "{{ item.no_log | d(false) }}"
+  loop: "{{ _items }}"
   vars:
-    _replace: |2-
-        BACKEND = "{{ db_backend_types[db_backend] }}",
-        SERVER  = "localhost",
-        PORT    = 0,
-        USER    = "{{ db_owner }}",
-        PASSWD  = "{{ db_password }}",
-        DB_NAME = "{{ db_name }}"
-  notify:
-    - Restart OpenNebula
-
-# Initial deployment optimization (to reduce number of Leader restarts),
-# later this step is repeated in the "gate" role.
-- name: Configure oned (ONEGATE_ENDPOINT)
-  ansible.builtin.lineinfile:
-    path: /etc/one/oned.conf
-    regexp: '^[#\s]*ONEGATE_ENDPOINT\s*=.*$'
-    line: 'ONEGATE_ENDPOINT = "{{ _endpoint }}"'
-  vars:
-    _endpoint: >-
+    _items:
+      - actions:
+          - put:
+              path: [DB, BACKEND]
+              value: '"{{ db_backend_types[db_backend] }}"'
+          - put:
+              path: [DB, SERVER]
+              value: '"localhost"'
+          - put:
+              path: [DB, PORT]
+              value: 0
+          - put:
+              path: [DB, USER]
+              value: '"{{ db_owner }}"'
+          - put:
+              path: [DB, DB_NAME]
+              value: '"{{ db_name }}"'
+          - put:
+              path: [ONEGATE_ENDPOINT]
+              value: '"{{ _gate_endpoint }}"'
+      - actions:
+          - put:
+              path: [DB, PASSWD]
+              value: '"{{ db_password }}"'
+        no_log: true
+    _gate_endpoint: >-
       {{ gate_endpoint | d(_default) }}
     _default: >-
       {{ 'http://' ~ (one_vip | d(_host)) ~ ':5030' }}
@@ -48,82 +52,58 @@
     - Restart OpenNebula
 
 - name: Workaround potential Libvirt's NFS detection issues
-  ansible.builtin.lineinfile:
-    path: /var/lib/one/remotes/etc/vmm/kvm/kvmrc
-    regexp: '^[#\s]*MIGRATE_OPTIONS\s*=.*$'
-    line: 'MIGRATE_OPTIONS=--unsafe'
+  opennebula.deploy.cfgtool:
+    dest: /var/lib/one/remotes/etc/vmm/kvm/kvmrc
+    parser: Rc
+    actions:
+      - put:
+          path: [MIGRATE_OPTIONS]
+          value: '--unsafe'
   notify:
     - Sync Remotes
   when: unsafe_migrations | bool is true
 
 - name: Handle the keep_empty_bridge VNM setting
-  ansible.builtin.lineinfile:
-    path: /var/lib/one/remotes/etc/vnm/OpenNebulaNetwork.conf
-    regexp: '^:keep_empty_bridge:.*$'
-    line: ':keep_empty_bridge: {{ "true" if (keep_empty_bridge | bool is true) else "false" }}'
+  opennebula.deploy.cfgtool:
+    dest: /var/lib/one/remotes/etc/vnm/OpenNebulaNetwork.conf
+    parser: Yaml
+    actions:
+      - put:
+          path: [":keep_empty_bridge"]
+          value: "{{ keep_empty_bridge | bool is true }}"
   notify:
     - Sync Remotes
 
 - when: use_ha is true
   block:
-    - name: Configure oned (RAFT_LEADER_HOOK)
-      ansible.builtin.replace:
-        path: /etc/one/oned.conf
-        after: "{{ item.after | d(omit) }}"
-        regexp: "{{ item.regexp | d(omit) }}"
-        before: "{{ item.before | d(omit) }}"
-        replace: "{{ item.replace | d(omit) }}"
-      loop:
-        # Uncomment existing line.
-        - regexp: '^# *(RAFT_LEADER_HOOK *=.*)$'
-          replace: '\g<1>'
-        # NOTE: \s     <- matches also newlines
-        #       .      <- does *not* match newlines
-        #       [\S\s] <- matches anything (including newlines)
-        - after: '\nRAFT_LEADER_HOOK *= *\[' # find the start
-          regexp: '^[\S\s]*$'                # match anything in between
-          before: '\] *\n'                   # find the end
-          replace: "\n{{ _replace }} "
-      vars:
-        _replace: |2-
-            COMMAND   = "raft/vip.sh",
-            ARGUMENTS = "leader {{ one_vip_if }} {{ one_vip }}/{{ one_vip_cidr }}"
+    - name: Configure oned (RAFT)
+      opennebula.deploy.cfgtool:
+        dest: /etc/one/oned.conf
+        parser: One
+        actions:
+          - put:
+              path: [RAFT_LEADER_HOOK, COMMAND]
+              value: '"raft/vip.sh"'
+          - put:
+              path: [RAFT_LEADER_HOOK, ARGUMENTS]
+              value: '"leader {{ one_vip_if }} {{ one_vip }}/{{ one_vip_cidr }}"'
+          - put:
+              path: [RAFT_FOLLOWER_HOOK, COMMAND]
+              value: '"raft/vip.sh"'
+          - put:
+              path: [RAFT_FOLLOWER_HOOK, ARGUMENTS]
+              value: '"follower {{ one_vip_if }} {{ one_vip }}/{{ one_vip_cidr }}"'
       notify:
         - Restart OpenNebula
 
-    - name: Configure oned (RAFT_FOLLOWER_HOOK)
-      ansible.builtin.replace:
-        path: /etc/one/oned.conf
-        after: "{{ item.after | d(omit) }}"
-        regexp: "{{ item.regexp | d(omit) }}"
-        before: "{{ item.before | d(omit) }}"
-        replace: "{{ item.replace | d(omit) }}"
-      loop:
-        # Uncomment existing line.
-        - regexp: '^# *(RAFT_FOLLOWER_HOOK *=.*)$'
-          replace: '\g<1>'
-        # NOTE: \s     <- matches also newlines
-        #       .      <- does *not* match newlines
-        #       [\S\s] <- matches anything (including newlines)
-        - after: '\nRAFT_FOLLOWER_HOOK *= *\[' # find the start
-          regexp: '^[\S\s]*$'                  # match anything in between
-          before: '\] *\n'                     # find the end
-          replace: "\n{{ _replace }} "
-      vars:
-        _replace: |2-
-            COMMAND   = "raft/vip.sh",
-            ARGUMENTS = "follower {{ one_vip_if }} {{ one_vip }}/{{ one_vip_cidr }}"
-      notify:
-        - Restart OpenNebula
-
-    - name: Configure monitord (MONITOR_ADDRESS)
-      ansible.builtin.replace:
-        path: /etc/one/monitord.conf
-        after: '\nNETWORK *= *\['                  # find the start
-        regexp: 'MONITOR_ADDRESS( *)= *.*([,\s])$' # match the option
-        before: '\] *\n'                           # find the end
-        replace: >-
-          MONITOR_ADDRESS\g<1>= "{{ one_vip }}"\g<2>
+    - name: Configure monitord
+      opennebula.deploy.cfgtool:
+        dest: /etc/one/monitord.conf
+        parser: One
+        actions:
+          - put:
+              path: [NETWORK, MONITOR_ADDRESS]
+              value: '"{{ one_vip }}"'
       notify:
         - Restart OpenNebula
 
@@ -139,11 +119,59 @@
 
     # NOTE: Adding global unknown/custom options has no effect!
     - name: Configure drs scheduler
-      ansible.builtin.replace:
-        path: /etc/one/schedulers/one_drs.conf
-        regexp: '^{{ item.key }}:[\s\S]*?(?=\n^\w+:|\Z)'
-        replace: "{{ {item.key: item.value} | to_nice_yaml(indent=2) }}"
-      loop: "{{ sched_drs | dict2items }}"
+      opennebula.deploy.cfgtool:
+        dest: /etc/one/schedulers/one_drs.conf
+        parser: Yaml
+        actions:
+          - when: "{{ sched_drs.DEFAULT_SCHED.SOLVER is defined }}"
+            put:
+              path: [DEFAULT_SCHED, SOLVER]
+              value: "{{ sched_drs.DEFAULT_SCHED.SOLVER | d(omit) }}"
+
+          - when: "{{ sched_drs.DEFAULT_SCHED.SOLVER_PATH is defined }}"
+            put:
+              path: [DEFAULT_SCHED, SOLVER_PATH]
+              value: "{{ sched_drs.DEFAULT_SCHED.SOLVER_PATH | d(omit) }}"
+
+          - when: "{{ sched_drs.PLACE.POLICY is defined }}"
+            put:
+              path: [PLACE, POLICY]
+              value: "{{ sched_drs.PLACE.POLICY | d(omit) }}"
+
+          - when: "{{ sched_drs.PLACE.WEIGHTS is defined }}"
+            put:
+              path: [PLACE, WEIGHTS]
+              value: "{{ sched_drs.PLACE.WEIGHTS | d(omit) }}"
+
+          - when: "{{ sched_drs.OPTIMIZE.POLICY is defined }}"
+            put:
+              path: [OPTIMIZE, POLICY]
+              value: "{{ sched_drs.OPTIMIZE.POLICY | d(omit) }}"
+
+          - when: "{{ sched_drs.OPTIMIZE.MIGRATION_THRESHOLD is defined }}"
+            put:
+              path: [OPTIMIZE, MIGRATION_THRESHOLD]
+              value: "{{ sched_drs.OPTIMIZE.MIGRATION_THRESHOLD | d(omit) }}"
+
+          - when: "{{ sched_drs.OPTIMIZE.WEIGHTS is defined }}"
+            put:
+              path: [OPTIMIZE, WEIGHTS]
+              value: "{{ sched_drs.OPTIMIZE.WEIGHTS | d(omit) }}"
+
+          - when: "{{ sched_drs.PREDICTIVE is defined }}"
+            put:
+              path: [PREDICTIVE]
+              value: "{{ sched_drs.PREDICTIVE | d(omit) }}"
+
+          - when: "{{ sched_drs.MEMORY_SYSTEM_DS_SCALE is defined }}"
+            put:
+              path: [MEMORY_SYSTEM_DS_SCALE]
+              value: "{{ sched_drs.MEMORY_SYSTEM_DS_SCALE | d(omit) }}"
+
+          - when: "{{ sched_drs.DIFFERENT_VNETS is defined }}"
+            put:
+              path: [DIFFERENT_VNETS]
+              value: "{{ sched_drs.DIFFERENT_VNETS | d(omit) }}"
       when: stat_drs_conf.stat.exists is true
 
 - when: sched_rank is mapping
@@ -158,67 +186,62 @@
 
     # NOTE: Adding global unknown/custom options has no effect!
     - name: Configure rank scheduler
-      ansible.builtin.replace:
-        path: /etc/one/schedulers/rank.conf
-        regexp: "{{ item.regexp | d(omit) }}"
-        replace: "{{ item.replace | d(omit) }}"
-      loop: "{{ _rank_config | selectattr('update') | list }}"
-      vars:
-        _rank_config:
-          - regexp: 'MEMORY_SYSTEM_DS_SCALE( *)= *.*([\s])$'
-            update: "{{ sched_rank.MEMORY_SYSTEM_DS_SCALE is defined }}"
-            replace: >-
-              MEMORY_SYSTEM_DS_SCALE\g<1>= {{ sched_rank.MEMORY_SYSTEM_DS_SCALE | d(omit) }}\g<2>
-          - regexp: 'MAX_HOST( *)= *.*([\s])$'
-            update: "{{ sched_rank.MAX_HOST is defined }}"
-            replace: >-
-              MAX_HOST\g<1>= {{ sched_rank.MAX_HOST | d(omit) }}\g<2>
-          - regexp: 'DIFFERENT_VNETS( *)= *.*([\s])$'
-            update: "{{ sched_rank.DIFFERENT_VNETS is defined }}"
-            replace: >-
-              DIFFERENT_VNETS\g<1>= {{ ("YES" if (sched_rank.DIFFERENT_VNETS | d(omit) | bool) else "NO") }}\g<2>
-          - regexp: '^(DEFAULT_SCHED( *)= *\[)[\S\s]*?(\])$'
-            update: "{{ sched_rank.DEFAULT_SCHED is defined }}"
-            replace: |-
-              \g<1>
-              {% if sched_rank.DEFAULT_SCHED.POLICY | d(false) %}
-                 POLICY = {{ sched_rank.DEFAULT_SCHED.POLICY | d(omit) }}
-              {% endif %}
-              {% if sched_rank.DEFAULT_SCHED.RANK | d(false) %}
-                 RANK = "{{ sched_rank.DEFAULT_SCHED.RANK | d(omit) }}"
-              {% endif %}
-              \g<3>
-          - regexp: '^(DEFAULT_DS_SCHED( *)= *\[)[\S\s]*?(\])$'
-            update: "{{ sched_rank.DEFAULT_DS_SCHED is defined }}"
-            replace: |-
-              \g<1>
-              {% if sched_rank.DEFAULT_DS_SCHED.POLICY | d(false) %}
-                 POLICY = {{ sched_rank.DEFAULT_DS_SCHED.POLICY | d(omit) }}
-              {% endif %}
-              {% if sched_rank.DEFAULT_DS_SCHED.RANK | d(false) %}
-                 RANK = "{{ sched_rank.DEFAULT_DS_SCHED.RANK | d(omit) }}"
-              {% endif %}
-              \g<3>
-          - regexp: '^(DEFAULT_NIC_SCHED( *)= *\[)[\S\s]*?(\])$'
-            update: "{{ sched_rank.DEFAULT_NIC_SCHED is defined }}"
-            replace: |-
-              \g<1>
-              {% if sched_rank.DEFAULT_NIC_SCHED.POLICY | d(false) %}
-                 POLICY = {{ sched_rank.DEFAULT_NIC_SCHED.POLICY | d(omit) }}
-              {% endif %}
-              {% if sched_rank.DEFAULT_NIC_SCHED.RANK | d(false) %}
-                 RANK = "{{ sched_rank.DEFAULT_NIC_SCHED.RANK | d(omit) }}"
-              {% endif %}
-              \g<3>
-          - regexp: '^(LOG( *)= *\[)[\S\s]*?(\])$'
-            update: "{{ sched_rank.LOG is defined }}"
-            replace: |-
-              \g<1>
-              {% if sched_rank.LOG.SYSTEM | d(false) %}
-                SYSTEM = "{{ sched_rank.LOG.SYSTEM | d(omit) }}"
-              {% endif %}
-              {% if sched_rank.LOG.DEBUG_LEVEL | d(false) %}
-                DEBUG_LEVEL = {{ sched_rank.LOG.DEBUG_LEVEL | d(omit) }}
-              {% endif %}
-              \g<3>
+      opennebula.deploy.cfgtool:
+        dest: /etc/one/schedulers/rank.conf
+        parser: One
+        actions:
+          - when: "{{ sched_rank.MEMORY_SYSTEM_DS_SCALE is defined }}"
+            put:
+              path: [MEMORY_SYSTEM_DS_SCALE]
+              value: '{{ sched_rank.MAX_HOST | d(omit) }}'
+
+          - when: "{{ sched_rank.MAX_HOST is defined }}"
+            put:
+              path: [MAX_HOST]
+              value: '{{ sched_rank.MAX_HOST | d(omit) }}'
+
+          - when: "{{ sched_rank.DIFFERENT_VNETS is defined }}"
+            put:
+              path: [DIFFERENT_VNETS]
+              value: '{{ "YES" if (sched_rank.DIFFERENT_VNETS | d(omit) | bool) else "NO" }}'
+
+          - when: "{{ sched_rank.DEFAULT_SCHED.POLICY is defined }}"
+            put:
+              path: [DEFAULT_SCHED, POLICY]
+              value: '{{ sched_rank.DEFAULT_SCHED.POLICY | d(omit) }}'
+
+          - when: "{{ sched_rank.DEFAULT_SCHED.RANK is defined }}"
+            put:
+              path: [DEFAULT_SCHED, RANK]
+              value: '"{{ sched_rank.DEFAULT_SCHED.RANK | d(omit) }}"'
+
+          - when: "{{ sched_rank.DEFAULT_DS_SCHED.POLICY is defined }}"
+            put:
+              path: [DEFAULT_DS_SCHED, POLICY]
+              value: '{{ sched_rank.DEFAULT_DS_SCHED.POLICY | d(omit) }}'
+
+          - when: "{{ sched_rank.DEFAULT_DS_SCHED.RANK is defined }}"
+            put:
+              path: [DEFAULT_DS_SCHED, RANK]
+              value: '"{{ sched_rank.DEFAULT_DS_SCHED.RANK | d(omit) }}"'
+
+          - when: "{{ sched_rank.DEFAULT_NIC_SCHED.POLICY is defined }}"
+            put:
+              path: [DEFAULT_NIC_SCHED, POLICY]
+              value: '{{ sched_rank.DEFAULT_NIC_SCHED.POLICY | d(omit) }}'
+
+          - when: "{{ sched_rank.DEFAULT_NIC_SCHED.RANK is defined }}"
+            put:
+              path: [DEFAULT_NIC_SCHED, RANK]
+              value: '"{{ sched_rank.DEFAULT_NIC_SCHED.RANK | d(omit) }}"'
+
+          - when: "{{ sched_rank.LOG.SYSTEM is defined }}"
+            put:
+              path: [LOG, SYSTEM]
+              value: '"{{ sched_rank.LOG.SYSTEM | d(omit) }}"'
+
+          - when: "{{ sched_rank.LOG.DEBUG_LEVEL is defined }}"
+            put:
+              path: [LOG, DEBUG_LEVEL]
+              value: '{{ sched_rank.LOG.DEBUG_LEVEL | d(omit) }}'
       when: stat_rank_conf.stat.exists is true

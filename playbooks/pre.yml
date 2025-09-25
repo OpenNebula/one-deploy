@@ -23,6 +23,7 @@
     - role: helper/python3
     - role: helper/facts
     - role: helper/cache
+    - role: helper/python3
 
 - hosts:
     - "{{ frontend_group | d('frontend') }}"
