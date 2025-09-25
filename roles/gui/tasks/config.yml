@@ -4,11 +4,14 @@
     ssl: "{{ ssl_defaults | combine(ssl) }}"
   when: ssl is defined
 
-- name: Configure Sunstone Server (:token_remote_support)
-  ansible.builtin.lineinfile:
-    path: /etc/one/fireedge/sunstone/sunstone-server.conf
-    regexp: '^[#\s]*token_remote_support:.*$'
-    line: 'token_remote_support: "{{ one_token }}"'
+- name: Configure Sunstone Server (token_remote_support)
+  opennebula.deploy.cfgtool:
+    dest: /etc/one/fireedge/sunstone/sunstone-server.conf
+    parser: Yaml
+    actions:
+      - put:
+          path: [token_remote_support]
+          value: "{{ one_token }}"
   notify:
     - Restart FireEdge Server
   when: one_token is defined and one_token is truthy

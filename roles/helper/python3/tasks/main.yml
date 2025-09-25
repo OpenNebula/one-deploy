@@ -8,3 +8,18 @@
   until: script is success
   retries: 12
   delay: 5
+  when: setup is undefined
+
+- name: Install required python3 packages
+  ansible.builtin.package:
+    name: "{{ _common + _specific[ansible_os_family] }}"
+  vars:
+    _common: []
+    _specific:
+      Debian: [python3-ruamel.yaml]
+      RedHat: [python3-ruamel-yaml]
+  register: package
+  until: package is success
+  retries: 12
+  delay: 5
+  when: setup is defined

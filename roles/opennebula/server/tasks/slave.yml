@@ -49,23 +49,19 @@
     file: "{{ role_path }}/tasks/sync_fed.yml"
 
 - name: Configure oned (FEDERATION/MODE,ZONE_ID,MASTER_ONED)
-  ansible.builtin.replace:
-    path: /etc/one/oned.conf
-    after: '\nFEDERATION *= *\[' # find the start
-    regexp: "{{ item.regexp }}"  # match the option
-    before: '\] *\n'             # find the end
-    replace: "{{ item.replace }}"
-  loop:
-    - regexp: 'MODE( *)= *.*([,\s])$'
-      replace: >-
-        MODE\g<1>= "SLAVE"\g<2>
-    - regexp: 'ZONE_ID( *)= *.*([,\s])$'
-      replace: >-
-        ZONE_ID\g<1>= {{ zone_id }}\g<2>
-    - regexp: 'MASTER_ONED( *)= *.*([,\s])$'
-      replace: >-
-        MASTER_ONED\g<1>= "http://{{ federation.master_host }}:2633/RPC2"\g<2>
-  register: replace
+  opennebula.deploy.cfgtool:
+    dest: /etc/one/oned.conf
+    parser: One
+    actions:
+      - put:
+          path: [FEDERATION, MODE]
+          value: '"SLAVE"'
+      - put:
+          path: [FEDERATION, ZONE_ID]
+          value: '{{ zone_id }}'
+      - put:
+          path: [FEDERATION, MASTER_ONED]
+          value: '"http://{{ federation.master_host }}:2633/RPC2"'
 
 - ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/ha.yml"

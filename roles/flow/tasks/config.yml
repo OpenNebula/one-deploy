@@ -1,8 +1,11 @@
 ---
 - name: Configure OneFlow Server (:host)
-  ansible.builtin.lineinfile:
-    path: /etc/one/oneflow-server.conf
-    regexp: '^:host:.*$'
-    line: ':host: "{{ flow_bind_addr }}"'
+  opennebula.deploy.cfgtool:
+    dest: /etc/one/oneflow-server.conf
+    parser: Yaml
+    actions:
+      - put:
+          path: [":host"]
+          value: "{{ flow_bind_addr }}"
   notify:
     - Restart OneFlow Server
