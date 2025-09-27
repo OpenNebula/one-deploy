@@ -1,6 +1,0 @@
----
-- hosts: all
-  tasks:
-    - ansible.builtin.raw: |
-        DEBIAN_FRONTEND=noninteractive && apt-get -q remove -y --purge unattended-upgrades
-      ignore_errors: true
