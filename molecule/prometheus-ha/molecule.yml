@@ -21,9 +21,10 @@ provisioner:
         ensure_keys_for: [root]
         ensure_hostname: true
         ensure_hosts: true
+        unattend_disable: true
         update_pkg_cache: true
         one_pass: opennebula
-        one_version: '6.10'
+        one_version: '7.0'
         one_token: ${ONE_TOKEN}
         features: { prometheus: true }
         one_vip: "{{ '${ONE_RANGE3}'.split()[0] | ansible.utils.ipmath('${ONE_RANGE3}'.split()[1]|int - 1) }}"

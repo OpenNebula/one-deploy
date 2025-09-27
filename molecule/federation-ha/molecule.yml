@@ -21,9 +21,10 @@ provisioner:
         ensure_keys_for: [root]
         ensure_hostname: true
         ensure_hosts: true
+        unattend_disable: true
         update_pkg_cache: true
         one_pass: asd
-        one_version: '6.10'
+        one_version: '7.0'
     hosts:
       _0:
         children:
