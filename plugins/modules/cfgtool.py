@@ -35,28 +35,28 @@ EXAMPLES = r"""
   vars:
     _items:
       - actions:
-        - put:
-            path: [DB, BACKEND]
-            value: '"{{ db_backend_types[db_backend] }}"'
-        - put:
-            path: [DB, SERVER]
-            value: '"localhost"'
-        - put:
-            path: [DB, PORT]
-            value: 0
-        - put:
-            path: [DB, USER]
-            value: '"{{ db_owner }}"'
-        - put:
-            path: [DB, DB_NAME]
-            value: '"{{ db_name }}"'
-        - put:
-            path: [ONEGATE_ENDPOINT]
-            value: '"{{ _gate_endpoint }}"'
+          - put:
+              path: [DB, BACKEND]
+              value: '"{{ db_backend_types[db_backend] }}"'
+          - put:
+              path: [DB, SERVER]
+              value: '"localhost"'
+          - put:
+              path: [DB, PORT]
+              value: 0
+          - put:
+              path: [DB, USER]
+              value: '"{{ db_owner }}"'
+          - put:
+              path: [DB, DB_NAME]
+              value: '"{{ db_name }}"'
+          - put:
+              path: [ONEGATE_ENDPOINT]
+              value: '"{{ _gate_endpoint }}"'
       - actions:
-        - put:
-            path: [DB, PASSWD]
-            value: '"{{ db_password }}"'
+          - put:
+              path: [DB, PASSWD]
+              value: '"{{ db_password }}"'
         no_log: true
     _gate_endpoint: >-
       {{ gate_endpoint | d(_default) }}
