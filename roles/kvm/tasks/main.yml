@@ -65,3 +65,7 @@
           {{ ansible_host | d(inventory_hostname) }}
         _hv: >-
           {{ node_hv | lower }}
+      register: shell
+      until: shell is success
+      retries: 12
+      delay: 5
