@@ -27,11 +27,12 @@ provisioner:
         ensure_keys_for: [root]
         ensure_hostname: true
         ensure_hosts: true
+        unattend_disable: true
         update_pkg_cache: true
         one_pass: asd
-        one_version: '6.10'
+        one_version: '7.0'
         features: { ceph: true }
-        ceph: { repo: community }
+        ceph: { repo: distro }
         ds: { mode: ceph }
         vn:
           service:
@@ -85,7 +86,7 @@ platforms:
   - name: ceph-hci-f1
     groups: [frontend, ceph, mons, mgrs]
     template:
-      name: alma9
+      name: ubuntu2404
       content: &content
         CONTEXT:
           GROW_FS: /
@@ -104,7 +105,7 @@ platforms:
   - name: ceph-hci-n1
     groups: [node, ceph, osds]
     template:
-      name: debian12
+      name: ubuntu2404
       content: *content
     datablocks: &datablocks
       - PERSISTENT: "NO"
@@ -122,7 +123,7 @@ platforms:
   - name: ceph-hci-n2
     groups: [node, ceph, osds]
     template:
-      name: ubuntu2204
+      name: ubuntu2404
       content: *content
     datablocks: *datablocks
     auth: *auth
