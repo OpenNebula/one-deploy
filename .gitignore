@@ -12,7 +12,6 @@ __pycache__/
 !/inventory/ceph.yml
 !/inventory/ceph-hci.yml
 !/inventory/infra.yml
-!/inventory/federation-parallel.yml
 !/inventory/federation-master.yml
 !/inventory/federation-slave1.yml
 !/inventory/federation-slave2.yml

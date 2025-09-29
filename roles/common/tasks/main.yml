@@ -7,65 +7,35 @@
       # Decide what role should this Front-end perform.
       role: >-
         {{ 'MASTER'
-           if (_force_master or (_subgroup == (_frontend_group ~ '0'))) else
+           if _force_master else
            'SLAVE'
-           if ((groups[_federation_group] is defined) or (_subgroup != _frontend_group)) else
+           if (groups[_federation_group] is defined) else
            'STANDALONE' }}
-      # The (sub)group to which this Front-end is added.
-      group_name: "{{ _subgroup }}"
-      # Complete set of groups that describe this federated Front-end.
+      # Pre-compute core cluster groups (to reduce complexity later).
       groups:
         all: >-
-          {{ (groups[_frontend_group ~ _index] + groups[_node_group ~ _index]) | unique }}
+          {{ (groups[_frontend_group] + groups[_node_group]) | unique }}
         frontend: >-
-          {{ groups[_frontend_group ~ _index] }}
+          {{ groups[_frontend_group] }}
         node: >-
-          {{ groups[_node_group ~ _index] }}
+          {{ groups[_node_group] }}
       # Points to the leader of the master Front-end.
-      # NOTE: This handles both federation deployment modes, "parallel" and "sequential".
       master_host: >-
-        {{ (hostvars[_leader].one_vip | d(hostvars[_leader].ansible_host))
-           if (_leader is defined) else
-           hostvars[_master].ansible_host }}
+        {{ hostvars[_master].ansible_host }}
       master_user: >-
         {{ hostvars[_master].ansible_user }}
-      master: master # inventory
+      master: master # inventory name
   vars:
-    # The inferred master machine.
     _master: >-
-      {{ groups[_federation_group] | d(groups[_frontend_group ~ '0'])
-                                   | d(groups[_frontend_group])
-                                   | first }}
-    _leader: >-
-      {{ hostvars[_master].leader }}
-    # The index of this Front-end (group).
-    _index: >-
-      {{ [_subgroup] | map('regex_search', _regex)
-                     | select
-                     | map('regex_replace', _regex, '\g<2>')
-                     | first
-                     | d('') }}
-    # This Front-end (group).
-    _subgroup: >-
-      {{ group_names | map('regex_search', _regex)
-                     | select
-                     | map('regex_replace', _regex, (_frontend_group ~ '\g<2>'))
-                     | unique
-                     | first
-                     | d(_frontend_group) }}
-    # Helper vars.
-    _regex: >-
-      {{ '^' ~ '(' ~ _frontend_group ~ '|' ~ _node_group ~ ')' ~ '(\d+)' ~ '$' }}
+      {{ groups[_federation_group] | d(groups[_frontend_group]) | first }}
     _frontend_group: >-
       {{ frontend_group | d('frontend') }}
     _node_group: >-
       {{ node_group | d('node') }}
     _federation_group: >-
       {{ federation_group | d('federation') }}
-    # NOTE: This is used only in "sequential" federation deployment mode (to prepare the
-    #       master Front-end to handle subsequent slave Front-end additions).
     _force_master: >-
-      {{ (force_master is defined) and (force_master | bool) is true }}
+      {{ (force_master is defined) and (force_master | bool is true) }}
 
 - name: Dynamically add ungrouped inventory host to represent the Master
   ansible.builtin.add_host:
