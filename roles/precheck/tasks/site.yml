@@ -57,12 +57,33 @@
     - prod_env | d(false) | bool is true
     - _items[item].condition
 
+- name: Check if parallel federation deployment has been requested
+  ansible.builtin.assert:
+    that: (groups[_frontend_group ~ '0'] is undefined)
+          and
+          (groups[_frontend_group ~ '1'] is undefined)
+          and
+          (groups[_node_group ~ '0'] is undefined)
+          and
+          (groups[_node_group ~ '1'] is undefined)
+    msg: The parallel federation deployment has been removed, please consider using sequential mode instead.
+  vars:
+    _frontend_group: "{{ frontend_group | d('frontend') }}"
+    _node_group: "{{ node_group | d('node') }}"
+
+- name: Ensure zone_name is always defined in federated clusters
+  ansible.builtin.assert:
+    that: (federation.role != 'SLAVE')
+          or
+          (zone_name is defined)
+    msg: Please define zone_name for this federated cluster.
+
 - name: Check if one_vip/force_ha settings are valid
   ansible.builtin.assert:
     that: ((one_vip is defined) and ((_frontend_count | int > 1) or (_force_ha is true)))
           or
           ((one_vip is undefined) and ((_frontend_count | int == 1) and (_force_ha is false)))
-    msg: Please either define one_vip in the inventory, add more Frontends or enable force_ha.
+    msg: Please either define one_vip in the inventory, add more Front-ends or enable force_ha.
   vars:
     _frontend_count: >-
       {{ federation.groups.frontend | count }}
@@ -102,13 +123,10 @@
           or
           ((groups[_federation_group] is undefined)
           and
-          (groups[_frontend_group ~ '0'] is undefined)
-          and
           ((force_master is undefined) or (force_master | bool is false)))
     msg: Prometheus provisioning has been *temporarily* disabled for federated environments.
   vars:
     _federation_group: "{{ federation_group | d('federation') }}"
-    _frontend_group: "{{ frontend_group | d('frontend') }}"
 
 - name: Check if legacy OneGate Proxy has been requested
   ansible.builtin.assert:
@@ -144,18 +162,6 @@
     _supported:
       - kvm
       - qemu
-
-- name: Prevent FRR deployment in the parallel federation deployment mode
-  ansible.builtin.assert:
-    that: (features.evpn is undefined)
-          or
-          (features.evpn | bool is false)
-          or
-          (groups[_frontend_group ~ '0'] is undefined)
-    msg: Please use sequential federation deployment mode if you want to use FRR/EVPN.
-  vars:
-    _frontend_group: "{{ frontend_group | d('frontend') }}"
-  run_once: true
 
 - name: Check if DB backend is supported for the HA setup
   ansible.builtin.assert:

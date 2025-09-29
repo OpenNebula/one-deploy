@@ -1,16 +1,4 @@
 ---
-- name: Prevent Ceph deployment in the parallel federation deployment mode
-  ansible.builtin.assert:
-    that: (features.ceph is undefined)
-          or
-          (features.ceph | bool is false)
-          or
-          (groups[_frontend_group ~ '0'] is undefined)
-    msg: Please use sequential federation deployment mode if you want to deploy Ceph.
-  vars:
-    _frontend_group: "{{ frontend_group | d('frontend') }}"
-  run_once: true
-
 # We only support active Ceph releases (https://docs.ceph.com/en/latest/releases/index.html)
 - name: Check if specified Ceph release is supported
   ansible.builtin.assert:

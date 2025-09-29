@@ -1,0 +1,89 @@
+---
+prerun: false
+
+dependency:
+  name: galaxy
+  enabled: false
+
+provisioner:
+  name: ansible
+  playbooks:
+    create:  ../resources/playbooks/common/create.yml
+    destroy: ../resources/playbooks/common/destroy.yml
+  env:
+    ANSIBLE_COLLECTIONS_PATHS: ../../
+    ANSIBLE_COLLECTIONS_PATH:  ../../
+  inventory:
+    group_vars:
+      all:
+        ansible_user: root
+        ensure_keys_for: [root]
+        ensure_hostname: true
+        ensure_hosts: true
+        unattend_disable: true
+        update_pkg_cache: true
+        one_pass: asd
+        one_version: '7.0'
+        vn:
+          service:
+            managed: true
+            template:
+              VN_MAD: bridge
+              BRIDGE: br0
+              AR:
+                TYPE: IP4
+                IP: "{{ '${ONE_RANGE2}'.split()[0] }}"
+                SIZE: "{{ '${ONE_RANGE2}'.split()[1] }}"
+              NETWORK_ADDRESS: "{{ '${ONE_SUBNET}' | ansible.utils.nthhost(0) }}"
+              NETWORK_MASK: "{{ '${ONE_SUBNET}' | ansible.utils.ipaddr('netmask') }}"
+              GATEWAY: "{{ '${ONE_SUBNET}' | ansible.utils.nthhost(1) }}"
+              DNS: 1.1.1.1 8.8.8.8
+        zone_name: Second
+    hosts:
+      federation:
+        hosts:
+          federation-f1:
+            ansible_host: "{{ '${ONE_RANGE1}'.split()[0] | ansible.utils.ipmath('${ONE_RANGE1}'.split()[1]|int - 1) }}"
+  config_options:
+    defaults:
+      gathering: explicit
+      host_key_checking: false
+      display_skipped_hosts: true
+      retry_files_enabled: false
+      any_errors_fatal: true
+      callbacks_enabled: profile_tasks
+      stdout_callback: yaml
+    privilege_escalation:
+      become: true
+      become_user: root
+    ssh_connection:
+      pipelining: true
+  connection_options:
+    ansible_ssh_common_args: >-
+      -o UserKnownHostsFile=/dev/null
+      -o ControlMaster=auto
+      -o ControlPersist=60s
+      -o ForwardX11=no
+      -o LogLevel=ERROR
+      -o IdentitiesOnly=no
+      -o StrictHostKeyChecking=no
+
+platforms:
+  - name: federation-f2
+    groups: [frontend, node]
+    template:
+      name: alma9
+      content:
+        CONTEXT:
+          GROW_FS: /
+          NETCFG_TYPE: networkd
+          PASSWORD: asd
+        DISK:
+          SIZE: 20480
+        MEMORY: 3072
+        NIC:
+          NETWORK: ${ONE_VNET}
+    auth:
+      host: ${ONE_HOST}
+      user: ${ONE_USER}
+      pswd: ${ONE_PSWD}
