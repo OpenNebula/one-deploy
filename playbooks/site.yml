@@ -108,3 +108,17 @@
     - role: prometheus/grafana
       tags: [grafana]
       when: *prometheus
+
+- hosts: "{{ node_group | d('node') }}"
+  tags: [node]
+  collections:
+    - opennebula.deploy
+  roles:
+    - role: pci_passthrough/node
+
+- hosts: "{{ frontend_group | d('frontend') }}"
+  tags: [frontend]
+  collections:
+    - opennebula.deploy
+  roles:
+    - role: pci_passthrough/frontend

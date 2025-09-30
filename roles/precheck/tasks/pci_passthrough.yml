@@ -1,0 +1,93 @@
+---
+- name: "Run PCI passthrough pre-flight checks"
+  block:
+    - name: "Gather additional hardware facts for CPU vendor and flags"
+      ansible.builtin.setup:
+        gather_subset: hardware
+
+    - name: "Assert CPU architecture is x86_64"
+      ansible.builtin.assert:
+        that: ansible_facts['architecture'] == 'x86_64'
+        fail_msg: |
+          Passthrough is currently only supported on x86_64 architecture.
+          Current architecture: {{ ansible_facts['architecture'] }}
+
+    - name: "Set virtualization flag facts based on CPU vendor"
+      ansible.builtin.set_fact:
+        _virtualization_flag: >-
+          {{ 'vmx' if 'GenuineIntel' in ansible_facts['processor'] else
+             'svm' if 'AuthenticAMD' in ansible_facts['processor'] else '' }}
+        _slat_flag: >-
+          {{ 'ept' if 'GenuineIntel' in ansible_facts['processor'] else
+             'npt' if 'AuthenticAMD' in ansible_facts['processor'] else '' }}
+
+    - name: "Assert CPU supports Hardware virtualization (VT-x/AMD-V)"
+      ansible.builtin.assert:
+        that:
+          - _virtualization_flag | length > 0
+        fail_msg: |
+          Virtualization requirements not met. Please ensure:
+          - Hardware virtualization ({{ _virtualization_flag }}) is enabled in BIOS/UEFI
+          - Extended paging / SLAT ({{ _slat_flag }}) is enabled in BIOS/UEFI
+
+    - name: "Set IOMMU ACPI table fact based on CPU vendor"
+      ansible.builtin.set_fact:
+        _iommu_acpi_table_path: >-
+          {{ '/sys/firmware/acpi/tables/DMAR' if 'GenuineIntel' in ansible_facts['processor'] else
+             '/sys/firmware/acpi/tables/IVRS' if 'AuthenticAMD' in ansible_facts['processor'] else '' }}
+        _iommu_acpi_table_name: >-
+          {{ 'DMAR' if 'GenuineIntel' in ansible_facts['processor'] else
+             'IVRS' if 'AuthenticAMD' in ansible_facts['processor'] else 'N/A' }}
+
+    - name: "Check for IOMMU ACPI table"
+      ansible.builtin.stat:
+        path: "{{ _iommu_acpi_table_path }}"
+      register: iommu_acpi_table
+      when: _iommu_acpi_table_path | length > 0
+
+    - name: "Warn if IOMMU ACPI table not found"
+      ansible.builtin.debug:
+        msg: |
+          WARNING: No ACPI {{ _iommu_acpi_table_name }} table found.
+          IOMMU may be disabled in BIOS/UEFI or not supported by this platform.
+      when:
+        - _iommu_acpi_table_path | length > 0
+        - not iommu_acpi_table.stat.exists
+
+    - name: "Check for IOMMU groups directory"
+      ansible.builtin.stat:
+        path: /sys/kernel/iommu_groups
+      register: iommu_groups_dir
+
+    - name: "Assert IOMMU is enabled in the kernel"
+      ansible.builtin.assert:
+        that:
+          - iommu_groups_dir.stat.exists
+          - iommu_groups_dir.stat.isdir
+        fail_msg: |
+          IOMMU does not appear to be active in the kernel.
+          The /sys/kernel/iommu_groups directory does not exist.
+          Please ensure IOMMU is enabled in your kernel boot parameters
+          (e.g., by adding '''intel_iommu=on''' or '''amd_iommu=on''' or '''iommu=pt''').
+
+    - name: "Check if IOMMU groups are populated"
+      ansible.builtin.find:
+        paths: /sys/kernel/iommu_groups
+        file_type: any
+      register: iommu_groups
+
+    - name: "Assert IOMMU groups are populated"
+      ansible.builtin.assert:
+        that:
+          - iommu_groups.matched > 0
+        fail_msg: |
+          IOMMU appears to be active, but no IOMMU groups were found.
+          The /sys/kernel/iommu_groups directory is empty.
+          This may indicate a problem with the kernel or hardware configuration.
+
+    - name: Try to load vfio-pci module if not present
+      community.general.modprobe:
+        name: vfio-pci
+        state: present
+        persistent: present
+  when: pci_passthrough_enabled | default(false)

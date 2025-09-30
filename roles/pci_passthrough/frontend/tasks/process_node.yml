@@ -1,0 +1,57 @@
+---
+- name: "Create PCI filter string for {{ node_name }}"
+  ansible.builtin.set_fact:
+    pci_filter: >-
+      {{ hostvars[node_name]['pci_passthrough_devices'] | unique | join(',') }}
+  when: hostvars[node_name]['pci_passthrough_devices'] is defined and hostvars[node_name]['pci_passthrough_devices'] | length > 0
+
+- name: "Print Host ID, IP and PCI filter for {{ node_name }}"
+  ansible.builtin.debug:
+    msg: "Host IP: {{ hostvars[node_name]['ansible_host'] | default(node_name) }}, OpenNebula ID: {{ one_host.ID }}, PCI Filter: {{ pci_filter | default('N/A') }}"
+  when: one_host.ID is defined
+
+- name: "Apply PCI filter to host {{ node_name }} in OpenNebula"
+  when:
+    - one_host.ID is defined
+    - pci_filter is defined
+    - pci_filter != ""
+  delegate_to: "{{ leader }}"
+  become: true
+  become_user: oneadmin
+  block:
+    - name: "Create temporary PCI filter file for {{ node_name }}"
+      ansible.builtin.copy:
+        content: 'PCI_FILTER="{{ pci_filter }}"'
+        dest: "/tmp/pci_filter_{{ node_name }}"
+        mode: '0644'
+
+    - name: "Update host {{ node_name }} (ID: {{ one_host.ID }}) with PCI filter"
+      ansible.builtin.shell:
+        cmd: "onehost update {{ one_host.ID }} /tmp/pci_filter_{{ node_name }} -a"
+        executable: /bin/bash
+      changed_when: true
+      register: onehost_update_result
+      failed_when: false
+
+    - name: "Warn if onehost update failed for {{ node_name }}"
+      ansible.builtin.debug:
+        msg: "Warning: 'onehost update' for host {{ node_name }} (ID: {{ one_host.ID }}) failed with exit code {{ onehost_update_result.rc }}. Stderr: {{ onehost_update_result.stderr }}"
+      when: onehost_update_result.rc != 0
+
+    - name: "Remove temporary PCI filter file for {{ node_name }}"
+      ansible.builtin.file:
+        path: "/tmp/pci_filter_{{ node_name }}"
+        state: absent
+
+    - name: "Force host PCI devices monitoring for {{ node_name }}"
+      ansible.builtin.shell:
+        cmd: "onehost forceupdate {{ one_host.ID }}"
+        executable: /bin/bash
+      changed_when: true
+      register: onehost_forceupdate_result
+      failed_when: false
+
+    - name: "Warn if onehost forceupdate failed for {{ node_name }}"
+      ansible.builtin.debug:
+        msg: "Warning: 'onehost forceupdate' for host {{ node_name }} (ID: {{ one_host.ID }}) failed with exit code {{ onehost_forceupdate_result.rc }}. Stderr: {{ onehost_forceupdate_result.stderr }}"
+      when: onehost_forceupdate_result.rc != 0
