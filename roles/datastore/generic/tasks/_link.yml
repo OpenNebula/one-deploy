@@ -1,0 +1,48 @@
+---
+- name: Convert datastore directories into symlinks
+  ansible.builtin.shell:
+    cmd: |
+      set -o errexit
+
+      if [[ -L '{{ _base_path }}' ]]; then
+        exit 0
+      fi
+
+      if ! [[ -d '{{ _mount_path }}' ]]; then
+        echo 'Symlink target {{ _mount_path }} does not exist or is not a directory.' >&2
+        exit 1
+      fi
+
+      if [[ -d '{{ _base_path }}' ]] && ! rmdir '{{ _base_path }}'; then
+        exit 2
+      fi
+
+      if ! ln -s '{{ _mount_path }}' '{{ _base_path }}'; then
+        exit 3
+      fi
+
+      exit 78 # EREMCHG
+    executable: /bin/bash
+  when:
+    - inventory_hostname in _hosts
+    - ds_dict[item].id is defined
+    # NOTE: It doesn't really make sense to symlink /var/lib/one/datastores/,
+    #       so we use that as a skip condition.
+    - _mount_path != '/var/lib/one/datastores'
+  vars:
+    # This isn't strictly a "mountpoint".
+    _mount_path: >-
+      {{ ds_dict[item].symlink.src | d('/var/lib/one/datastores/') | normpath }}
+    _base_path: >-
+      /var/lib/one/datastores/{{ ds_dict[item].id }}
+    _hosts: >-
+      {{ ds_dict[item].symlink.groups | d([])
+                                      | map('extract', groups)
+                                      | flatten
+                                      | unique }}
+  register: shell
+  changed_when:
+    - shell.rc in [78]
+  failed_when:
+    - shell.rc not in [0, 78]
+  loop: "{{ ds_names }}"

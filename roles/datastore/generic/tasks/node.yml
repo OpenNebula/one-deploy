@@ -1,5 +1,6 @@
 ---
 - ansible.builtin.import_tasks:
-    file: "{{ role_path }}/tasks/common.yml"
-  vars:
-    common_task: all
+    file: "{{ role_path }}/tasks/_init.yml"
+
+- ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/_link.yml"

@@ -68,7 +68,6 @@
 
     - role: datastore/node
       tags: [datastore]
-      when: ds.mode is defined and ds.mode != 'generic'
 
     - role: frr/evpn
       tags: [network]
@@ -103,10 +102,12 @@
       when: *prometheus
 
 - hosts: "{{ node_group | d('node') }}"
-  tags: [node, stage4]
+  tags: [node, stage2]
   collections:
     - opennebula.deploy
   roles:
+    # NOTE: If datastore IDs are not "predicted" for the generic mode, we try to post-patch
+    #       symlinks iff IDs are merged back into the ds_dict (otherwise nothing should happen).
     - role: datastore/node
       tags: [datastore]
       when: ds.mode is defined and ds.mode == 'generic'
