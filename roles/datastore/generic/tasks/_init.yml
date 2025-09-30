@@ -1,0 +1,24 @@
+---
+- name: Compute helper facts
+  ansible.builtin.set_fact:
+    ds_names: >-
+      {{ hostvars[leader | d(omit)].ds_names | d(_items | map(attribute='key') | list) }}
+    ds_dict: >-
+      {{ hostvars[leader | d(omit)].ds_dict | d(_items | items2dict) }}
+  vars:
+    _ds: >-
+      {{ ds_defaults | combine(ds.config | d({}), recursive=true) }}
+    _items: >-
+      {{ _ds | dict2items
+             | map(attribute='value')
+             | map('dict2items')
+             | flatten
+             | rejectattr('value.managed', 'false') }}
+
+- name: Ensure /var/lib/one/datastores/ exists
+  ansible.builtin.file:
+    path: /var/lib/one/datastores/
+    state: directory
+    owner: 9869 # oneadmin
+    group: 9869 # oneadmin
+    mode: u=rwx,g=rx,o=
