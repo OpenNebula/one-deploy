@@ -1,14 +1,13 @@
 ---
 - ansible.builtin.import_tasks:
-    file: "{{ role_path }}/tasks/common.yml"
-  vars:
-    common_task: init
+    file: "{{ role_path }}/tasks/_init.yml"
 
 - ansible.builtin.include_role:
     name: opennebula/leader
   when: leader is undefined
 
-- when: inventory_hostname == leader
+- delegate_to: "{{ leader }}"
+  run_once: true
   block:
     - name: Get Datastores
       ansible.builtin.shell:
@@ -17,22 +16,20 @@
       changed_when: false
       register: shell
 
-- name: Parse Datastores
-  ansible.builtin.set_fact:
-    ds_names_parsed: >-
-      {{ _names }}
-    ds_dict_parsed: >-
-      {{ dict(_names | zip(_datastores)) }}
-  vars:
-    _document: >-
-      {{ shell.stdout | from_json }}
-    _datastores: >-
-      {{ [_document.DATASTORE_POOL.DATASTORE | d([])] | flatten }}
-    _names: >-
-      {{ _datastores | map(attribute='NAME') | d([]) | list }}
+    - name: Parse Datastores
+      ansible.builtin.set_fact:
+        ds_names_parsed: >-
+          {{ _names }}
+        ds_dict_parsed: >-
+          {{ dict(_names | zip(_datastores)) }}
+      vars:
+        _document: >-
+          {{ shell.stdout | from_json }}
+        _datastores: >-
+          {{ [_document.DATASTORE_POOL.DATASTORE | d([])] | flatten }}
+        _names: >-
+          {{ _datastores | map(attribute='NAME') | d([]) | list }}
 
-- when: inventory_hostname == leader
-  block:
     # NOTE: Only "system" datastores can be enabled or disabled.
     - name: Update Datastores
       ansible.builtin.shell:
@@ -51,9 +48,11 @@
           {{ _combined | opennebula.deploy.to_one }}
         executable: /bin/bash
       changed_when: true
-      when: (_combined | opennebula.deploy.to_one != ds_dict_parsed[item].TEMPLATE | opennebula.deploy.to_one)
-            or
-            (ds_dict[item].enabled is defined and (ds_dict[item].enabled != (ds_dict_parsed[item].STATE | int == 0)))
+      when:
+        - ds_dict[item].id is defined
+        - (_combined | opennebula.deploy.to_one != ds_dict_parsed[item].TEMPLATE | opennebula.deploy.to_one)
+          or
+          (ds_dict[item].enabled is defined and (ds_dict[item].enabled != (ds_dict_parsed[item].STATE | int == 0)))
       loop: "{{ _existing }}"
       vars:
         _existing: >-
@@ -75,37 +74,29 @@
         executable: /bin/bash
       changed_when: true
       loop: "{{ _missing }}"
-      register: new_ds
+      register: shell_create_datastores
       vars:
         _missing: >-
           {{ ds_names | reject('in', ds_names_parsed) }}
 
-    - name: Map created datastores
+    - name: Merge back datastore IDs into ds_dict
       ansible.builtin.set_fact:
-        ds_map: >-
-          {{ (ds_map | default({})) | combine({
-              (item.item): {
-                'id': (item.stdout.splitlines()[-1].split(':')[-1] | trim),
-                'src': ds_dict[item.item].symlink.src | default('/var/lib/one/datastores/') | normpath,
-                'groups': ds_dict[item.item].symlink.groups | default([])
-              }
-            }) }}
-      loop: "{{ new_ds.results | default([]) }}"
-      loop_control:
-        label: "{{ item.item }}"
-      run_once: true
-      when: new_ds is defined
-
-    - name: Publish datastore mapping
-      ansible.builtin.add_host:
-        name: datastore_mapping_host
-        groups: datastore_map
-        ds_map: "{{ hostvars[inventory_hostname].ds_map | default({}) }}"
-      run_once: true
-      when:
-        - hostvars[inventory_hostname].ds_map is defined
+        ds_dict: >-
+          {{ ds_dict | combine(_update1, _update2, recursive=true) }}
+      vars:
+        # IDs can be sourced either from initial parse or immediately after new datastores are created.
+        _update1: >-
+          {%- set output = [] -%}
+          {%- for item in ds_dict_parsed.items() -%}
+          {{- output.append([item.0, {"id": item.1.ID | int}]) -}}
+          {%- endfor -%}
+          {{- dict(output) -}}
+        _update2: >-
+          {%- set output = [] -%}
+          {%- for item in shell_create_datastores.results -%}
+          {{- output.append([item.item, {"id": item.stdout_lines[-1].split(':')[-1] | trim | int}]) -}}
+          {%- endfor -%}
+          {{- dict(output) -}}
 
 - ansible.builtin.import_tasks:
-    file: "{{ role_path }}/tasks/common.yml"
-  vars:
-    common_task: symlink
+    file: "{{ role_path }}/tasks/_link.yml"
