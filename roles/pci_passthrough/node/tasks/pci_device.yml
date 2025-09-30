@@ -5,13 +5,13 @@
   register: pci_device_stat
   become: true
 
-- name: "Assert that PCI device {{ pci_device.address }} exists"
+- name: "Assert that PCI device exists: {{ pci_device.address }}"
   ansible.builtin.assert:
     that:
       - pci_device_stat.stat.exists
     fail_msg: "PCI device {{ pci_device.address }} not found on host {{ ansible_default_ipv4.address }}."
 
-- name: "Bind PCI device {{ pci_device.address }} to vfio-pci driver"
+- name: "Bind PCI device to vfio-pci driver: {{ pci_device.address }}"
   ansible.builtin.command:
     cmd: "driverctl set-override {{ pci_device.address }} vfio-pci"
   register: driver_bind
@@ -19,7 +19,7 @@
   become: true
 
 - name: "Verify driver for PCI device {{ pci_device.address }}"
-  ansible.builtin.shell:
+  ansible.builtin.command:
     cmd: "lspci -Dnns {{ pci_device.address }} -k"
   register: driver_check
   changed_when: false
@@ -39,6 +39,8 @@
   become: true
 
 - name: "Store PCI device info in Vendor:DeviceID format"
+  vars:
+    vendor_id: "{{ pci_vendor['content'] | b64decode | replace('0x', '') | trim }}"
+    device_id: "{{ pci_device_id['content'] | b64decode | replace('0x', '') | trim }}"
   ansible.builtin.set_fact:
-    pci_passthrough_devices: >-
-      {{ pci_passthrough_devices | default([]) + [pci_vendor['content'] | b64decode | replace('0x', '') | trim ~ ':' ~ pci_device_id['content'] | b64decode | replace('0x', '') | trim] }}
+    pci_passthrough_devices: "{{ pci_passthrough_devices | default([]) + [vendor_id ~ ':' ~ device_id] }}"

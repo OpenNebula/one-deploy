@@ -7,10 +7,10 @@
 
 - name: "Print Host ID, IP and PCI filter for {{ node_name }}"
   ansible.builtin.debug:
-    msg: "Host IP: {{ hostvars[node_name]['ansible_host'] | default(node_name) }}, OpenNebula ID: {{ one_host.ID }}, PCI Filter: {{ pci_filter | default('N/A') }}"
+    msg: "Host IP:{{ hostvars[node_name]['ansible_host'] | default(node_name) }} OpenNebula ID:{{ one_host.ID }} PCI Filter:{{ pci_filter | default('N/A') }}"
   when: one_host.ID is defined
 
-- name: "Apply PCI filter to host {{ node_name }} in OpenNebula"
+- name: "Apply PCI filter to host {{ node_name }}"
   when:
     - one_host.ID is defined
     - pci_filter is defined
@@ -25,7 +25,7 @@
         dest: "/tmp/pci_filter_{{ node_name }}"
         mode: '0644'
 
-    - name: "Update host {{ node_name }} (ID: {{ one_host.ID }}) with PCI filter"
+    - name: "Add PCI Filter to host template"
       ansible.builtin.shell:
         cmd: "onehost update {{ one_host.ID }} /tmp/pci_filter_{{ node_name }} -a"
         executable: /bin/bash
@@ -35,7 +35,10 @@
 
     - name: "Warn if onehost update failed for {{ node_name }}"
       ansible.builtin.debug:
-        msg: "Warning: 'onehost update' for host {{ node_name }} (ID: {{ one_host.ID }}) failed with exit code {{ onehost_update_result.rc }}. Stderr: {{ onehost_update_result.stderr }}"
+        msg: >
+          Warning: 'onehost update' for host {{ node_name }} (ID: {{ one_host.ID }})
+          failed with exit code {{ onehost_update_result.rc }}.
+          Stderr: {{ onehost_update_result.stderr }}
       when: onehost_update_result.rc != 0
 
     - name: "Remove temporary PCI filter file for {{ node_name }}"
@@ -53,5 +56,8 @@
 
     - name: "Warn if onehost forceupdate failed for {{ node_name }}"
       ansible.builtin.debug:
-        msg: "Warning: 'onehost forceupdate' for host {{ node_name }} (ID: {{ one_host.ID }}) failed with exit code {{ onehost_forceupdate_result.rc }}. Stderr: {{ onehost_forceupdate_result.stderr }}"
+        msg: >
+          Warning: 'onehost forceupdate' for host {{ node_name }} (ID: {{ one_host.ID }})
+          failed with exit code {{ onehost_forceupdate_result.rc }}.
+          Stderr: {{ onehost_forceupdate_result.stderr }}
       when: onehost_forceupdate_result.rc != 0

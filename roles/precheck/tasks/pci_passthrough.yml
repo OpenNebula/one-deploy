@@ -1,5 +1,6 @@
 ---
 - name: "Run PCI passthrough pre-flight checks"
+  when: pci_passthrough_enabled | default(false)
   block:
     - name: "Gather additional hardware facts for CPU vendor and flags"
       ansible.builtin.setup:
@@ -90,4 +91,3 @@
         name: vfio-pci
         state: present
         persistent: present
-  when: pci_passthrough_enabled | default(false)
