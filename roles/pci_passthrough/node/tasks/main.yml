@@ -8,7 +8,7 @@
         content: 'SUBSYSTEM=="vfio", GROUP="kvm", MODE="0666"'
         owner: root
         group: root
-        mode: '0644'
+        mode: 'u=rw,go=r'
 
     - name: Reload udev rules
       ansible.builtin.command: udevadm control --reload-rules
