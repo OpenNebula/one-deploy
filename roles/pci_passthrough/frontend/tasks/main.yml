@@ -37,7 +37,7 @@
     loop_var: node_name
   when:
     - hostvars[node_name] is defined
-    - hostvars[node_name]['pci_passthrough_devices'] is defined
+    - hostvars[node_name].pci_passthrough_devices is defined
     - one_hosts_list is defined
   vars:
     one_node_name: "{{ hostvars[node_name]['ansible_host'] | default(node_name) }}"
