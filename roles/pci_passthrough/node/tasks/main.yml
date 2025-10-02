@@ -15,12 +15,7 @@
       become: true
       register: reload_result
       changed_when: false
-
-    - name: Ensure reload was successful
-      ansible.builtin.assert:
-        that:
-          - reload_result.rc == 0
-        fail_msg: "Handle vfio devices ownership: 'udevadm control --reload-rules' failed"
+      failed_when: reload_result.rc != 0
 
     - name: Trigger udev events
       ansible.builtin.command: udevadm trigger

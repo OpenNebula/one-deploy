@@ -39,11 +39,11 @@
               Warning: 'onehost update' for host {{ node_name }} (ID: {{ one_host.ID }})
               failed with exit code {{ onehost_update_result.rc }}.
               Stderr: {{ onehost_update_result.stderr }}
-
-    - name: "Remove temporary PCI filter file for {{ node_name }}"
-      ansible.builtin.file:
-        path: "/tmp/pci_filter_{{ node_name }}"
-        state: absent
+      always:
+        - name: "Remove temporary PCI filter file for {{ node_name }}"
+          ansible.builtin.file:
+            path: "/tmp/pci_filter_{{ node_name }}"
+            state: absent
 
     - block:
         - name: "Force host PCI devices monitoring for {{ node_name }}"
