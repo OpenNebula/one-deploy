@@ -81,6 +81,9 @@
       when: &prometheus
         - features.prometheus | bool is true
 
+    - role: pci_passthrough/node
+      tags: [pci_passthrough]
+
 - hosts: "{{ frontend_group | d('frontend') }}"
   tags: [frontend, stage3]
   collections:
@@ -101,6 +104,9 @@
       tags: [prometheus]
       when: *prometheus
 
+    - role: pci_passthrough/frontend
+      tags: [pci_passthrough]
+
 - hosts: "{{ grafana_group | d('grafana') }}"
   collections:
     - opennebula.deploy
@@ -108,17 +114,3 @@
     - role: prometheus/grafana
       tags: [grafana]
       when: *prometheus
-
-- hosts: "{{ node_group | d('node') }}"
-  tags: [node]
-  collections:
-    - opennebula.deploy
-  roles:
-    - role: pci_passthrough/node
-
-- hosts: "{{ frontend_group | d('frontend') }}"
-  tags: [frontend]
-  collections:
-    - opennebula.deploy
-  roles:
-    - role: pci_passthrough/frontend
