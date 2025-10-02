@@ -1,6 +1,6 @@
 ---
 - name: "Handle vfio devices ownership"
-  when: pci_passthrough_enabled | default(false)
+  when: pci_passthrough_enabled | bool
   block:
     - name: Create vfio udev rule
       ansible.builtin.copy:
@@ -25,7 +25,7 @@
       failed_when: trigger_result.rc != 0
 
 - name: "Manage PCI passthrough devices"
-  when: pci_passthrough_enabled | default(false)
+  when: pci_passthrough_enabled | bool
   block:
     - name: "Install driverctl with retries"
       ansible.builtin.package:
