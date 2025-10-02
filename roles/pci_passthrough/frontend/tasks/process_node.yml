@@ -25,39 +25,37 @@
         dest: "/tmp/pci_filter_{{ node_name }}"
         mode: '0644'
 
-    - name: "Add PCI Filter to host template"
-      ansible.builtin.shell:
-        cmd: "onehost update {{ one_host.ID }} /tmp/pci_filter_{{ node_name }} -a"
-        executable: /bin/bash
-      changed_when: true
-      register: onehost_update_result
-      failed_when: false
-
-    - name: "Warn if onehost update failed for {{ node_name }}"
-      ansible.builtin.debug:
-        msg: >
-          Warning: 'onehost update' for host {{ node_name }} (ID: {{ one_host.ID }})
-          failed with exit code {{ onehost_update_result.rc }}.
-          Stderr: {{ onehost_update_result.stderr }}
-      when: onehost_update_result.rc != 0
+    - block:
+        - name: "Add PCI Filter to host template"
+          ansible.builtin.shell:
+            cmd: "onehost update {{ one_host.ID }} /tmp/pci_filter_{{ node_name }} -a"
+            executable: /bin/bash
+          changed_when: true
+          register: onehost_update_result
+      rescue:
+        - name: "Warn if onehost update failed for {{ node_name }}"
+          ansible.builtin.debug:
+            msg: >
+              Warning: 'onehost update' for host {{ node_name }} (ID: {{ one_host.ID }})
+              failed with exit code {{ onehost_update_result.rc }}.
+              Stderr: {{ onehost_update_result.stderr }}
 
     - name: "Remove temporary PCI filter file for {{ node_name }}"
       ansible.builtin.file:
         path: "/tmp/pci_filter_{{ node_name }}"
         state: absent
 
-    - name: "Force host PCI devices monitoring for {{ node_name }}"
-      ansible.builtin.shell:
-        cmd: "onehost forceupdate {{ one_host.ID }}"
-        executable: /bin/bash
-      changed_when: true
-      register: onehost_forceupdate_result
-      failed_when: false
-
-    - name: "Warn if onehost forceupdate failed for {{ node_name }}"
-      ansible.builtin.debug:
-        msg: >
-          Warning: 'onehost forceupdate' for host {{ node_name }} (ID: {{ one_host.ID }})
-          failed with exit code {{ onehost_forceupdate_result.rc }}.
-          Stderr: {{ onehost_forceupdate_result.stderr }}
-      when: onehost_forceupdate_result.rc != 0
+    - block:
+        - name: "Force host PCI devices monitoring for {{ node_name }}"
+          ansible.builtin.shell:
+            cmd: "onehost forceupdate {{ one_host.ID }}"
+            executable: /bin/bash
+          changed_when: true
+          register: onehost_forceupdate_result
+      rescue:
+        - name: "Warn if onehost forceupdate failed for {{ node_name }}"
+          ansible.builtin.debug:
+            msg: >
+              Warning: 'onehost forceupdate' for host {{ node_name }} (ID: {{ one_host.ID }})
+              failed with exit code {{ onehost_forceupdate_result.rc }}.
+              Stderr: {{ onehost_forceupdate_result.stderr }}

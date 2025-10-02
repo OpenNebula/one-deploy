@@ -26,8 +26,8 @@
 
 - name: "Set OpenNebula hosts list fact"
   ansible.builtin.set_fact:
-    one_hosts_list: "{{ [(one_hosts_shell.stdout | from_json).HOST_POOL.HOST | default({})] | flatten }}"
-  when: one_hosts_shell.stdout is defined and one_hosts_shell.stdout != ""
+    one_hosts_list: "{{ [(one_hosts_shell.stdout | from_json).HOST_POOL.HOST | d({})] | flatten }}"
+  when: one_hosts_shell.stdout != ""
   run_once: true
 
 - name: "Apply PCI devices filtering per-node"
