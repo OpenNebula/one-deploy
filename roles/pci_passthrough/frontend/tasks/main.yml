@@ -40,6 +40,6 @@
     - hostvars[node_name].pci_passthrough_devices is defined
     - one_hosts_list is defined
   vars:
-    one_node_name: "{{ hostvars[node_name]['ansible_host'] | default(node_name) }}"
+    one_node_name: "{{ hostvars[node_name].ansible_host | d(node_name) }}"
     one_host: "{{ (one_hosts_list | selectattr('NAME', 'equalto', one_node_name) | list | first | default({})) }}"
   run_once: true
