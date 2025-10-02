@@ -2,6 +2,9 @@
 - name: "Check for existence of PCI device {{ pci_device.address }}"
   ansible.builtin.stat:
     path: "/sys/bus/pci/devices/{{ pci_device.address }}"
+    get_attributes: false
+    get_checksum: true
+    get_mime: false
   register: pci_device_stat
   become: true
 
