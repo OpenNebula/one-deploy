@@ -21,4 +21,4 @@
     _hosts: "{{ groups.get(node_group | d('node'), []) | unique }}"
   when:
     - inventory_hostname in _hosts
-    - pci_passthrough_enabled | default(false) | bool
+    - pci_passthrough_enabled | d(false) | bool

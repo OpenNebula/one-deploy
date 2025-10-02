@@ -32,11 +32,15 @@
 - name: "Manage PCI passthrough devices"
   when: pci_passthrough_enabled | default(false)
   block:
-    - name: "Install driverctl"
+    - name: "Install driverctl with retries"
       ansible.builtin.package:
         name: driverctl
         state: present
       become: true
+      retries: 10
+      delay: 5
+      register: result
+      until: result is succeeded
 
     - name: "Manage individual PCI devices"
       ansible.builtin.include_tasks: pci_device.yml
