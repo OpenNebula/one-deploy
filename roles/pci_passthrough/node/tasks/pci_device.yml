@@ -2,6 +2,9 @@
 - name: "Check for existence of PCI device {{ pci_device.address }}"
   ansible.builtin.stat:
     path: "/sys/bus/pci/devices/{{ pci_device.address }}"
+    get_attributes: false
+    get_checksum: true
+    get_mime: false
   register: pci_device_stat
   become: true
 
@@ -40,7 +43,7 @@
 
 - name: "Store PCI device info in Vendor:DeviceID format"
   vars:
-    vendor_id: "{{ pci_vendor['content'] | b64decode | replace('0x', '') | trim }}"
-    device_id: "{{ pci_device_id['content'] | b64decode | replace('0x', '') | trim }}"
+    vendor_id: "{{ pci_vendor.content | b64decode | replace('0x', '') | trim }}"
+    device_id: "{{ pci_device_id.content | b64decode | replace('0x', '') | trim }}"
   ansible.builtin.set_fact:
     pci_passthrough_devices: "{{ pci_passthrough_devices | default([]) + [vendor_id ~ ':' ~ device_id] }}"

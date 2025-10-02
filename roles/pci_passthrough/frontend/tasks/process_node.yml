@@ -23,7 +23,7 @@
       ansible.builtin.copy:
         content: 'PCI_FILTER="{{ pci_filter }}"'
         dest: "/tmp/pci_filter_{{ node_name }}"
-        mode: '0644'
+        mode: 'u=rw,go=r'
 
     - block:
         - name: "Add PCI Filter to host template"

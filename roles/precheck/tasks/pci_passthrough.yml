@@ -43,6 +43,9 @@
     - name: "Check for IOMMU ACPI table"
       ansible.builtin.stat:
         path: "{{ _iommu_acpi_table_path }}"
+        get_attributes: false
+        get_checksum: true
+        get_mime: false
       register: iommu_acpi_table
       when: _iommu_acpi_table_path | length > 0
 
@@ -58,6 +61,9 @@
     - name: "Check for IOMMU groups directory"
       ansible.builtin.stat:
         path: /sys/kernel/iommu_groups
+        get_attributes: false
+        get_checksum: true
+        get_mime: false
       register: iommu_groups_dir
 
     - name: "Assert IOMMU is enabled in the kernel"
