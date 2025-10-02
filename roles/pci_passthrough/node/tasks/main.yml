@@ -22,12 +22,7 @@
       become: true
       register: trigger_result
       changed_when: false
-
-    - name: Ensure trigger was successful
-      ansible.builtin.assert:
-        that:
-          - trigger_result.rc == 0
-        fail_msg: "Handle vfio devices ownership: 'udevadm trigger' failed"
+      failed_when: trigger_result.rc != 0
 
 - name: "Manage PCI passthrough devices"
   when: pci_passthrough_enabled | default(false)
