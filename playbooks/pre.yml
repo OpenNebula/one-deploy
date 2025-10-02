@@ -28,6 +28,15 @@
 - hosts:
     - "{{ frontend_group | d('frontend') }}"
     - "{{ node_group | d('node') }}"
+  collections:
+    - opennebula.deploy
+  roles:
+    - role: helper/hosts
+      tags: [hosts]
+
+- hosts:
+    - "{{ frontend_group | d('frontend') }}"
+    - "{{ node_group | d('node') }}"
     - "{{ mon_group_name | d('mons') }}"
     - "{{ mgr_group_name | d('mgrs') }}"
     - "{{ osd_group_name | d('osds') }}"
@@ -45,9 +54,6 @@
   collections:
     - opennebula.deploy
   roles:
-    - role: helper/hosts
-      tags: [hosts]
-
     - role: helper/keys
       tags: [keys]
 
