@@ -11,18 +11,16 @@
         mode: 'u=rw,go=r'
 
     - name: Reload udev rules
-      ansible.builtin.command: udevadm control --reload-rules
+      ansible.builtin.command:
+        cmd: udevadm control --reload-rules
       become: true
-      register: reload_result
       changed_when: false
-      failed_when: reload_result.rc != 0
 
     - name: Trigger udev events
-      ansible.builtin.command: udevadm trigger
+      ansible.builtin.command:
+        cmd: udevadm trigger
       become: true
-      register: trigger_result
       changed_when: false
-      failed_when: trigger_result.rc != 0
 
 - name: "Manage PCI passthrough devices"
   when: pci_passthrough_enabled | bool
@@ -30,7 +28,6 @@
     - name: "Install driverctl with retries"
       ansible.builtin.package:
         name: driverctl
-        state: present
       become: true
       retries: 10
       delay: 5
@@ -38,7 +35,8 @@
       until: result is succeeded
 
     - name: "Manage individual PCI devices"
-      ansible.builtin.include_tasks: pci_device.yml
-      loop: "{{ pci_devices | default([]) }}"
+      ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/pci_device.yml"
+      loop: "{{ pci_devices | d([]) }}"
       loop_control:
         loop_var: pci_device

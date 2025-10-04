@@ -3,4 +3,4 @@ collections:
   - opennebula.deploy
 
 dependencies:
-  - role: pci_passthrough/common
+  - role: opennebula.deploy.common

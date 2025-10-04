@@ -76,13 +76,13 @@
     - role: network/node
       tags: [network]
 
+    - role: pci_passthrough/node
+      tags: [pci_passthrough]
+
     - role: prometheus/exporter
       tags: [prometheus]
       when: &prometheus
         - features.prometheus | bool is true
-
-    - role: pci_passthrough/node
-      tags: [pci_passthrough]
 
 - hosts: "{{ frontend_group | d('frontend') }}"
   tags: [frontend, stage3]
@@ -100,12 +100,12 @@
     - role: network/frontend
       tags: [network]
 
+    - role: pci_passthrough/frontend
+      tags: [pci_passthrough]
+
     - role: prometheus/server
       tags: [prometheus]
       when: *prometheus
-
-    - role: pci_passthrough/frontend
-      tags: [pci_passthrough]
 
 - hosts: "{{ grafana_group | d('grafana') }}"
   collections:

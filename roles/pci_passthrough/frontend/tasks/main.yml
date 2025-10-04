@@ -16,23 +16,23 @@
     - Sync Remotes
 
 - name: "Get OpenNebula hosts information"
-  ansible.builtin.shell:
+  ansible.builtin.command:
     cmd: onehost list --json
-    executable: /bin/bash
   changed_when: false
-  register: one_hosts_shell
+  register: onehost_list_result
   delegate_to: "{{ leader }}"
   run_once: true
 
 - name: "Set OpenNebula hosts list fact"
   ansible.builtin.set_fact:
-    one_hosts_list: "{{ [(one_hosts_shell.stdout | from_json).HOST_POOL.HOST | d({})] | flatten }}"
-  when: one_hosts_shell.stdout != ""
+    one_hosts_list: "{{ [(onehost_list_result.stdout | from_json).HOST_POOL.HOST | d({})] | flatten }}"
+  when: onehost_list_result.stdout != ""
   run_once: true
 
 - name: "Apply PCI devices filtering per-node"
-  ansible.builtin.include_tasks: process_node.yml
-  loop: "{{ groups['node'] }}"
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/process_node.yml"
+  loop: "{{ groups[node_group | d('node')] }}"
   loop_control:
     loop_var: node_name
   when:
@@ -41,5 +41,5 @@
     - one_hosts_list is defined
   vars:
     one_node_name: "{{ hostvars[node_name].ansible_host | d(node_name) }}"
-    one_host: "{{ (one_hosts_list | selectattr('NAME', 'equalto', one_node_name) | list | first | default({})) }}"
+    one_host: "{{ one_hosts_list | selectattr('NAME', '==', one_node_name) | list | first | d({}) }}"
   run_once: true

@@ -1,5 +1,5 @@
-Role: opennebula.deploy.pci_passthrough.frontend
-================================
+Role: opennebula.deploy.pci\_passthrough.frontend
+=================================================
 
 A role that handles PCI Passthrough configuration on the FrontEnd side. Currently, the role:
 - Enables monitoring of all PCI devices in FrontEnds.

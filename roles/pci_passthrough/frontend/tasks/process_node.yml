@@ -2,12 +2,16 @@
 - name: "Create PCI filter string for {{ node_name }}"
   ansible.builtin.set_fact:
     pci_filter: >-
-      {{ hostvars[node_name]['pci_passthrough_devices'] | unique | join(',') }}
-  when: hostvars[node_name]['pci_passthrough_devices'] is defined and hostvars[node_name]['pci_passthrough_devices'] | length > 0
+      {{ hostvars[node_name].pci_passthrough_devices | unique | join(',') }}
+  when:
+    - hostvars[node_name].pci_passthrough_devices is defined
+    - hostvars[node_name].pci_passthrough_devices | length > 0
 
 - name: "Print Host ID, IP and PCI filter for {{ node_name }}"
   ansible.builtin.debug:
-    msg: "Host IP:{{ hostvars[node_name]['ansible_host'] | default(node_name) }} OpenNebula ID:{{ one_host.ID }} PCI Filter:{{ pci_filter | default('N/A') }}"
+    msg: >
+      Host IP:{{ hostvars[node_name].ansible_host | d(node_name) }}
+      OpenNebula ID:{{ one_host.ID }} PCI Filter:{{ pci_filter | d('N/A') }}
   when: one_host.ID is defined
 
 - name: "Apply PCI filter to host {{ node_name }}"
@@ -27,9 +31,8 @@
 
     - block:
         - name: "Add PCI Filter to host template"
-          ansible.builtin.shell:
+          ansible.builtin.command:
             cmd: "onehost update {{ one_host.ID }} /tmp/pci_filter_{{ node_name }} -a"
-            executable: /bin/bash
           changed_when: true
           register: onehost_update_result
       rescue:
@@ -47,9 +50,8 @@
 
     - block:
         - name: "Force host PCI devices monitoring for {{ node_name }}"
-          ansible.builtin.shell:
+          ansible.builtin.command:
             cmd: "onehost forceupdate {{ one_host.ID }}"
-            executable: /bin/bash
           changed_when: true
           register: onehost_forceupdate_result
       rescue:

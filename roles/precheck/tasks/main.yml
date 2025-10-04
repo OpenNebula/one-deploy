@@ -18,7 +18,6 @@
 - ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/pci_passthrough.yml"
   vars:
-    _hosts: "{{ groups.get(node_group | d('node'), []) | unique }}"
-  when:
-    - inventory_hostname in _hosts
-    - pci_passthrough_enabled | d(false) | bool
+    _hosts: >-
+      {{ groups.get(node_group | d('node'), []) }}
+  when: inventory_hostname in _hosts

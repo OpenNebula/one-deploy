@@ -1,5 +1,5 @@
-Role: opennebula.deploy.pci_passthrough.frontend
-================================
+Role: opennebula.deploy.pci\_passthrough.frontend
+=================================================
 
 A role that handles PCI Passthrough configuration on the nodes side. Currently, the role:
 - Creates an udev rule to make sure vfio devices are in the kvm group
