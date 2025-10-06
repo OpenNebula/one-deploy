@@ -136,7 +136,7 @@
 
 - name: Check if distro family is supported
   ansible.builtin.assert:
-    that: ansible_os_family in {{ _supported }}
+    that: ansible_os_family in _supported
   vars:
     _supported:
       - Debian
@@ -144,7 +144,7 @@
 
 - name: Check if distro is supported
   ansible.builtin.assert:
-    that: ansible_distribution in {{ _supported }}
+    that: ansible_distribution in _supported
   vars:
     _supported:
       - AlmaLinux
@@ -156,8 +156,8 @@
   ansible.builtin.assert:
     that: (node_hv is undefined)
           or
-          (node_hv | lower in {{ _supported }})
-    msg: Please use one of the supported hypervisors {{ _supported }}.
+          (node_hv | lower in _supported)
+    msg: Please use one of the supported hypervisors _supported.
   vars:
     _supported:
       - kvm
@@ -187,7 +187,7 @@
   ansible.builtin.assert:
     that: "{{ 0 == (_loop[item].query | flatten | count) }}"
     msg: "{{ _loop[item].msg }}: {{ _loop[item].query | to_json }}"
-  loop: "{{ range(_loop | count) }}"
+  loop: "{{ range(_loop | count) | list }}"
   vars:
     _required: [":service_port", ":remote_addr", ":remote_port"]
     _optional: [":networks"]
@@ -238,3 +238,19 @@
           ((ssl.web_server is defined) and (ssl.web_server in ['nginx', 'apache']))
     msg: The only supported web servers are 'apache' and 'nginx'.
   run_once: true
+
+- name: Check frontend hostname is valid
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.hostname | lower not in ['localhost','localhost.localdomain','127.0.0.1','::1']
+    fail_msg: "Frontend's hostname '{{ ansible_facts.hostname }}' is invalid (must not be localhost/loopback)."
+  when: inventory_hostname in groups[frontend_group | d('frontend')]
+
+- name: Check frontend hostnames are resolvable
+  ansible.builtin.getent:
+    database: hosts
+    key: "{{ hostvars[item].ansible_facts.hostname }}"
+    fail_key: true
+  loop: "{{ groups[frontend_group | d('frontend')] }}"
+  loop_control:
+    label: "{{ item }}"

@@ -65,7 +65,7 @@ requirements-python: $(SELF)/requirements.txt
 	pip3 install --requirement $<
 
 requirements-galaxy: $(SELF)/requirements.yml $(ENV_DEFAULT)
-	$(call ENV_RUN,default) ansible-galaxy collection install --requirements-file $<
+	$(call ENV_RUN,default) ansible-galaxy collection install --requirements-file $< --collections-path $(SELF)/ansible_collections
 
 clean-requirements:
 	find $(SELF)/ansible_collections/ -mindepth 1 -maxdepth 1 -type d ! -name opennebula -exec rm -rf {} +

@@ -46,6 +46,7 @@
     # NOTE: It doesn't really make sense to symlink /var/lib/one/datastores/,
     #       so we use that as a skip condition.
     - _mount_path != '/var/lib/one/datastores'
+    - ds_dict[item].id is defined
   vars:
     # This isn't strictly a "mountpoint" (that's completely irrelevant).
     _mount_path: >-

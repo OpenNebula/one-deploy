@@ -1,6 +1,6 @@
 ---
 - when: ceph.uuid is falsy
-  delegate_to: "{{ groups[node_group | d('node')][0] }}"
+  delegate_to: "{{ groups.get(node_group | d('node'), [omit])[0] }}"
   block:
     - name: Slurp UUID
       ansible.builtin.slurp:
@@ -17,5 +17,5 @@
           uuid: >-
             {{ (_slurp[0].content | b64decode) if _slurp is truthy else None }}
         _slurp: >-
-          {{ play_hosts | map('extract', hostvars, ['slurp']) | selectattr('failed', 'false') | list }}
+          {{ ansible_play_batch | map('extract', hostvars, ['slurp']) | selectattr('failed', 'false') | list }}
       run_once: true

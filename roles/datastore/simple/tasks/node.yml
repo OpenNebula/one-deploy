@@ -25,7 +25,7 @@
       loop: >-
         {{ range(ds_items.image | map(attribute=0)
                                 | select
-                                | count) }}
+                                | count) | list }}
       vars:
         _mount_path: >-
           {{ ds_items.image[item].0.path | normpath }}
@@ -42,7 +42,7 @@
   loop: >-
     {{ range(ds_items.system | map(attribute=0)
                              | select
-                             | count) }}
+                             | count) | list }}
   vars:
     _mount_path: >-
       {{ ds_items.system[item].0.path | normpath }}
