@@ -46,4 +46,4 @@
           ansible.posix.authorized_key:
             user: "{{ slurp.results[item].item }}"
             key: "{{ slurp.results[item].content | b64decode | trim }}"
-          loop: "{{ range(slurp.results | count) }}"
+          loop: "{{ range(slurp.results | count) | list }}"

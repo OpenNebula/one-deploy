@@ -40,7 +40,7 @@
           vars:
             _leader: "{{ hostvars[item].leader }}"
             _federation: "{{ hostvars[item].federation }}"
-          loop: "{{ play_hosts }}"
+          loop: "{{ ansible_play_batch }}"
 
         - name: Get Zone
           ansible.builtin.shell:

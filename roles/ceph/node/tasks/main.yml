@@ -24,7 +24,7 @@
     group: oneadmin
     mode: u=rwx,go=rx
 
-- delegate_to: "{{ groups[mon_group_name | d('mons')][0] }}"
+- delegate_to: "{{ groups.get(mon_group_name | d('mons'), [omit])[0] }}"
   run_once: true
   block:
     - name: Ensure pool exists
@@ -108,7 +108,7 @@
             {{ new_uuid }}
       run_once: true
 
-- delegate_to: "{{ groups[mon_group_name | d('mons')][0] }}"
+- delegate_to: "{{ groups.get(mon_group_name | d('mons'), [omit])[0] }}"
   run_once: true
   block:
     - name: Get keyring
