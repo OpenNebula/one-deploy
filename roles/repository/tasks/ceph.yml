@@ -20,7 +20,7 @@
         #       That way we make sure:
         #       - the key is downloaded only once and only when necessary
         #       - keys are identical everywhere
-        - when: repo_constraints.ceph.hosts | select('in', play_hosts)
+        - when: repo_constraints.ceph.hosts | select('in', ansible_play_batch)
                                             | map('extract', hostvars, ['stat', 'stat', 'exists']) is not all
           block:
             - name: Download Ceph GPG key (once)

@@ -52,7 +52,7 @@ provisioner:
       retry_files_enabled: false
       any_errors_fatal: true
       callbacks_enabled: profile_tasks
-      stdout_callback: yaml
+      callback_result_format: yaml
     privilege_escalation:
       become: true
       become_user: root

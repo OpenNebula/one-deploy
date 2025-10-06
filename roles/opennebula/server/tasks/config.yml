@@ -107,7 +107,9 @@
       notify:
         - Restart OpenNebula
 
-- when: sched_drs is mapping
+- when:
+    - sched_drs is defined
+    - sched_drs is mapping
   block:
     - name: Check if drs configuration exists
       ansible.builtin.stat:
@@ -126,55 +128,57 @@
           - when: "{{ sched_drs.DEFAULT_SCHED.SOLVER is defined }}"
             put:
               path: [DEFAULT_SCHED, SOLVER]
-              value: "{{ sched_drs.DEFAULT_SCHED.SOLVER | d(omit) }}"
+              value: "{{ sched_drs.DEFAULT_SCHED.SOLVER | d() }}"
 
           - when: "{{ sched_drs.DEFAULT_SCHED.SOLVER_PATH is defined }}"
             put:
               path: [DEFAULT_SCHED, SOLVER_PATH]
-              value: "{{ sched_drs.DEFAULT_SCHED.SOLVER_PATH | d(omit) }}"
+              value: "{{ sched_drs.DEFAULT_SCHED.SOLVER_PATH | d() }}"
 
           - when: "{{ sched_drs.PLACE.POLICY is defined }}"
             put:
               path: [PLACE, POLICY]
-              value: "{{ sched_drs.PLACE.POLICY | d(omit) }}"
+              value: "{{ sched_drs.PLACE.POLICY | d() }}"
 
           - when: "{{ sched_drs.PLACE.WEIGHTS is defined }}"
             put:
               path: [PLACE, WEIGHTS]
-              value: "{{ sched_drs.PLACE.WEIGHTS | d(omit) }}"
+              value: "{{ sched_drs.PLACE.WEIGHTS | d() }}"
 
           - when: "{{ sched_drs.OPTIMIZE.POLICY is defined }}"
             put:
               path: [OPTIMIZE, POLICY]
-              value: "{{ sched_drs.OPTIMIZE.POLICY | d(omit) }}"
+              value: "{{ sched_drs.OPTIMIZE.POLICY | d() }}"
 
           - when: "{{ sched_drs.OPTIMIZE.MIGRATION_THRESHOLD is defined }}"
             put:
               path: [OPTIMIZE, MIGRATION_THRESHOLD]
-              value: "{{ sched_drs.OPTIMIZE.MIGRATION_THRESHOLD | d(omit) }}"
+              value: "{{ sched_drs.OPTIMIZE.MIGRATION_THRESHOLD | d() }}"
 
           - when: "{{ sched_drs.OPTIMIZE.WEIGHTS is defined }}"
             put:
               path: [OPTIMIZE, WEIGHTS]
-              value: "{{ sched_drs.OPTIMIZE.WEIGHTS | d(omit) }}"
+              value: "{{ sched_drs.OPTIMIZE.WEIGHTS | d() }}"
 
           - when: "{{ sched_drs.PREDICTIVE is defined }}"
             put:
               path: [PREDICTIVE]
-              value: "{{ sched_drs.PREDICTIVE | d(omit) }}"
+              value: "{{ sched_drs.PREDICTIVE | d() }}"
 
           - when: "{{ sched_drs.MEMORY_SYSTEM_DS_SCALE is defined }}"
             put:
               path: [MEMORY_SYSTEM_DS_SCALE]
-              value: "{{ sched_drs.MEMORY_SYSTEM_DS_SCALE | d(omit) }}"
+              value: "{{ sched_drs.MEMORY_SYSTEM_DS_SCALE | d() }}"
 
           - when: "{{ sched_drs.DIFFERENT_VNETS is defined }}"
             put:
               path: [DIFFERENT_VNETS]
-              value: "{{ sched_drs.DIFFERENT_VNETS | d(omit) }}"
+              value: "{{ sched_drs.DIFFERENT_VNETS | d() }}"
       when: stat_drs_conf.stat.exists is true
 
-- when: sched_rank is mapping
+- when:
+    - sched_rank is defined
+    - sched_rank is mapping
   block:
     - name: Check if rank configuration exists
       ansible.builtin.stat:
@@ -193,55 +197,55 @@
           - when: "{{ sched_rank.MEMORY_SYSTEM_DS_SCALE is defined }}"
             put:
               path: [MEMORY_SYSTEM_DS_SCALE]
-              value: '{{ sched_rank.MAX_HOST | d(omit) }}'
+              value: '{{ sched_rank.MAX_HOST | d() }}'
 
           - when: "{{ sched_rank.MAX_HOST is defined }}"
             put:
               path: [MAX_HOST]
-              value: '{{ sched_rank.MAX_HOST | d(omit) }}'
+              value: '{{ sched_rank.MAX_HOST | d() }}'
 
           - when: "{{ sched_rank.DIFFERENT_VNETS is defined }}"
             put:
               path: [DIFFERENT_VNETS]
-              value: '{{ "YES" if (sched_rank.DIFFERENT_VNETS | d(omit) | bool) else "NO" }}'
+              value: '{{ "YES" if (sched_rank.DIFFERENT_VNETS | d(true) | bool) else "NO" }}'
 
           - when: "{{ sched_rank.DEFAULT_SCHED.POLICY is defined }}"
             put:
               path: [DEFAULT_SCHED, POLICY]
-              value: '{{ sched_rank.DEFAULT_SCHED.POLICY | d(omit) }}'
+              value: '{{ sched_rank.DEFAULT_SCHED.POLICY | d() }}'
 
           - when: "{{ sched_rank.DEFAULT_SCHED.RANK is defined }}"
             put:
               path: [DEFAULT_SCHED, RANK]
-              value: '"{{ sched_rank.DEFAULT_SCHED.RANK | d(omit) }}"'
+              value: '"{{ sched_rank.DEFAULT_SCHED.RANK | d() }}"'
 
           - when: "{{ sched_rank.DEFAULT_DS_SCHED.POLICY is defined }}"
             put:
               path: [DEFAULT_DS_SCHED, POLICY]
-              value: '{{ sched_rank.DEFAULT_DS_SCHED.POLICY | d(omit) }}'
+              value: '{{ sched_rank.DEFAULT_DS_SCHED.POLICY | d() }}'
 
           - when: "{{ sched_rank.DEFAULT_DS_SCHED.RANK is defined }}"
             put:
               path: [DEFAULT_DS_SCHED, RANK]
-              value: '"{{ sched_rank.DEFAULT_DS_SCHED.RANK | d(omit) }}"'
+              value: '"{{ sched_rank.DEFAULT_DS_SCHED.RANK | d() }}"'
 
           - when: "{{ sched_rank.DEFAULT_NIC_SCHED.POLICY is defined }}"
             put:
               path: [DEFAULT_NIC_SCHED, POLICY]
-              value: '{{ sched_rank.DEFAULT_NIC_SCHED.POLICY | d(omit) }}'
+              value: '{{ sched_rank.DEFAULT_NIC_SCHED.POLICY | d() }}'
 
           - when: "{{ sched_rank.DEFAULT_NIC_SCHED.RANK is defined }}"
             put:
               path: [DEFAULT_NIC_SCHED, RANK]
-              value: '"{{ sched_rank.DEFAULT_NIC_SCHED.RANK | d(omit) }}"'
+              value: '"{{ sched_rank.DEFAULT_NIC_SCHED.RANK | d() }}"'
 
           - when: "{{ sched_rank.LOG.SYSTEM is defined }}"
             put:
               path: [LOG, SYSTEM]
-              value: '"{{ sched_rank.LOG.SYSTEM | d(omit) }}"'
+              value: '"{{ sched_rank.LOG.SYSTEM | d() }}"'
 
           - when: "{{ sched_rank.LOG.DEBUG_LEVEL is defined }}"
             put:
               path: [LOG, DEBUG_LEVEL]
-              value: '{{ sched_rank.LOG.DEBUG_LEVEL | d(omit) }}'
+              value: '{{ sched_rank.LOG.DEBUG_LEVEL | d() }}'
       when: stat_rank_conf.stat.exists is true
