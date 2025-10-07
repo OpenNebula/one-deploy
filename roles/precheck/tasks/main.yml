@@ -14,3 +14,10 @@
     _hosts: >-
       {{ (groups.get(node_group | d('node'), []) + groups.get(frontend_group | d('frontend'), [])) | unique }}
   when: inventory_hostname in _hosts
+
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/pci_passthrough.yml"
+  vars:
+    _hosts: >-
+      {{ groups.get(node_group | d('node'), []) }}
+  when: inventory_hostname in _hosts

@@ -1,0 +1,42 @@
+---
+- name: "Handle vfio devices ownership"
+  when: pci_passthrough_enabled | bool
+  block:
+    - name: Create vfio udev rule
+      ansible.builtin.copy:
+        dest: /etc/udev/rules.d/99-vfio.rules
+        content: 'SUBSYSTEM=="vfio", GROUP="kvm", MODE="0666"'
+        owner: root
+        group: root
+        mode: 'u=rw,go=r'
+
+    - name: Reload udev rules
+      ansible.builtin.command:
+        cmd: udevadm control --reload-rules
+      become: true
+      changed_when: false
+
+    - name: Trigger udev events
+      ansible.builtin.command:
+        cmd: udevadm trigger
+      become: true
+      changed_when: false
+
+- name: "Manage PCI passthrough devices"
+  when: pci_passthrough_enabled | bool
+  block:
+    - name: "Install driverctl with retries"
+      ansible.builtin.package:
+        name: driverctl
+      become: true
+      retries: 10
+      delay: 5
+      register: result
+      until: result is succeeded
+
+    - name: "Manage individual PCI devices"
+      ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/pci_device.yml"
+      loop: "{{ pci_devices | d([]) }}"
+      loop_control:
+        loop_var: pci_device

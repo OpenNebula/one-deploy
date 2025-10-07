@@ -1,0 +1,48 @@
+---
+- name: "Check for existence of PCI device {{ pci_device.address }}"
+  ansible.builtin.stat:
+    path: "/sys/bus/pci/devices/{{ pci_device.address }}"
+    get_attributes: false
+    get_checksum: true
+    get_mime: false
+  register: pci_device_stat
+  become: true
+
+- name: "Assert that PCI device exists: {{ pci_device.address }}"
+  ansible.builtin.assert:
+    that: pci_device_stat.stat.exists
+    fail_msg: "PCI device {{ pci_device.address }} not found on host {{ ansible_default_ipv4.address }}."
+
+- name: "Bind PCI device to vfio-pci driver: {{ pci_device.address }}"
+  ansible.builtin.command:
+    cmd: "driverctl set-override {{ pci_device.address }} vfio-pci"
+  register: driver_bind
+  changed_when: "'changed' in driver_bind.stdout"
+  become: true
+
+- name: "Verify driver for PCI device {{ pci_device.address }}"
+  ansible.builtin.command:
+    cmd: "lspci -Dnns {{ pci_device.address }} -k"
+  register: driver_check
+  changed_when: false
+  failed_when: "'Kernel driver in use: vfio-pci' not in driver_check.stdout"
+  become: true
+
+- name: "Get vendor for PCI device {{ pci_device.address }}"
+  ansible.builtin.slurp:
+    src: "/sys/bus/pci/devices/{{ pci_device.address }}/vendor"
+  register: pci_vendor
+  become: true
+
+- name: "Get device for PCI device {{ pci_device.address }}"
+  ansible.builtin.slurp:
+    src: "/sys/bus/pci/devices/{{ pci_device.address }}/device"
+  register: pci_device_id
+  become: true
+
+- name: "Store PCI device info in Vendor:DeviceID format"
+  ansible.builtin.set_fact:
+    pci_passthrough_devices: "{{ pci_passthrough_devices | d([]) + [_vendor_id ~ ':' ~ _device_id] }}"
+  vars:
+    _vendor_id: "{{ pci_vendor.content | b64decode | replace('0x', '') | trim }}"
+    _device_id: "{{ pci_device_id.content | b64decode | replace('0x', '') | trim }}"
