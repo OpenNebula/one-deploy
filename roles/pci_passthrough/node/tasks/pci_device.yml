@@ -17,7 +17,8 @@
   ansible.builtin.command:
     cmd: "driverctl set-override {{ pci_device.address }} vfio-pci"
   register: driver_bind
-  changed_when: "'changed' in driver_bind.stdout"
+  changed_when: >-
+    'changed' in driver_bind.stdout
   become: true
 
 - name: "Verify driver for PCI device {{ pci_device.address }}"
@@ -25,7 +26,8 @@
     cmd: "lspci -Dnns {{ pci_device.address }} -k"
   register: driver_check
   changed_when: false
-  failed_when: "'Kernel driver in use: vfio-pci' not in driver_check.stdout"
+  failed_when: >-
+    'Kernel driver in use: vfio-pci' not in driver_check.stdout
   become: true
 
 - name: "Get vendor for PCI device {{ pci_device.address }}"
