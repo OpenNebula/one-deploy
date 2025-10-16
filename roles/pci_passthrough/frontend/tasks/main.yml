@@ -1,45 +1,47 @@
 ---
-- ansible.builtin.include_role:
-    name: opennebula/leader
-  when: leader is undefined
-  run_once: true
+- when: pci_passthrough_enabled | bool
+  block:
+    - ansible.builtin.include_role:
+        name: opennebula/leader
+      when: leader is undefined
+      run_once: true
 
-- name: Enable monitoring of all PCI devices
-  opennebula.deploy.cfgtool:
-    dest: /var/lib/one/remotes/etc/im/kvm-probes.d/pci.conf
-    parser: Yaml
-    actions:
-      - put:
-          path: [":filter"]
-          value: "*:*"
-  notify:
-    - Sync Remotes
+    - name: Enable monitoring of all PCI devices
+      opennebula.deploy.cfgtool:
+        dest: /var/lib/one/remotes/etc/im/kvm-probes.d/pci.conf
+        parser: Yaml
+        actions:
+          - put:
+              path: [":filter"]
+              value: "*:*"
+      notify:
+        - Sync Remotes
 
-- name: "Get OpenNebula hosts information"
-  ansible.builtin.command:
-    cmd: onehost list --json
-  changed_when: false
-  register: onehost_list_result
-  delegate_to: "{{ leader }}"
-  run_once: true
+    - name: "Get OpenNebula hosts information"
+      ansible.builtin.command:
+        cmd: onehost list --json
+      changed_when: false
+      register: onehost_list_result
+      delegate_to: "{{ leader }}"
+      run_once: true
 
-- name: "Set OpenNebula hosts list fact"
-  ansible.builtin.set_fact:
-    one_hosts_list: "{{ [(onehost_list_result.stdout | from_json).HOST_POOL.HOST | d({})] | flatten }}"
-  when: onehost_list_result.stdout != ""
-  run_once: true
+    - name: "Set OpenNebula hosts list fact"
+      ansible.builtin.set_fact:
+        one_hosts_list: "{{ [(onehost_list_result.stdout | from_json).HOST_POOL.HOST | d({})] | flatten }}"
+      when: onehost_list_result.stdout != ""
+      run_once: true
 
-- name: "Apply PCI devices filtering per-node"
-  ansible.builtin.include_tasks:
-    file: "{{ role_path }}/tasks/process_node.yml"
-  loop: "{{ groups[node_group | d('node')] }}"
-  loop_control:
-    loop_var: node_name
-  when:
-    - hostvars[node_name] is defined
-    - hostvars[node_name].pci_passthrough_devices is defined
-    - one_hosts_list is defined
-  vars:
-    one_node_name: "{{ hostvars[node_name].ansible_host | d(node_name) }}"
-    one_host: "{{ one_hosts_list | selectattr('NAME', '==', one_node_name) | list | first | d({}) }}"
-  run_once: true
+    - name: "Apply PCI devices filtering per-node"
+      ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/process_node.yml"
+      loop: "{{ groups[node_group | d('node')] }}"
+      loop_control:
+        loop_var: node_name
+      when:
+        - hostvars[node_name] is defined
+        - hostvars[node_name].pci_passthrough_devices is defined
+        - one_hosts_list is defined
+      vars:
+        one_node_name: "{{ hostvars[node_name].ansible_host | d(node_name) }}"
+        one_host: "{{ one_hosts_list | selectattr('NAME', '==', one_node_name) | list | first | d({}) }}"
+      run_once: true
