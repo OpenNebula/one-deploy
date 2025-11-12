@@ -1,5 +1,5 @@
 ---
-- when: pci_passthrough_enabled | bool
+- when: true in groups['node'] | map('extract', hostvars) | map(attribute='pci_passthrough_enabled', default=False) | list
   block:
     - ansible.builtin.include_role:
         name: opennebula/leader
