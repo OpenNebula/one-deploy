@@ -28,3 +28,4 @@
       {{ repos_enabled | map('regex_replace', '^(.*)$', '\g<1>_repo')
                        | map('extract', hostvars[inventory_hostname], ['changed'])
                        | map('default', false) }}
+  ignore_errors: true # warning ignore-errors
