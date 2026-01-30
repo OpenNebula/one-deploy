@@ -6,6 +6,17 @@
         opennebula_repo_pre_enable: >-
           {{ opennebula_repo_pre_enable_defaults | combine(opennebula_repo_pre_enable | d({}), recursive=true) }}
 
+    - name: Install EPEL release package (if needed)
+      ansible.builtin.dnf:
+        name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm
+        state: present
+      when: ansible_distribution == 'RedHat' and "'epel' in _config_manager"
+      vars:
+        _config_manager: >-
+          {{ opennebula_repo_pre_enable[ansible_distribution].config_manager[ansible_distribution_major_version]
+             | d([])
+             | map('replace', "'", '') }}
+
     - name: Enable required DNF extra repos
       ansible.builtin.shell:
         cmd: |
