@@ -6,38 +6,35 @@
         opennebula_repo_pre_enable: >-
           {{ opennebula_repo_pre_enable_defaults | combine(opennebula_repo_pre_enable | d({}), recursive=true) }}
 
-    - name: Install EPEL release package (if needed)
-      ansible.builtin.dnf:
-        name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm
-        state: present
-      when: ansible_distribution == 'RedHat' and "'epel' in _config_manager"
-      vars:
-        _config_manager: >-
-          {{ opennebula_repo_pre_enable[ansible_distribution].config_manager[ansible_distribution_major_version]
-             | d([])
-             | map('replace', "'", '') }}
-
     - name: Enable required DNF extra repos
       ansible.builtin.shell:
         cmd: |
           set -o errexit
 
-          {% if _config_manager | count > 0 %}
-          dnf config-manager -y --enable {{ _config_manager | map('regex_replace', '^(.*)$', "'\g<1>'") | join(' ') }}
-          {% endif %}
-
           {% if _subscription_manager | count > 0 %}
           subscription-manager repos {{ _subscription_manager | map('regex_replace', '^(.*)$', "--enable '\g<1>'") | join(' ') }}
+          {% endif %}
+
+          {% if _extra_rpms | count > 0 %}
+          dnf install -y {{ _extra_rpms | map('regex_replace', '^(.*)$', "'\g<1>'") | join(' ') }}
+          {% endif %}
+
+          {% if _config_manager | count > 0 %}
+          dnf config-manager -y --enable {{ _config_manager | map('regex_replace', '^(.*)$', "'\g<1>'") | join(' ') }}
           {% endif %}
         executable: /bin/bash
       changed_when: false
       vars:
-        _config_manager: >-
-          {{ opennebula_repo_pre_enable[ansible_distribution].config_manager[ansible_distribution_major_version]
-             | d([])
-             | map('replace', "'", '') }}
         _subscription_manager: >-
           {{ opennebula_repo_pre_enable[ansible_distribution].subscription_manager[ansible_distribution_major_version]
+             | d([])
+             | map('replace', "'", '') }}
+        _extra_rpms: >-
+          {{ opennebula_repo_pre_enable[ansible_distribution].extra_rpms[ansible_distribution_major_version]
+             | d([])
+             | map('replace', "'", '') }}
+        _config_manager: >-
+          {{ opennebula_repo_pre_enable[ansible_distribution].config_manager[ansible_distribution_major_version]
              | d([])
              | map('replace', "'", '') }}
 
