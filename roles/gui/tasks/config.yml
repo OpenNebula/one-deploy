@@ -12,6 +12,7 @@
       - put:
           path: [token_remote_support]
           value: "{{ one_token }}"
+  no_log: true
   notify:
     - Restart FireEdge Server
   when: one_token is defined and one_token is truthy
