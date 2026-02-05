@@ -145,16 +145,28 @@ opennebula_repo_url_defaults:
 
 opennebula_repo_pre_enable_defaults:
   AlmaLinux:
-    config_manager:
-      '8': [epel, powertools, ha]
-      '9': [epel, crb, highavailability]
     subscription_manager:
       '8': []
       '9': []
-  RedHat:
+      '10': []
+    extra_rpms:
+      '8': []
+      '9': []
+      '10': []
     config_manager:
-      '8': [epel]
-      '9': [epel]
+      '8': [epel, powertools, ha]
+      '9': [epel, crb, highavailability]
+      '10': [epel, crb, highavailability]
+  RedHat:
     subscription_manager:
       '8': [codeready-builder-for-rhel-8-x86_64-rpms, rhel-8-for-x86_64-highavailability-rpms]
       '9': [codeready-builder-for-rhel-9-x86_64-rpms, rhel-9-for-x86_64-highavailability-rpms]
+      '10': [codeready-builder-for-rhel-10-x86_64-rpms, rhel-10-for-x86_64-highavailability-rpms]
+    extra_rpms:
+      '8': ["https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm"]
+      '9': ["https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm"]
+      '10': ["https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm"]
+    config_manager:
+      '8': [epel]
+      '9': [epel]
+      '10': [epel]
