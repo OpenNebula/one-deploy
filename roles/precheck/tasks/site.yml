@@ -260,3 +260,13 @@
         msg: |
           Please make sure each cluster member can resolve all Front-end hostnames
           (you could try enabling both ensure_hostname and ensure_hosts as a workaround).
+
+- name: Make sure user gave consent to reboot after kernel's cmdline update
+  ansible.builtin.assert:
+    that:
+      (kernel_params is undefined)
+      or
+      (kernel_params is sequence and kernel_params | count == 0)
+      or
+      (kernel_ok_to_reboot is defined and kernel_ok_to_reboot | bool is true)
+    fail_msg: Please set 'kernel_ok_to_reboot' to true (give consent) or remove 'kernel_params' from inventory.
