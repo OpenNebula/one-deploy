@@ -260,3 +260,20 @@
         msg: |
           Please make sure each cluster member can resolve all Front-end hostnames
           (you could try enabling both ensure_hostname and ensure_hosts as a workaround).
+
+- name: Make sure user gave consent to run wipefs on requested block devices
+  ansible.builtin.assert:
+    that:
+      (mkfs is undefined)
+      or
+      (mkfs is sequence and mkfs | count == 0)
+      or
+      (_no_wipefs_requested)
+      or
+      (mkfs_ok_to_wipefs is defined and mkfs_ok_to_wipefs | bool is true)
+    fail_msg: Please set 'mkfs_ok_to_wipefs' to true (give consent) or disable all 'force' flags inside the 'mkfs' list.
+  vars:
+    _no_wipefs_requested: >-
+      {{ mkfs | selectattr('force', 'defined')
+              | selectattr('force', 'true')
+              | count == 0 }}

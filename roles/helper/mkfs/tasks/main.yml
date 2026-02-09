@@ -1,0 +1,83 @@
+---
+- when:
+    - mkfs is defined
+    - mkfs is sequence
+    - mkfs | count > 0
+  block:
+    - name: Install required OS packages
+      ansible.builtin.package:
+        name: "{{ (_known + _common + _specific[ansible_os_family]) | select | unique }}"
+      vars:
+        _fstype_to_package:
+          Debian:
+            btrfs: btrfs-progs
+            ext2: e2fsprogs
+            ext3: e2fsprogs
+            ext4: e2fsprogs
+            lvm: lvm2
+            swap: util-linux
+            vfat: dosfstools
+            xfs: xfsprogs
+          RedHat:
+            btrfs: btrfs-progs
+            ext2: e2fsprogs
+            ext3: e2fsprogs
+            ext4: e2fsprogs
+            lvm: lvm2
+            swap: util-linux
+            vfat: dosfstools
+            xfs: xfsprogs
+        _known: >-
+          {%- set output = [] -%}
+          {%- for fstype in mkfs | map(attribute='fstype') -%}
+          {{- output.append(_fstype_to_package[ansible_os_family][fstype] | d(None)) -}}
+          {%- endfor -%}
+          {{- output -}}
+        _common: [util-linux] # provides lsblk and wipefs
+        _specific:
+          Debian: []
+          RedHat: []
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+    - name: Query lsblk for complete filesystem info
+      ansible.builtin.command:
+        cmd: lsblk --json --list --output-all
+      register: command_lsblk
+      changed_when: false
+
+    - vars:
+        _lsblk_list: >-
+          {{ (command_lsblk.stdout | from_json).blockdevices }}
+        # convert to path -> item dictionary
+        _lsblk_dict: >-
+          {{ dict(_lsblk_list | map(attribute='path') | zip(_lsblk_list)) }}
+        # ignore all mounted filesystems
+        _lsblk_list_filtered: >-
+          {{ _lsblk_list | selectattr('mountpoint', 'none') }}
+        # convert to path -> item dictionary
+        _lsblk_dict_filtered: >-
+          {{ dict(_lsblk_list_filtered | map(attribute='path') | zip(_lsblk_list_filtered)) }}
+      block:
+        - name: Assert block devices defined in the 'mkfs' list exist
+          ansible.builtin.assert:
+            that: _unknown | count == 0
+            fail_msg: "Invalid block devices! => {{ _unknown }}"
+          vars:
+            _unknown: >-
+              {{ mkfs | map(attribute='dev')
+                      | reject('in', _lsblk_dict) }}
+
+        - name: Create / Re-create filesystems
+          community.general.filesystem:
+            fstype: "{{ item.fstype }}"
+            dev: "{{ item.dev }}"
+            opts: "{{ item.opts | d(omit) }}"
+            force: "{{ (mkfs_ok_to_wipefs | bool is true) and (item.force | d(false) | bool is true) }}"
+            resizefs: "{{ item.resizefs | d(false) | bool is true }}"
+            state: present
+          when:
+            - item.dev in _lsblk_dict_filtered
+          loop: "{{ mkfs }}"

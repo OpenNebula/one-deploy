@@ -57,5 +57,8 @@
     - role: helper/keys
       tags: [keys]
 
+    - role: helper/mkfs
+      tags: [mkfs]
+
     - role: helper/fstab
       tags: [fstab]
