@@ -62,3 +62,6 @@
 
     - role: helper/fstab
       tags: [fstab]
+
+    - role: helper/kernel
+      tags: [kernel]

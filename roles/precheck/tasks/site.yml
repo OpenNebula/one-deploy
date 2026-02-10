@@ -277,3 +277,12 @@
       {{ mkfs | selectattr('force', 'defined')
               | selectattr('force', 'true')
               | count == 0 }}
+- name: Make sure user gave consent to reboot after kernel's cmdline update
+  ansible.builtin.assert:
+    that:
+      (kernel_params is undefined)
+      or
+      (kernel_params is sequence and kernel_params | count == 0)
+      or
+      (kernel_ok_to_reboot is defined and kernel_ok_to_reboot | bool is true)
+    fail_msg: Please set 'kernel_ok_to_reboot' to true (give consent) or remove 'kernel_params' from inventory.
