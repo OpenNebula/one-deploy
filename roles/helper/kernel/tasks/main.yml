@@ -1,0 +1,73 @@
+---
+- when:
+    - kernel_params is defined
+    - kernel_params is sequence
+    - kernel_params | count > 0
+    - kernel_ok_to_reboot | bool is true
+  block:
+    - name: Read /proc/cmdline
+      ansible.builtin.slurp:
+        path: /proc/cmdline
+      register: slurp_cmdline
+
+    - vars:
+        _cmdline: >-
+          {{ slurp_cmdline.content | b64decode }}
+        # ignore un-managed params (+ cleanup)
+        _items1: >-
+          {{ kernel_params | rejectattr('managed', 'false')
+                           | map('ansible.utils.remove_keys', target=['managed'])
+                           | map('dict2items')
+                           | flatten }}
+        _cleanup: >-
+          {{ _items1 | map(attribute='key')
+                     | unique }}
+        # ignore nulled params
+        _items2: >-
+          {{ _items1 | rejectattr('value', 'none') }}
+        _must_be_present: >-
+          {{ (_items2 | map(attribute='key')) | zip(_items2 | map(attribute='value'))
+                                              | map('join', '=') }}
+      when: _must_be_present | reject('in', _cmdline) | count > 0
+      block:
+        - name: Persist kernel parameters
+          ansible.builtin.shell:
+            cmd: "{{ _shell[ansible_os_family].cmd }}"
+            executable: /bin/bash
+          vars:
+            _shell:
+              Debian:
+                cmd: |
+                  set -o errexit
+                  touch /etc/default/grub.d/90-one.cfg
+                  BEFORE=$(cksum /etc/default/grub.d/90-one.cfg)
+                  cat >/etc/default/grub.d/90-one.cfg <<'CFG'
+                  GRUB_CMDLINE_LINUX="{{ _must_be_present | join(' ') }}"
+                  CFG
+                  AFTER=$(cksum /etc/default/grub.d/90-one.cfg)
+                  if [[ "$AFTER" == "$BEFORE" ]]; then
+                    exit 0
+                  else
+                    update-grub && exit 78 # EREMCHG
+                  fi
+              RedHat:
+                cmd: |
+                  set -o errexit
+                  BEFORE=$(cksum /etc/default/grub)
+                  grubby --update-kernel=ALL --remove-args='{{ _cleanup | join(' ') }}'
+                  grubby --update-kernel=ALL --args='{{ _must_be_present | join(' ') }}'
+                  AFTER=$(cksum /etc/default/grub)
+                  if [[ "$AFTER" == "$BEFORE" ]]; then
+                    exit 0
+                  else
+                    exit 78 # EREMCHG
+                  fi
+          register: shell
+          changed_when:
+            - shell.rc in [78]
+          failed_when:
+            - shell.rc not in [0, 78]
+
+        - name: Reboot (NOW)
+          ansible.builtin.reboot: {}
+          when: shell is changed
