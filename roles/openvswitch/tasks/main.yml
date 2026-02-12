@@ -1,0 +1,70 @@
+---
+- when:
+    - ovs is defined
+    - ovs is mapping
+    - ovs | count > 0
+  block:
+    - name: Install OVS packages
+      ansible.builtin.package:
+        name: "{{ _common + (_specific[ansible_distribution] | d(_specific[ansible_os_family])) }}"
+      vars:
+        _common:
+          - findutils
+        _specific:
+          AlmaLinux:
+            - iproute
+            - iputils
+            - openvswitch3.5
+          Debian:
+            - iproute2
+            - iputils-arping
+            - openvswitch-switch
+          RedHat:
+            - iproute
+            - iputils
+            - openvswitch3.6
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+    - name: Enable / Start OVS (NOW)
+      ansible.builtin.systemd_service:
+        name: "{{ _specific[ansible_os_family] }}"
+        state: started
+        enabled: true
+      vars:
+        _specific:
+          Debian: openvswitch-switch.service
+          RedHat: openvswitch.service
+
+    - name: Install OVS-related scripts
+      ansible.builtin.template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode }}"
+        owner: 0
+        group: 0
+      loop:
+        - src: opennebula-ovs.sh.jinja
+          dest: /usr/local/sbin/opennebula-ovs.sh
+          mode: u=rwx,go=rx
+        - src: opennebula-ovs.service.jinja
+          dest: /etc/systemd/system/opennebula-ovs.service
+          mode: u=rw,go=r
+      register: template
+
+    - name: Switch to OVS networking
+      ansible.builtin.systemd_service:
+        daemon_reload: "{{ item.daemon_reload | d(omit) }}"
+        name: "{{ item.name | d(omit) }}"
+        state: "{{ item.state | d(omit) }}"
+        enabled: "{{ item.enabled | d(omit) }}"
+      loop:
+        - daemon_reload: "{{ _changed }}"
+        - name: opennebula-ovs.service
+          state: "{{ 'restarted' if _changed else 'started' }}"
+          enabled: true
+      vars:
+        _changed: >-
+          {{ template is changed }}
