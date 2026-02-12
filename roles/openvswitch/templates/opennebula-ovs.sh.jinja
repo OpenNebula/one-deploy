@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+set -o errexit -o pipefail
+
+# --- Helper functions
+
+log() { echo "$*" >&2; }
+die() { log "ERROR: $*"; exit 1; }
+
+# --- Basic asserts
+
+type -p arping find ip jq ovs-vsctl &>/dev/null
+
+{% for iface in ovs.iface.keys() %}
+# {{ iface }}
+log 'Asserting {{ iface }} exists'
+ip link show dev '{{ iface }}' &>/dev/null || die 'Interface {{ iface }} does not exist'
+{% endfor %}
+
+# --- Bridge creation
+
+{% for br, v in ovs.br.items() %}
+# {{ br }}
+if ovs-vsctl br-exists '{{ br }}' &>/dev/null; then
+    log 'WARNING: Bridge {{ br }} already exists, skipping creation'
+else
+    log 'Creating OVS bridge {{ br }}'
+    ovs-vsctl add-br '{{ br }}' || die 'Failed to create bridge'
+fi
+{% for port in v.ports %}
+{% if port in ovs.iface %}
+if ovs-vsctl port-to-br '{{ port }}' &>/dev/null; then
+    log 'WARNING: Port {{ port }} already exists, skipping creation'
+else
+    log 'Adding port {{ port }} to {{ br }}'
+    ovs-vsctl add-port '{{ br }}' '{{ port }}' || die 'Failed to add port'
+fi
+{% endif %}
+{% if port in ovs.bond %}
+if ovs-vsctl port-to-br '{{ port }}' &>/dev/null; then
+    log 'WARNING: Bond {{ port }} already exists, skipping creation'
+else
+    log 'Adding bond {{ port }} to {{ br }}'
+    ovs-vsctl add-bond '{{ br }}' '{{ port }}' \
+        {{ ovs.bond[port].ifaces | map('regex_replace', '^(.*)$', "'\g<1>'") | join(' ') }} \
+        bond_mode='{{ ovs.bond[port].mode | d('active-backup') }}' \
+        other_config:bond-primary='{{ ovs.bond[port].ifaces | first }}' || die 'Failed to add bond'
+fi
+{% endif %}
+{% endfor %}
+{% if v.vlan is defined and (v.vlan is number or v.vlan is string) %}
+if [[ "$(ovs-vsctl get port '{{ br }}' tag)" == '{{ v.vlan }}' ]]; then
+    log 'WARNING: VLAN tag {{ v.vlan }} already set on {{ br }}, skipping'
+else
+    log 'Setting VLAN tag {{ v.vlan }} on {{ br }}'
+    ovs-vsctl set port '{{ br }}' tag='{{ v.vlan }}' || die 'Failed to set VLAN tag'
+fi
+{% endif %}
+{% endfor %}
+
+# --- Networking cleanup
+
+if type -p systemctl &>/dev/null && systemctl is-active --quiet NetworkManager; then
+    log 'Stopping and disabling NetworkManager'
+    systemctl disable NetworkManager || log 'WARNING: Failed to disable NetworkManager'
+    systemctl stop NetworkManager || log 'WARNING: Failed to stop NetworkManager'
+fi
+
+if type -p netplan &>/dev/null && netplan status -f json | jq -re '."netplan-global-state"."online"' &>/dev/null; then
+    log 'Disabling Netplan'
+    find /etc/netplan/ -type f -name '*.yaml' -exec mv {} {}.bak \;
+    netplan apply || log 'WARNING: Failed to disable Netplan'
+fi
+
+{% for vlan in ovs.br.values() | selectattr('vlan', 'defined') | map(attribute='vlan') %}
+{% for iface in ovs.iface.keys() %}
+# {{ iface }}.{{ vlan }}
+if ip link show '{{ iface }}.{{ vlan }}' &>/dev/null; then
+    log 'Deleting VLAN interface {{ iface }}.{{ vlan }}'
+    ip link delete '{{ iface }}.{{ vlan }}' || log 'WARNING: Failed to delete {{ iface }}.{{ vlan }}'
+fi
+{% endfor %}
+{% endfor %}
+
+# --- IP / MTU configuration
+
+{% for dev, v in ((ovs.iface.items() | list) + (ovs.br.items() | list)) %}
+# {{ dev }}
+log 'Flushing {{ dev }}'
+ip addr flush dev '{{ dev }}' || die 'Failed to flush {{ dev }}'
+{% for a in v.addrs | d([]) %}
+log 'Adding IP address {{ a.cidr }} to {{ dev }}'
+ip addr add '{{ a.cidr }}' dev '{{ dev }}' {{ "metric '{}'".format(a.metric) if a.metric is defined else "" }} || die 'Failed to add IP address'
+{% endfor %}
+{% if v.mtu is defined and (v.mtu is number or v.mtu is string) %}
+if [[ "$(ovs-vsctl get Interface '{{ dev }}' mtu_request)" == '{{ v.mtu }}' ]]; then
+    log 'WARNING: MTU {{ v.mtu }} already set on {{ dev }}, skipping'
+else
+    log 'Setting MTU {{ v.mtu }} on {{ dev }}'
+    ovs-vsctl set Interface '{{ dev }}' mtu_request='{{ v.mtu }}' || die 'Failed to set MTU'
+fi
+{% endif %}
+log 'Bringing up {{ dev }}'
+ip link set dev '{{ dev }}' up || die 'Failed to bring up {{ dev }}'
+{% endfor %}
+
+# --- Default route
+
+{% set gw = (((ovs.iface.values() | list) + (ovs.br.values() | list)) | selectattr('gw', 'defined') | first).gw | d(None) %}
+{% if gw is not none %}
+if ip --json route show default | jq -re '. != []' &>/dev/null; then
+    log 'WARNING: Default route already exists'
+else
+    log 'Adding default route via {{ gw }}'
+    ip route add default via '{{ gw }}' || die 'Failed to add default route'
+fi
+{% endif %}
+
+# --- Nameserver configuration
+
+if type -p systemctl resolvectl &>/dev/null && systemctl is-active --quiet systemd-resolved; then
+{% for dev, v in ((ovs.iface.items() | list) + (ovs.br.items() | list)) %}
+    # {{ dev }}
+{% if v.dns is defined and v.dns is sequence %}
+    log 'Setting nameservers for {{ dev }}'
+    resolvectl dns '{{ dev }}' {{ v.dns | map('regex_replace', '^(.*)$', "'\g<1>'") | join(' ') }} || die 'Failed to setup nameservers'
+{% endif %}
+{% endfor %}
+fi
+
+# --- Networking refresh
+
+{% for br, v in ovs.br.items() %}
+# {{ br }}
+{% for a in v.addrs | d([]) %}
+log 'Sending gratuitous ARP for {{ a.cidr }} on {{ br }}'
+arping -c 3 -A -I '{{ br }}' '{{ a.cidr.split('/') | first }}' || log 'WARNING: arping failed'
+{% endfor %}
+{% endfor %}
+
+# ---
+
+log 'OVS network configuration completed successfully'
+exit 0
