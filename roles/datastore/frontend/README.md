@@ -11,12 +11,12 @@ N/A
 Role Variables
 --------------
 
-| Name         | Type   | Default   | Example       | Description                                                                    |
-|--------------|--------|-----------|---------------|--------------------------------------------------------------------------------|
-| `ds.mode`    | `str`  | `ssh`     |               | OpenNebula Datastore configuration mode: `ssh`, `shared`, `ceph` or `generic`. |
-| `ds.config`  | `dict` | `{}`      | (check below) | OpenNebula Datastore configuration for a specifc mode.                         |
-| `node_group` | `str`  | `node`    |               | Custom name of the Node group in the inventory.                                |
-| `leader`     | `str`  | undefined | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader.                         |
+| Name         | Type   | Default   | Example       | Description                                                                                  |
+|--------------|--------|-----------|---------------|----------------------------------------------------------------------------------------------|
+| `ds.mode`    | `str`  | `ssh`     |               | OpenNebula Datastore configuration mode: `ssh`, `shared`, `ceph`, `fs_lvm_ssh` or `generic`. |
+| `ds.config`  | `dict` | `{}`      | (check below) | OpenNebula Datastore configuration for a specifc mode.                                       |
+| `node_group` | `str`  | `node`    |               | Custom name of the Node group in the inventory.                                              |
+| `leader`     | `str`  | undefined | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader.                                       |
 
 Dependencies
 ------------
@@ -60,6 +60,19 @@ Example Playbook
                 path: /opt/nfs/default/
               - type: file
                 path: /opt/nfs/files/
+      roles:
+        - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.datastore.frontend
+
+    - hosts: frontend
+      vars:
+        # Configure OpenNebula to use "fs_lvm_ssh" image and system datastores.
+        # LVM devices are specified per SYSTEM_DS
+        ds:
+          mode: fs_lvm_ssh
+          config:
+            SYSTEM_DS:
+              device: /dev/mapper/mpatha
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.datastore.frontend
