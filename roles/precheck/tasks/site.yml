@@ -277,6 +277,7 @@
       {{ mkfs | selectattr('force', 'defined')
               | selectattr('force', 'true')
               | count == 0 }}
+
 - name: Make sure user gave consent to reboot after kernel's cmdline update
   ansible.builtin.assert:
     that:

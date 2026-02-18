@@ -1,0 +1,62 @@
+---
+- ansible.builtin.include_role:
+    name: opennebula/leader
+  when: leader is undefined
+  run_once: true
+
+- delegate_to: "{{ leader }}"
+  block:
+    - name: Get Nodes
+      ansible.builtin.command:
+        cmd: onehost list --json
+      changed_when: false
+      register: command
+      run_once: true
+
+    - name: Apply PCI_FILTER and PCI_SHORT_ADDRESS
+      ansible.builtin.shell:
+        cmd: |
+          set +o errexit -o pipefail
+          TEMPLATE="$(mktemp)"
+          tee "$TEMPLATE"
+          cat "$TEMPLATE" | onehost update '{{ _this }}' -a "$TEMPLATE"; RC="$?"
+          rm -f "$TEMPLATE"
+          exit "$RC"
+        stdin: |
+          {{ _after | opennebula.deploy.to_one }}
+        executable: /bin/bash
+      changed_when: true
+      when: _after | opennebula.deploy.to_one
+            !=
+            _before | opennebula.deploy.to_one
+      vars:
+        _host_pool: >-
+          {{ (command.stdout | from_json).HOST_POOL }}
+        _this: >-
+          {{ ansible_host | d(inventory_hostname) }}
+        _template: >-
+          {{ ([_host_pool.HOST] | flatten
+                                | selectattr('NAME', '==', _this)
+                                | first).TEMPLATE }}
+        _before:
+          PCI_FILTER: >-
+            {{ _template.PCI_FILTER | d('') }}
+          PCI_SHORT_ADDRESS: >-
+            {{ _template.PCI_SHORT_ADDRESS | d('') }}
+        _after:
+          PCI_FILTER: >-
+            {%- set output = [] -%}
+            {%- for v in pci_devices_by_vendor_device_class -%}
+              {%- if v.excluded | d(false) | bool is false -%}
+                {{- output.append(v.key) -}}
+              {%- endif -%}
+            {%- endfor -%}
+            {{- output | join(',') -}}
+          PCI_SHORT_ADDRESS: >-
+            {%- set output = [] -%}
+            {%- for v in pci_devices_by_address -%}
+              {%- if v.excluded | d(false) | bool is false -%}
+                {{- output.append(v.key) -}}
+              {%- endif -%}
+            {%- endfor -%}
+            {{- output | join(',') -}}

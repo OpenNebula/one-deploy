@@ -1,0 +1,319 @@
+---
+- name: Install required OS packages
+  ansible.builtin.package:
+    name: "{{ _common + _specific[ansible_os_family] }}"
+  vars:
+    _common: [bash, coreutils, driverctl, grep, pciutils]
+    _specific:
+      Debian: []
+      RedHat: []
+  register: package
+  until: package is success
+  retries: 12
+  delay: 5
+
+- name: Parse and split pci_devices
+  ansible.builtin.set_fact:
+    pci_devices_by_vendor_device_class: >-
+      {%- set output = [] -%}
+      {%- for v in pci_devices | selectattr('address', 'undefined') -%}
+        {{-
+          output.append(v | combine({
+            "key": "{}:{}:{}".format(
+              v.vendor | d('*'),
+              v.device | d('*'),
+              v.class | d('*'),
+            ) | lower,
+            "key_regex": "^{}:{}:{}$".format(
+              (v.vendor | d('*') == '*') | ternary('[^:]*', v.vendor),
+              (v.device | d('*') == '*') | ternary('[^:]*', v.device),
+              (v.class | d('*') == '*') | ternary('[^:]*', v.class),
+            ) | lower,
+          }))
+        -}}
+      {%- endfor -%}
+      {{- output -}}
+    pci_devices_by_address: >-
+      {%- set output = [] -%}
+      {%- for v in pci_devices | selectattr('address', 'defined') -%}
+        {{-
+          output.append(v | combine({
+            "key": v.address | lower,
+            "key_regex": "^{}$".format(v.address) | lower,
+          }))
+        -}}
+      {%- endfor -%}
+      {{- output -}}
+
+- block: &Query_Devices # first pass (before enabling VFs)
+    - name: Query lspci for devices
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit
+          {% for v in pci_devices_by_vendor_device_class %}
+          STDOUT="$(lspci -vmm -nkD -d '{{ v.key }}')"
+          if [[ -n "$STDOUT" ]]; then
+            echo "$STDOUT"
+            echo
+          else
+            echo "Could not find '{{ v.key }}'" >&2
+            exit 1
+          fi
+          {% endfor %}
+          {% for v in pci_devices_by_address %}
+          STDOUT="$(lspci -vmm -nkD -s '{{ v.key }}')"
+          if [[ -n "$STDOUT" ]]; then
+            echo "$STDOUT"
+            echo
+          else
+            echo "Could not find '{{ v.key }}'" >&2
+            exit 1
+          fi
+          {% endfor %}
+        executable: /bin/bash
+      register: shell_lspci
+      changed_when: false
+
+    - name: Parse lspci's output
+      ansible.builtin.set_fact:
+        lspci_devices: >-
+          {{ _lspci_devices_filtered_and_extended }}
+      vars:
+        _lspci_devices: >-
+          {{ shell_lspci.stdout | split(_sep1)
+                                | select('truthy')
+                                | map('split', _sep2)
+                                | map('map', 'split', _sep3)
+                                | map('items2dict', key_name=0, value_name=1) }}
+        _sep1: "\n\n"
+        _sep2: "\n"
+        _sep3: ":\t" # noqa no-tabs
+
+        _by_vendor_device_class_excluded: >-
+            {%- set output = [] -%}
+            {%- for v in pci_devices_by_vendor_device_class -%}
+              {%- if v.excluded | d(false) | bool is true -%}
+                {{- output.append(v) -}}
+              {%- endif -%}
+            {%- endfor -%}
+            {{- output -}}
+
+        _by_address_excluded: >-
+            {%- set output = [] -%}
+            {%- for v in pci_devices_by_address -%}
+              {%- if v.excluded | d(false) | bool is true -%}
+                {{- output.append(v) -}}
+              {%- endif -%}
+            {%- endfor -%}
+            {{- output -}}
+
+        _to_exclude: >-
+          {%- set output = [] -%}
+          {%- for v in _lspci_devices -%}
+            {%- set k = "{}:{}:{}".format(v.Vendor, v.Device, v.Class) -%}
+            {%- for x in _by_vendor_device_class_excluded -%}
+              {%- if k | regex_search(x.key_regex) -%}
+                {{- output.append(k) -}}
+              {%- endif -%}
+            {%- endfor -%}
+            {%- set k = v.Slot -%}
+            {%- for x in _by_address_excluded -%}
+              {%- if k | regex_search(x.key_regex) -%}
+                {{- output.append(k) -}}
+              {%- endif -%}
+            {%- endfor -%}
+          {%- endfor -%}
+          {{- output | unique -}}
+
+        _lspci_devices_filtered: >-
+          {%- set output = [] -%}
+          {%- for v in _lspci_devices -%}
+            {%- if _to_exclude is not contains(v.Slot) -%}
+              {{- output.append(v) -}}
+            {%- endif -%}
+          {%- endfor -%}
+          {{- output -}}
+
+        _lspci_devices_filtered_and_extended: >-
+          {%- set output = [] -%}
+          {%- for v in _lspci_devices_filtered -%}
+            {%- set to_append = [] %}
+            {%- for x in pci_devices_by_vendor_device_class -%}
+              {%- set k = "{}:{}:{}".format(v.Vendor, v.Device, v.Class) -%}
+              {%- if k | regex_search(x.key_regex) -%}
+                {{-
+                  to_append.append(v | combine({
+                    "set_driver": x.set_driver | d('vfio-pci'),
+                    "set_numvfs": x.set_numvfs | d(0),
+                  }))
+                -}}
+              {%- endif -%}
+            {%- endfor -%}
+            {%- for x in pci_devices_by_address -%}
+              {%- set k = v.Slot -%}
+              {%- if k | regex_search(x.key_regex) -%}
+                {{-
+                  to_append.append(v | combine({
+                    "set_driver": x.set_driver | d('vfio-pci'),
+                    "set_numvfs": x.set_numvfs | d(0),
+                  }))
+                -}}
+              {%- endif -%}
+            {%- endfor -%}
+            {%- if to_append | count > 0 -%}
+              {{- output.append(to_append | last) -}}
+            {%- endif -%}
+          {%- endfor -%}
+          {{- output -}}
+
+- when: lspci_devices | count > 0
+  block:
+    - when: lspci_devices | map(attribute='set_driver') is contains('vfio-pci')
+      block:
+        - name: Load vfio-pci module if not present
+          community.general.modprobe:
+            name: vfio-pci
+            state: present
+            persistent: present
+
+        - name: Ensure udev rules for vfio
+          ansible.builtin.copy:
+            dest: /etc/udev/rules.d/99-vfio.rules
+            owner: 0
+            group: 0
+            mode: u=rw,go=r
+            content: |
+              SUBSYSTEM=="vfio", GROUP="kvm", MODE="0666"
+          register: copy_udev_vfio
+
+        - name: Refresh udev rules
+          ansible.builtin.shell:
+            cmd: |
+              set -o errexit
+              udevadm control --reload-rules && udevadm trigger
+            executable: /bin/bash
+          changed_when: true
+          when: copy_udev_vfio is changed
+
+    - name: Render sriov-enable service unit
+      ansible.builtin.copy:
+        dest: "{{ item.dest }}"
+        owner: 0
+        group: 0
+        mode: "{{ item.mode }}"
+        content: "{{ item.cmd }}"
+      loop:
+        - dest: /usr/local/sbin/sriov-manage.sh
+          mode: u=rwx,go=rx
+          cmd: |
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            # Split the input (e.g., 0000:27:00.0-4) into address and count
+            PCI_ADDR="$(echo "$1" | cut -d'-' -f1)"
+            VF_COUNT="$(echo "$1" | cut -d'-' -f2)"
+
+            # Verify the device exists before writing
+            if [[ -d "/sys/bus/pci/devices/$PCI_ADDR" ]]; then
+              echo "Setting $VF_COUNT VFs on $PCI_ADDR"
+              echo "$VF_COUNT" > "/sys/bus/pci/devices/$PCI_ADDR/sriov_numvfs"
+            else
+              echo "Error: Device $PCI_ADDR not found" >&2
+              exit 1
+            fi
+        - dest: /etc/systemd/system/sriov-enable@.service
+          mode: u=rw,go=r
+          cmd: |
+            [Unit]
+            Description=Enable SR-IOV VFs on %I
+            After=network.target
+
+            [Service]
+            Type=oneshot
+            RemainAfterExit=yes
+            # %I is replaced by the string after the @ in the command
+            ExecStart=/usr/local/sbin/sriov-manage.sh %i
+
+            [Install]
+            WantedBy=multi-user.target
+      register: copy_sriov_enable_service
+
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      when: copy_sriov_enable_service is changed
+
+    - block: &Override_Drivers # first pass (before enabling VFs)
+        - name: Override drivers
+          ansible.builtin.shell:
+            cmd: |
+              set -o errexit -o pipefail
+              BEFORE="$(driverctl list-overrides 2>/dev/null | sort)" ||:
+              {% for v in lspci_devices %}
+              if ! grep -E -m1 '^{{ v.Slot }}\s+{{ v.set_driver }}$' <<< "$BEFORE"; then
+                driverctl set-override '{{ v.Slot }}' '{{ v.set_driver }}'
+              fi
+              {% endfor %}
+              AFTER="$(driverctl list-overrides 2>/dev/null | sort)" ||:
+              if [[ "$AFTER" == "$BEFORE" ]]; then
+                exit 0
+              else
+                exit 78 # EREMCHG
+              fi
+            executable: /bin/bash
+          register: shell
+          changed_when:
+            - shell.rc in [78]
+          failed_when:
+            - shell.rc not in [0, 78]
+
+    - name: Enable VFs (when possible)
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit -o pipefail
+          BEFORE="$(systemctl show --all -P Id 'sriov-enable@*.service' | sort)"
+          {% for v in lspci_devices %}
+          {% if v.set_numvfs == 'max' or v.set_numvfs > 0 %}
+          if [[ -e '/sys/bus/pci/devices/{{ v.Slot }}/sriov_numvfs' ]]; then
+          {% if v.set_numvfs == 'max' %}
+            SRIOV_NUMVFS="$(head -n1 '/sys/bus/pci/devices/{{ v.Slot }}/sriov_totalvfs')"
+          {% elif v.set_numvfs > 0 %}
+            SRIOV_NUMVFS='{{ v.set_numvfs }}'
+          {% else %}
+            unset SRIOV_NUMVFS
+          {% endif %}
+            if [[ -n "$SRIOV_NUMVFS" ]]; then
+              ALL="$(systemctl show --all -P Id 'sriov-enable@{{ v.Slot }}-*.service' | grep -E -v '^\s*$')" ||:
+              TO_ENABLE="sriov-enable@{{ v.Slot }}-$SRIOV_NUMVFS.service"
+              TO_DISABLE="$(grep -E -v "^$TO_ENABLE$" <<< "$ALL")" ||:
+              if [[ -n "$TO_DISABLE" ]]; then
+                systemctl disable --now $TO_DISABLE
+              fi
+              if [[ -n "$TO_ENABLE" ]]; then
+                if ! grep -E -m1 "^$TO_ENABLE$" <<< "$ALL"; then
+                  # To avoid 'write error: Device or resource busy' during re-enabling
+                  echo 0 > '/sys/bus/pci/devices/{{ v.Slot }}/sriov_numvfs'
+                fi
+                systemctl enable --now $TO_ENABLE
+              fi
+            fi
+          fi
+          {% endif %}
+          {% endfor %}
+          AFTER="$(systemctl show --all -P Id 'sriov-enable@*.service' | sort)"
+          if [[ "$AFTER" == "$BEFORE" ]]; then
+            exit 0
+          else
+            exit 78 # EREMCHG
+          fi
+        executable: /bin/bash
+      register: shell
+      changed_when:
+        - shell.rc in [78]
+      failed_when:
+        - shell.rc not in [0, 78]
+
+    - block: *Query_Devices # second pass (after enabling VFs)
+
+- when: lspci_devices | count > 0
+  block: *Override_Drivers # second pass (after enabling VFs)

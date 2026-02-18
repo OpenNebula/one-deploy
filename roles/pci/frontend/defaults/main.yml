@@ -1,0 +1,6 @@
+---
+pci_passthrough_enabled: >-
+  {{ (groups[node_group | d('node')] | map('extract', hostvars)
+                                     | map(attribute='pci_passthrough_enabled', default=false)
+                                     | map('bool')) is any }}
+pci_passthrough_default_filter: "*:*" # NOTE: OpenNebula's default is "0:0"

@@ -76,8 +76,8 @@
     - role: network/node
       tags: [network]
 
-    - role: pci_passthrough/node
-      tags: [pci_passthrough]
+    - role: pci/node
+      tags: [pci, pci_passthrough]
 
     - role: prometheus/exporter
       tags: [prometheus]
@@ -100,8 +100,8 @@
     - role: network/frontend
       tags: [network]
 
-    - role: pci_passthrough/frontend
-      tags: [pci_passthrough]
+    - role: pci/frontend
+      tags: [pci, pci_passthrough]
 
     - role: prometheus/server
       tags: [prometheus]

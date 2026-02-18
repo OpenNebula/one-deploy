@@ -1,5 +1,6 @@
 ---
-- hosts: "{{ bastion_group | d('bastion') }}"
+- hosts:
+    - "{{ bastion_group | d('bastion') }}"
   collections:
     - opennebula.deploy
   roles:
@@ -45,8 +46,10 @@
   roles:
     - role: helper/facts
       tags: [always]
-
-    - role: precheck
+  post_tasks:
+    - ansible.builtin.include_role:
+        name: precheck
+        tasks_from: main
 
 - hosts:
     - "{{ frontend_group | d('frontend') }}"
@@ -65,3 +68,12 @@
 
     - role: helper/kernel
       tags: [kernel]
+
+- hosts:
+    - "{{ node_group | d('node') }}"
+  collections:
+    - opennebula.deploy
+  post_tasks:
+    - ansible.builtin.include_role:
+        name: precheck
+        tasks_from: pci
