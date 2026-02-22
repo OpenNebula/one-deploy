@@ -1,30 +1,62 @@
 ---
-- name: Read /proc/cmdline
-  ansible.builtin.slurp:
-    path: /proc/cmdline
-  register: slurp_cmdline
-
 - vars:
-    _cmdline: >-
-      {{ slurp_cmdline.content | b64decode }}
-    # ignore un-managed params (+ cleanup)
-    _items1: >-
-      {{ kernel_params | rejectattr('managed', 'false')
-                       | map('ansible.utils.remove_keys', target=['managed'])
-                       | map('dict2items')
-                       | flatten }}
+    _managed: >-
+      {%- set output = [] -%}
+      {%- for v in kernel_params -%}
+        {%- if v.managed | d(true) | bool is true -%}
+          {{- output.append(v | dict2items
+                              | rejectattr('value.managed', 'defined')
+                              | first) -}}
+        {%- endif -%}
+      {%- endfor -%}
+      {{- output -}}
+
     _cleanup: >-
-      {{ _items1 | map(attribute='key')
-                 | unique }}
-    # ignore nulled params
-    _items2: >-
-      {{ _items1 | rejectattr('value', 'none') }}
+      {{ _managed | map(attribute='key') | unique }}
+
+    _without_arg: >-
+      {{ _managed | selectattr('value', 'none') }}
+
+    _with_arg: >-
+      {{ _managed | rejectattr('value', 'none') }}
+
     _must_be_present: >-
-      {{ (_items2 | map(attribute='key')) | zip(_items2 | map(attribute='value'))
-                                          | map('join', '=') }}
-  when: _must_be_present | reject('in', _cmdline) | count > 0
+      {{ [ _without_arg | map(attribute='key'),
+           _with_arg | map(attribute='key') | zip(_with_arg | map(attribute='value'))
+                                            | map('join', '=') ] | flatten }}
   block:
-    - name: Persist kernel parameters
+    # RedHat doesn't support Debian's /etc/default/grub.d logic, instead modification of the
+    # master file /etc/default/grub is necessary. Fortunately /etc/default/grub file is
+    # just a regular bash script, hence other custom files can be sourced in there directly.
+    - name: Extend /etc/default/grub (fix)
+      ansible.builtin.blockinfile:
+        path: /etc/default/grub
+        marker: >-
+          # {mark} managed by one-deploy
+        block: |
+          . /etc/default/grub.d/99-cmdline.cfg || :
+      when: ansible_os_family in ['RedHat']
+
+    - name: Ensure /etc/default/grub.d/
+      ansible.builtin.file:
+        path: /etc/default/grub.d/
+        owner: 0
+        group: 0
+        mode: u=rwx,go=rx
+        state: directory
+
+    - name: Update /etc/default/grub.d/99-cmdline.cfg
+      ansible.builtin.copy:
+        dest: /etc/default/grub.d/99-cmdline.cfg
+        owner: 0
+        group: 0
+        mode: u=rw,go=r
+        content: |
+          # managed by one-deploy
+          GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX {{ _must_be_present | join(' ') }}"
+      register: copy_cmdline_cfg
+
+    - name: Update grub
       ansible.builtin.shell:
         cmd: "{{ _shell[ansible_os_family].cmd }}"
         executable: /bin/bash
@@ -33,36 +65,36 @@
           Debian:
             cmd: |
               set -o errexit
-              touch /etc/default/grub.d/90-one.cfg
-              BEFORE=$(cksum /etc/default/grub.d/90-one.cfg)
-              cat >/etc/default/grub.d/90-one.cfg <<'CFG'
-              GRUB_CMDLINE_LINUX="{{ _must_be_present | join(' ') }}"
-              CFG
-              AFTER=$(cksum /etc/default/grub.d/90-one.cfg)
-              if [[ "$AFTER" == "$BEFORE" ]]; then
-                exit 0
-              else
-                update-grub && exit 78 # EREMCHG
-              fi
-          RedHat:
-            cmd: |
-              set -o errexit
-              BEFORE=$(cksum /etc/default/grub)
-              grubby --update-kernel=ALL --remove-args='{{ _cleanup | join(' ') }}'
-              grubby --update-kernel=ALL --args='{{ _must_be_present | join(' ') }}'
-              AFTER=$(cksum /etc/default/grub)
+              BEFORE="$(cksum /boot/grub/grub.cfg)"
+              grub-mkconfig -o /boot/grub/grub.cfg
+              AFTER="$(cksum /boot/grub/grub.cfg)"
               if [[ "$AFTER" == "$BEFORE" ]]; then
                 exit 0
               else
                 exit 78 # EREMCHG
               fi
-      register: shell
+          RedHat:
+            cmd: |
+              set -o errexit
+              BEFORE="$(cksum /boot/grub2/grub.cfg)"
+              grub2-mkconfig -o /boot/grub2/grub.cfg --update-bls-cmdline || grub2-mkconfig -o /boot/grub2/grub.cfg
+              AFTER="$(cksum /boot/grub2/grub.cfg)"
+              if [[ "$AFTER" == "$BEFORE" ]]; then
+                exit 0
+              else
+                exit 78 # EREMCHG
+              fi
+      register: shell_grub_mkconfig
       changed_when:
-        - shell.rc in [78]
+        - shell_grub_mkconfig.rc in [78]
       failed_when:
-        - shell.rc not in [0, 78]
+        - shell_grub_mkconfig.rc not in [0, 78]
+      when: copy_cmdline_cfg is changed
 
     - name: Indicate if reboot is required
       ansible.builtin.set_fact:
         kernel_need_to_reboot: >-
-          {{ (kernel_need_to_reboot | bool) or (shell is changed) }}
+          {{ (kernel_need_to_reboot | bool) or _condition }}
+      vars:
+        _condition: >-
+          {{ shell_grub_mkconfig is defined and shell_grub_mkconfig is changed }}

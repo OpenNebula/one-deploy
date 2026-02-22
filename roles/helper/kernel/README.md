@@ -21,7 +21,7 @@ Role Variables
 Dependencies
 ------------
 
-- `ansible.utils`
+N/A
 
 Example Playbook
 ----------------
