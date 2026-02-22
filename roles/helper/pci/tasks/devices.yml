@@ -113,13 +113,13 @@
             {%- set k = "{}:{}:{}".format(v.Vendor, v.Device, v.Class) -%}
             {%- for x in _by_vendor_device_class_excluded -%}
               {%- if k | regex_search(x.key_regex) -%}
-                {{- output.append(k) -}}
+                {{- output.append(v.Slot) -}}
               {%- endif -%}
             {%- endfor -%}
             {%- set k = v.Slot -%}
             {%- for x in _by_address_excluded -%}
               {%- if k | regex_search(x.key_regex) -%}
-                {{- output.append(k) -}}
+                {{- output.append(v.Slot) -}}
               {%- endif -%}
             {%- endfor -%}
           {%- endfor -%}
@@ -170,12 +170,6 @@
   block:
     - when: lspci_devices | map(attribute='set_driver') is contains('vfio-pci')
       block:
-        - name: Load vfio-pci module if not present
-          community.general.modprobe:
-            name: vfio-pci
-            state: present
-            persistent: present
-
         - name: Ensure udev rules for vfio
           ansible.builtin.copy:
             dest: /etc/udev/rules.d/99-vfio.rules
@@ -251,7 +245,9 @@
               BEFORE="$(driverctl list-overrides 2>/dev/null | sort)" ||:
               {% for v in lspci_devices %}
               if ! grep -E -m1 '^{{ v.Slot }}\s+{{ v.set_driver }}$' <<< "$BEFORE"; then
-                driverctl set-override '{{ v.Slot }}' '{{ v.set_driver }}'
+                if ! [[ -e '/sys/bus/pci/devices/{{ v.Slot }}/sriov_numvfs' ]]; then
+                  driverctl set-override '{{ v.Slot }}' '{{ v.set_driver }}'
+                fi
               fi
               {% endfor %}
               AFTER="$(driverctl list-overrides 2>/dev/null | sort)" ||:

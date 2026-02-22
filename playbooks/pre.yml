@@ -73,7 +73,10 @@
     - "{{ node_group | d('node') }}"
   collections:
     - opennebula.deploy
-  post_tasks:
+  pre_tasks:
     - ansible.builtin.include_role:
         name: precheck
         tasks_from: pci
+  roles:
+    - role: helper/pci
+      tags: [pci, pci_passthrough]

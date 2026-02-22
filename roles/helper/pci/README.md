@@ -1,7 +1,7 @@
-Role: opennebula.deploy.pci.node
-================================
+Role: opennebula.deploy.helper.pci
+==================================
 
-A role that handles PCI Passthrough / SR-IOV device configuration on the Node's side.
+A role that handles PCI Passthrough / SR-IOV device configuration.
 
 Requirements
 ------------
@@ -19,7 +19,7 @@ Role Variables
 Dependencies
 ------------
 
-- `opennebula.deploy.helper.pci`
+N/A
 
 Example Playbook
 ----------------
@@ -37,7 +37,7 @@ Example Playbook
             set_numvfs: max
       roles:
         - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.pci.node
+        - role: opennebula.deploy.helper.pci
 
 License
 -------

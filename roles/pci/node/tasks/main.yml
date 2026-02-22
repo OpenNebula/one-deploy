@@ -1,14 +1,14 @@
 ---
 - when: pci_passthrough_enabled | bool is true
   block:
-    - ansible.builtin.include_tasks:
-        file: "{{ role_path }}/tasks/devices.yml"
+    - ansible.builtin.include_role:
+        name: opennebula.deploy.helper.pci
       when:
-        - pci_devices is defined
-        - pci_devices is sequence
-        - pci_devices | count > 0
+        - (pci_devices_by_vendor_device_class is undefined)
+          or
+          (pci_devices_by_address is undefined)
 
-    - ansible.builtin.include_tasks:
+    - ansible.builtin.import_tasks:
         file: "{{ role_path }}/tasks/filters.yml"
       when:
         - pci_devices_by_vendor_device_class is defined
