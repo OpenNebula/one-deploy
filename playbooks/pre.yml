@@ -57,6 +57,9 @@
     - role: helper/keys
       tags: [keys]
 
+    - role: helper/ntp
+      tags: [ntp]
+
     - role: helper/mkfs
       tags: [mkfs]
 
