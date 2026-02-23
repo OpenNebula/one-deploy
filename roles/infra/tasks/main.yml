@@ -12,6 +12,31 @@
   retries: 12
   delay: 5
 
+- tags: [libvirt]
+  block:
+    - ansible.builtin.include_role:
+        name: repository
+      vars:
+        repos_enabled: [opennebula]
+      when: opennebula_repo is undefined
+
+    - name: Install OpenNebula KVM packages
+      ansible.builtin.package:
+        name: "{{ _common + _specific[ansible_os_family] }}"
+      vars:
+        _common: [opennebula-node-kvm]
+        _specific:
+          Debian: []
+          RedHat: []
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+    - ansible.builtin.include_role:
+        name: kvm
+        tasks_from: libvirt
+
 - name: List defined VMs
   community.libvirt.virt:
     command: list_vms
