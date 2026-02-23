@@ -22,12 +22,17 @@
   <on_reboot>restart</on_reboot>
   <on_crash>destroy</on_crash>
 
-{% if 'virtiofs' in (passthrough_fs | map(attribute='driver_type')
-                                    | map('default', None)
-                                    | select
-                                    | map('lower')) %}
+{% set use_dpdk = (infra_bridge_type is defined and infra_bridge_type == 'openvswitch_dpdk') %}
+{% set use_virtiofs = ('virtiofs' in (passthrough_fs | map(attribute='driver_type') | map('default', None) | select | map('lower'))) %}
+
+{% if use_dpdk or use_virtiofs %}
   <memoryBacking>
+{% if use_dpdk %}
+    <hugepages/>
+{% endif %}
+{% if use_virtiofs and not use_dpdk %}
     <source type='memfd'/>
+{% endif %}
     <access mode='shared'/>
   </memoryBacking>
 {% endif %}
@@ -82,14 +87,34 @@
       <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
     </controller>
 
+{% if infra_bridge_type is defined and infra_bridge_type in ['bridge', 'openvswitch', 'openvswitch_dpdk'] %}
+{% if infra_bridge_type in ['bridge', 'openvswitch'] %}
     <interface type='bridge'>
-      <mac address='{{ context.ETH0_MAC | d("02:01:%02x:%02x:%02x:%02x" | format(*(context.ETH0_IP.split(".") | map("int")))) }}'/>
       <source bridge='{{ infra_bridge }}'/>
       <target dev='{{ frontend }}-nic0'/>
+{% elif infra_bridge_type == 'openvswitch_dpdk' %}
+    <interface type='vhostuser'>
+      <source type='unix' path='{{ infra_dpdk_socket_path }}' mode='server'/>
+      <driver name='vhost' queues='2'/>
+{% endif %}
+      <mac address='{{ context.ETH0_MAC | d("02:01:%02x:%02x:%02x:%02x" | format(*(context.ETH0_IP.split(".") | map("int")))) }}'/>
+{% if infra_bridge_type  == 'openvswitch' %}
+      <virtualport type='openvswitch' />
+{% endif %}
+{% if infra_vlan_id is defined and infra_vlan_id %}
+      <vlan>
+        <tag id='{{ infra_vlan_id }}'/>
+      </vlan>
+{% endif %}
       <model type='virtio'/>
       <alias name='net0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
     </interface>
+{% endif %}
+
+    <channel type='unix'>
+        <source mode='bind'/><target type='virtio' name='org.qemu.guest_agent.0'/>
+    </channel>
 
     <input type='mouse' bus='ps2'>
       <alias name='input0'/>
