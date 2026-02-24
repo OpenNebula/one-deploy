@@ -1,0 +1,143 @@
+---
+- name: Query lspci for devices
+  ansible.builtin.shell:
+    cmd: |
+      set -o errexit -o pipefail
+      {% for v in pci_devices_by_vendor_device_class %}
+      STDOUT="$(lspci -vmm -nkD -d '{{ v.key }}')"
+      if [[ -n "$STDOUT" ]]; then
+        echo "$STDOUT"
+        echo
+      else
+        echo "Could not find '{{ v.key }}'" >&2
+        exit 1
+      fi
+      setpci -v -d '{{ v.key }}' STATUS | while IFS=' ' read -r SLOT _; do
+        echo -e "Slot:\t$SLOT"
+        if setpci -s "$SLOT" ECAP_SRIOV.B 1>/dev/null; then
+          echo -e "ECAP_SRIOV:\tyes"
+          echo
+        else
+          echo -e "ECAP_SRIOV:\tno"
+          echo
+        fi
+      done
+      {% endfor %}
+      {% for v in pci_devices_by_address %}
+      STDOUT="$(lspci -vmm -nkD -s '{{ v.key }}')"
+      if [[ -n "$STDOUT" ]]; then
+        echo "$STDOUT"
+        echo
+      else
+        echo "Could not find '{{ v.key }}'" >&2
+        exit 1
+      fi
+      echo -e "Slot:\t{{ v.key }}"
+      if setpci -s '{{ v.key }}' ECAP_SRIOV.B 1>/dev/null; then
+        echo -e "ECAP_SRIOV:\tyes"
+        echo
+      else
+        echo -e "ECAP_SRIOV:\tno"
+        echo
+      fi
+      {% endfor %}
+    executable: /bin/bash
+  register: shell_lspci
+  changed_when: false
+
+- name: Parse lspci's output
+  ansible.builtin.set_fact:
+    lspci_devices: >-
+      {{ _lspci_devices_filtered_and_extended }}
+  vars:
+    _lspci_devices: >-
+      {%- set output = {} -%}
+      {%- for v in _lspci_devices_raw -%}
+        {{- output.update(output | combine({v.Slot: v}, recursive=true)) -}}
+      {%- endfor -%}
+      {{- output.values() | list -}}
+
+    _lspci_devices_raw: >-
+      {{ shell_lspci.stdout | split(_sep1)
+                            | select('truthy')
+                            | map('split', _sep2)
+                            | map('map', 'split', _sep3)
+                            | map('items2dict', key_name=0, value_name=1) }}
+    _sep1: "\n\n"
+    _sep2: "\n"
+    _sep3: ":\t" # noqa no-tabs
+
+    _by_vendor_device_class_excluded: >-
+        {%- set output = [] -%}
+        {%- for v in pci_devices_by_vendor_device_class -%}
+          {%- if v.excluded | d(false) | bool is true -%}
+            {{- output.append(v) -}}
+          {%- endif -%}
+        {%- endfor -%}
+        {{- output -}}
+
+    _by_address_excluded: >-
+        {%- set output = [] -%}
+        {%- for v in pci_devices_by_address -%}
+          {%- if v.excluded | d(false) | bool is true -%}
+            {{- output.append(v) -}}
+          {%- endif -%}
+        {%- endfor -%}
+        {{- output -}}
+
+    _to_exclude: >-
+      {%- set output = [] -%}
+      {%- for v in _lspci_devices -%}
+        {%- set k = "{}:{}:{}".format(v.Vendor, v.Device, v.Class) -%}
+        {%- for x in _by_vendor_device_class_excluded -%}
+          {%- if k | regex_search(x.key_regex) -%}
+            {{- output.append(v.Slot) -}}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- set k = v.Slot -%}
+        {%- for x in _by_address_excluded -%}
+          {%- if k | regex_search(x.key_regex) -%}
+            {{- output.append(v.Slot) -}}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{- output | unique -}}
+
+    _lspci_devices_filtered: >-
+      {%- set output = [] -%}
+      {%- for v in _lspci_devices -%}
+        {%- if _to_exclude is not contains(v.Slot) -%}
+          {{- output.append(v) -}}
+        {%- endif -%}
+      {%- endfor -%}
+      {{- output -}}
+
+    _lspci_devices_filtered_and_extended: >-
+      {%- set output = [] -%}
+      {%- for v in _lspci_devices_filtered -%}
+        {%- set to_append = [] %}
+        {%- for x in pci_devices_by_vendor_device_class -%}
+          {%- set k = "{}:{}:{}".format(v.Vendor, v.Device, v.Class) -%}
+          {%- if k | regex_search(x.key_regex) -%}
+            {{-
+              to_append.append(v | combine({
+                "set_numvfs": x.set_numvfs | d(0),
+              }))
+            -}}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- for x in pci_devices_by_address -%}
+          {%- set k = v.Slot -%}
+          {%- if k | regex_search(x.key_regex) -%}
+            {{-
+              to_append.append(v | combine({
+                "set_numvfs": x.set_numvfs | d(0),
+              }))
+            -}}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- if to_append | count > 0 -%}
+          {{- output.append(to_append | last) -}}
+        {%- endif -%}
+      {%- endfor -%}
+      {{- output -}}

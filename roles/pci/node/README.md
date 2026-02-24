@@ -33,7 +33,6 @@ Example Playbook
           - vendor: "1af4"
             device: "*"
             class: "0200"
-            set_driver: virtio-pci
             set_numvfs: max
       roles:
         - role: opennebula.deploy.helper.facts
