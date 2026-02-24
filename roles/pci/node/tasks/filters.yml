@@ -13,7 +13,7 @@
       register: command
       run_once: true
 
-    - name: Apply PCI_FILTER and PCI_SHORT_ADDRESS
+    - name: Update PCI_SHORT_ADDRESS
       ansible.builtin.shell:
         cmd: |
           set +o errexit -o pipefail
@@ -39,24 +39,11 @@
                                 | selectattr('NAME', '==', _this)
                                 | first).TEMPLATE }}
         _before:
-          PCI_FILTER: >-
-            {{ _template.PCI_FILTER | d('') }}
           PCI_SHORT_ADDRESS: >-
             {{ _template.PCI_SHORT_ADDRESS | d('') }}
         _after:
-          PCI_FILTER: >-
-            {%- set output = [] -%}
-            {%- for v in pci_devices_by_vendor_device_class -%}
-              {%- if v.excluded | d(false) | bool is false -%}
-                {{- output.append(v.key) -}}
-              {%- endif -%}
-            {%- endfor -%}
-            {{- output | join(',') -}}
           PCI_SHORT_ADDRESS: >-
-            {%- set output = [] -%}
-            {%- for v in pci_devices_by_address -%}
-              {%- if v.excluded | d(false) | bool is false -%}
-                {{- output.append(v.key) -}}
-              {%- endif -%}
-            {%- endfor -%}
-            {{- output | join(',') -}}
+            {{ lspci_devices | selectattr('Driver', 'in', ['vfio-pci'])
+                             | map(attribute='Slot')
+                             | map('regex_replace', '^[^:]{4}:(.+)$', '\g<1>')
+                             | join(',') }}

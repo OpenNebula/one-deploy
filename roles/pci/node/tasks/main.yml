@@ -4,15 +4,11 @@
     - ansible.builtin.include_role:
         name: opennebula.deploy.helper.pci
       when:
-        - (pci_devices_by_vendor_device_class is undefined)
-          or
-          (pci_devices_by_address is undefined)
+        - lspci_devices is undefined
 
     - ansible.builtin.import_tasks:
         file: "{{ role_path }}/tasks/filters.yml"
       when:
-        - pci_devices_by_vendor_device_class is defined
-        - pci_devices_by_vendor_device_class is sequence
-        - pci_devices_by_address is defined
-        - pci_devices_by_address is sequence
-        - ((pci_devices_by_vendor_device_class | count) + (pci_devices_by_address | count)) > 0
+        - lspci_devices is defined
+        - lspci_devices is sequence
+        - lspci_devices | count > 0
