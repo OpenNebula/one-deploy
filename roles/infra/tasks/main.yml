@@ -12,7 +12,8 @@
   retries: 12
   delay: 5
 
-- tags: [libvirt]
+- name: Install opennebula-node-kvm
+  when: infra_install_opennebula_node_kvm | bool
   block:
     - ansible.builtin.include_role:
         name: repository
