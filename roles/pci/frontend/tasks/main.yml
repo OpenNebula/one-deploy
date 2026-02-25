@@ -1,0 +1,12 @@
+---
+- name: Apply global PCI filter
+  opennebula.deploy.cfgtool:
+    dest: /var/lib/one/remotes/etc/im/kvm-probes.d/pci.conf
+    parser: Yaml
+    actions:
+      - put:
+          path: [":filter"]
+          value: "{{ pci_passthrough_default_filter }}"
+  notify:
+    - Sync Remotes
+  when: pci_passthrough_enabled | bool is true

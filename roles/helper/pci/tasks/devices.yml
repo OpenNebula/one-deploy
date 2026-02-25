@@ -1,0 +1,263 @@
+---
+- name: Install required OS packages
+  ansible.builtin.package:
+    name: "{{ _common + _specific[ansible_os_family] }}"
+  vars:
+    _common: [bash, coreutils, driverctl, grep, pciutils]
+    _specific:
+      Debian: []
+      RedHat: []
+  register: package
+  until: package is success
+  retries: 12
+  delay: 5
+
+- name: Parse and split pci_devices
+  ansible.builtin.set_fact:
+    pci_devices_by_vendor_device_class: >-
+      {%- set output = [] -%}
+      {%- for v in pci_devices | selectattr('address', 'undefined') -%}
+        {{-
+          output.append(v | combine({
+            "key": "{}:{}:{}".format(
+              v.vendor | d('*'),
+              v.device | d('*'),
+              v.class | d('*'),
+            ) | lower,
+            "key_regex": "^{}:{}:{}$".format(
+              (v.vendor | d('*') == '*') | ternary('[^:]*', v.vendor),
+              (v.device | d('*') == '*') | ternary('[^:]*', v.device),
+              (v.class | d('*') == '*') | ternary('[^:]*', v.class),
+            ) | lower,
+          }))
+        -}}
+      {%- endfor -%}
+      {{- output -}}
+    pci_devices_by_address: >-
+      {%- set output = [] -%}
+      {%- for v in pci_devices | selectattr('address', 'defined') -%}
+        {{-
+          output.append(v | combine({
+            "key": v.address | lower,
+            "key_regex": "^{}$".format(v.address) | lower,
+          }))
+        -}}
+      {%- endfor -%}
+      {{- output -}}
+
+- name: Query lspci for devices (1)
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/query.yml"
+
+- when: lspci_devices | count > 0
+  block:
+    - name: Ensure udev rules for vfio
+      ansible.builtin.copy:
+        dest: /etc/udev/rules.d/99-vfio.rules
+        owner: 0
+        group: 0
+        mode: u=rw,go=r
+        content: |
+          SUBSYSTEM=="vfio", GROUP="kvm", MODE="0666"
+      register: copy_udev_vfio
+
+    - name: Refresh udev rules
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit
+          udevadm control --reload-rules && udevadm trigger
+        executable: /bin/bash
+      changed_when: true
+      when: copy_udev_vfio is changed
+
+    - name: Render sriov-enable service unit
+      ansible.builtin.copy:
+        dest: "{{ item.dest }}"
+        owner: 0
+        group: 0
+        mode: "{{ item.mode }}"
+        content: "{{ item.cmd }}"
+      loop:
+        - dest: /usr/local/sbin/sriov-manage.sh
+          mode: u=rwx,go=rx
+          cmd: |
+            #!/usr/bin/env bash
+            set -eu
+
+            # Split the input (e.g., 0000:27:00.0-4) into address and count
+            IFS='-' read -r PCI_ADDR VF_COUNT <<< "$1"
+
+            # Verify the device exists before writing
+            if [[ -d "/sys/bus/pci/devices/$PCI_ADDR" ]]; then
+              echo "Setting $VF_COUNT VFs on $PCI_ADDR"
+              echo "$VF_COUNT" > "/sys/bus/pci/devices/$PCI_ADDR/sriov_numvfs"
+            else
+              echo "Error: Device $PCI_ADDR not found" >&2
+              exit 1
+            fi
+        - dest: /etc/systemd/system/sriov-enable@.service
+          mode: u=rw,go=r
+          cmd: |
+            [Unit]
+            Description=Enable SR-IOV VFs on %I
+            After=network.target
+
+            [Service]
+            Type=oneshot
+            RemainAfterExit=yes
+            # %I is replaced by the string after the @ in the command
+            ExecStart=/usr/local/sbin/sriov-manage.sh %i
+
+            [Install]
+            WantedBy=multi-user.target
+      register: copy_sriov_enable_service
+
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      when: copy_sriov_enable_service is changed
+
+    - name: Override drivers (revert when needed)
+      ansible.builtin.shell:
+        cmd: |
+          set -x -o errexit -o pipefail
+          BEFORE="$(driverctl list-overrides | sort)" ||:
+          {% for v in _to_revert %}
+          if grep -E -m1 '^{{ v.Slot }}\s+vfio-pci$' <<< "$BEFORE"; then
+            driverctl unset-override '{{ v.Slot }}' # revert to the default driver
+          fi
+          {% endfor %}
+          AFTER="$(driverctl list-overrides | sort)" ||:
+          if [[ "$AFTER" == "$BEFORE" ]]; then
+            exit 0
+          else
+            exit 78 # EREMCHG
+          fi
+        executable: /bin/bash
+      when: _to_revert | count > 0
+      vars:
+        _to_revert: >-
+          {%- set output = [] -%}
+          {%- for v in lspci_devices -%}
+            {%- if (v.ECAP_SRIOV | bool is true) and (v.set_numvfs == 'max' or v.set_numvfs | int > 0) -%}
+              {{- output.append(v) -}}
+            {%- endif -%}
+          {%- endfor -%}
+          {{- output -}}
+      register: shell_revert_drivers
+      changed_when:
+        - shell_revert_drivers.rc in [78]
+      failed_when:
+        - shell_revert_drivers.rc not in [0, 78]
+
+    - name: Query lspci for devices (2)
+      ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/query.yml"
+      when: shell_revert_drivers is changed
+
+    - name: (Re)Enable VFs
+      ansible.builtin.shell:
+        cmd: |
+          set -x -o errexit -o pipefail
+          CHANGED=false
+          {% for v in _to_enable %}
+          {% if v.set_numvfs == 'max' %}
+            SRIOV_NUMVFS="$(head -n1 '/sys/bus/pci/devices/{{ v.Slot }}/sriov_totalvfs')"
+          {% elif v.set_numvfs | int > 0 %}
+            SRIOV_NUMVFS='{{ v.set_numvfs }}'
+          {% else %}
+            unset SRIOV_NUMVFS
+          {% endif %}
+            if [[ -n "$SRIOV_NUMVFS" ]]; then
+              ALL="$(systemctl show --all -P Id 'sriov-enable@{{ v.Slot }}-*.service' | grep -E -v '^\s*$')" ||:
+              TO_ENABLE="sriov-enable@{{ v.Slot }}-$SRIOV_NUMVFS.service"
+              if [[ "$(head -n1 '/sys/bus/pci/devices/{{ v.Slot }}/sriov_numvfs')" == 0 ]]; then
+                # This handles the invalid case where VFs are no longer enabled but service is still active
+                TO_DISABLE="$ALL"
+              else
+                TO_DISABLE="$(grep -E -v "^$TO_ENABLE$" <<< "$ALL")" ||:
+              fi
+              if [[ -n "$TO_DISABLE" ]] && systemctl is-active --quiet $TO_DISABLE; then
+                systemctl disable --now $TO_DISABLE
+                CHANGED=true
+              fi
+              if ! grep -E -m1 "^$TO_ENABLE$" <<< "$ALL"; then
+                # To avoid 'write error: Device or resource busy' during re-enabling
+                echo 0 > '/sys/bus/pci/devices/{{ v.Slot }}/sriov_numvfs'
+              fi
+              if ! systemctl is-active --quiet $TO_ENABLE; then
+                systemctl enable --now $TO_ENABLE
+                CHANGED=true
+              fi
+            fi
+          {% endfor %}
+          if [[ "$CHANGED" == false ]]; then
+            exit 0
+          else
+            exit 78 # EREMCHG
+          fi
+        executable: /bin/bash
+      when: _to_enable | count > 0
+      vars:
+        _to_enable: >-
+          {%- set output = [] -%}
+          {%- for v in lspci_devices -%}
+            {%- if (v.ECAP_SRIOV | bool is true) and (v.set_numvfs == 'max' or v.set_numvfs | int > 0) -%}
+              {{- output.append(v) -}}
+            {%- endif -%}
+          {%- endfor -%}
+          {{- output -}}
+      register: shell_enable_vfs
+      changed_when:
+        - shell_enable_vfs.rc in [78]
+      failed_when:
+        - shell_enable_vfs.rc not in [0, 78]
+
+    - name: Query lspci for devices (3)
+      ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/query.yml"
+      when: shell_enable_vfs is changed
+
+    - name: Override drivers
+      ansible.builtin.shell:
+        cmd: |
+          set -x -o errexit -o pipefail
+          BEFORE="$(driverctl list-overrides | sort)" ||:
+          {% for v in _to_override %}
+          if ! grep -E -m1 '^{{ v.Slot }}\s+vfio-pci$' <<< "$BEFORE"; then
+          {% if (v.ECAP_SRIOV | bool is true) %}
+            TO_DISABLE="$(systemctl show --all -P Id 'sriov-enable@{{ v.Slot }}-*.service' | grep -E -v '^\s*$')" ||:
+            if [[ -n "$TO_DISABLE" ]] && systemctl is-active --quiet $TO_DISABLE; then
+              systemctl disable --now $TO_DISABLE # cleanup spurious sriov-enable@ services
+            fi
+          {% endif %}
+            driverctl set-override '{{ v.Slot }}' vfio-pci # force vfio-pci
+          fi
+          {% endfor %}
+          AFTER="$(driverctl list-overrides | sort)" ||:
+          if [[ "$AFTER" == "$BEFORE" ]]; then
+            exit 0
+          else
+            exit 78 # EREMCHG
+          fi
+        executable: /bin/bash
+      when: _to_override | count > 0
+      vars:
+        _to_override: >-
+          {%- set output = [] -%}
+          {%- for v in lspci_devices -%}
+            {%- if (v.ECAP_SRIOV | bool is false) or (v.set_numvfs != 'max' and v.set_numvfs | int == 0) -%}
+              {{- output.append(v) -}}
+            {%- endif -%}
+          {%- endfor -%}
+          {{- output -}}
+      register: shell_override_drivers
+      changed_when:
+        - shell_override_drivers.rc in [78]
+      failed_when:
+        - shell_override_drivers.rc not in [0, 78]
+
+    - name: Query lspci for devices (4)
+      ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/query.yml"
+      when: shell_override_drivers is changed
