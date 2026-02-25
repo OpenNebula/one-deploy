@@ -43,7 +43,10 @@
             {{ _template.PCI_SHORT_ADDRESS | d('') }}
         _after:
           PCI_SHORT_ADDRESS: >-
-            {{ lspci_devices | selectattr('Driver', 'in', ['vfio-pci'])
-                             | map(attribute='Slot')
-                             | map('regex_replace', '^[^:]{4}:(.+)$', '\g<1>')
-                             | join(',') }}
+            {%- set output = [] -%}
+            {%- for v in lspci_devices -%}
+              {%- if (v.ECAP_SRIOV | bool is false) or (v.set_numvfs != 'max' and v.set_numvfs | int == 0) -%}
+                {{- output.append(v.Slot | regex_replace('^[^:]{4}:(.+)$', '\g<1>')) -}}
+              {%- endif -%}
+            {%- endfor -%}
+            {{- output | join(',') -}}

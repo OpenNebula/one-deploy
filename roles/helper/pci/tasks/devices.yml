@@ -123,7 +123,7 @@
           set -x -o errexit -o pipefail
           BEFORE="$(driverctl list-overrides | sort)" ||:
           {% for v in _to_revert %}
-          if grep -E -m1 '^{{ v.Slot }}\s+vfio-pci$' <<< "$BEFORE"; then
+          if grep -E -m1 '^{{ v.Slot }}\s+.*$' <<< "$BEFORE"; then
             driverctl unset-override '{{ v.Slot }}' # revert to the default driver
           fi
           {% endfor %}
@@ -224,14 +224,14 @@
           set -x -o errexit -o pipefail
           BEFORE="$(driverctl list-overrides | sort)" ||:
           {% for v in _to_override %}
-          if ! grep -E -m1 '^{{ v.Slot }}\s+vfio-pci$' <<< "$BEFORE"; then
+          if ! grep -E -m1 '^{{ v.Slot }}\s+{{ v.set_driver }}$' <<< "$BEFORE"; then
           {% if (v.ECAP_SRIOV | bool is true) %}
             TO_DISABLE="$(systemctl show --all -P Id 'sriov-enable@{{ v.Slot }}-*.service' | grep -E -v '^\s*$')" ||:
             if [[ -n "$TO_DISABLE" ]] && systemctl is-active --quiet $TO_DISABLE; then
               systemctl disable --now $TO_DISABLE # cleanup spurious sriov-enable@ services
             fi
           {% endif %}
-            driverctl set-override '{{ v.Slot }}' vfio-pci # force vfio-pci
+            driverctl set-override '{{ v.Slot }}' '{{ v.set_driver }}' # force the new driver (vfio-pci by default)
           fi
           {% endfor %}
           AFTER="$(driverctl list-overrides | sort)" ||:
@@ -246,7 +246,7 @@
         _to_override: >-
           {%- set output = [] -%}
           {%- for v in lspci_devices -%}
-            {%- if (v.ECAP_SRIOV | bool is false) or (v.set_numvfs != 'max' and v.set_numvfs | int == 0) -%}
+            {%- if (v.set_driver != 'omit') and ((v.ECAP_SRIOV | bool is false) or (v.set_numvfs != 'max' and v.set_numvfs | int == 0)) -%}
               {{- output.append(v) -}}
             {%- endif -%}
           {%- endfor -%}
