@@ -1,0 +1,20 @@
+---
+# Identifier for the view (e.g., custom_view)
+sunstone_view_name: custom_view
+
+# Display name for the view
+sunstone_view_label: Custom
+
+# Description for the view
+sunstone_view_description: Custom view description
+
+# List of groups to add this view to
+sunstone_view_groups:
+  - oneadmin
+
+# Folder name in inventory/views/ to copy from
+sunstone_view_source_folder: custom_view
+
+# Destination paths on the frontend
+sunstone_views_config_file: /etc/one/fireedge/sunstone/views/sunstone-views.yaml
+sunstone_views_base_dir: /etc/one/fireedge/sunstone/views/
