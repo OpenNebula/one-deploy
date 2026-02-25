@@ -141,3 +141,41 @@
         {%- endif -%}
       {%- endfor -%}
       {{- output -}}
+
+- when:
+    - pci_forbidden_addresses is undefined
+    - ansible_facts.default_ipv4.interface is defined
+    - _interfaces | count > 0
+  vars:
+    _interfaces: >-
+      {{ ansible_facts[ansible_facts.default_ipv4.interface].interfaces | d([ansible_facts.default_ipv4.interface]) }}
+    _paths: >-
+      {{ _interfaces | map('regex_replace', '^(.*)$', "-p '/sys/class/net/\g<1>'") }}
+  block:
+    - name: Query udev for device info
+      ansible.builtin.command:
+        cmd: "udevadm info --json=short {{ _paths | join(' ') }}"
+      register: command_udevadm_info
+      changed_when: false
+
+    - name: Gather forbidden PCI addresses
+      ansible.builtin.set_fact:
+        pci_forbidden_addresses: >-
+          {{ command_udevadm_info.stdout_lines | map('from_json')
+                                               | selectattr('ID_PATH', 'defined')
+                                               | map(attribute='ID_PATH')
+                                               | map('regex_replace', '^pci-', '') }}
+
+- name: Assert 'lspci_devices' contains no forbidden PCI addresses
+  ansible.builtin.assert:
+    that: (pci_forbidden_addresses is undefined)
+          or
+          (pci_forbidden_addresses | count == 0)
+          or
+          (_detected | count == 0)
+    fail_msg: >-
+      Forbidden PCI addresses {{ _detected }} detected, aborting!
+      Please adjust 'pci_devices' to exclude forbidden PCI addresses.
+  vars:
+    _detected: >-
+      {{ lspci_devices | map(attribute='Slot') | intersect(pci_forbidden_addresses) }}
