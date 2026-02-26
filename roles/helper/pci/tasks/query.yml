@@ -161,7 +161,7 @@
   block:
     - name: Query udev for device info
       ansible.builtin.command:
-        cmd: "udevadm info --json=short {{ _paths | join(' ') }}"
+        cmd: "udevadm info --query=property --property=ID_PATH --value {{ _paths | join(' ') }}"
       vars:
         _paths: >-
           {{ _interfaces | map('regex_replace', '^(.*)$', "-p '/sys/class/net/\g<1>'") }}
@@ -171,9 +171,7 @@
     - name: Gather forbidden PCI addresses
       ansible.builtin.set_fact:
         pci_forbidden_addresses: >-
-          {{ command_udevadm_info.stdout_lines | map('from_json')
-                                               | selectattr('ID_PATH', 'defined')
-                                               | map(attribute='ID_PATH')
+          {{ command_udevadm_info.stdout_lines | select
                                                | map('regex_replace', '^pci-', '') }}
 
 - name: Assert 'lspci_devices' contains no forbidden PCI addresses
