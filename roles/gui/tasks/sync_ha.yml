@@ -1,0 +1,77 @@
+---
+- name: Wait for FireEdge key to appear (ha)
+  ansible.builtin.wait_for:
+    path: &fireedge_key /var/lib/one/.one/fireedge_key
+    timeout: 60
+  when: inventory_hostname == leader
+
+- name: Stat /var/lib/one/.one/fireedge_key (ha)
+  ansible.builtin.stat:
+    path: *fireedge_key
+    get_attributes: false
+    get_checksum: true
+    get_mime: false
+  register: stat
+
+- name: Detect if FireEdge key has been replicated (ha)
+  ansible.builtin.set_fact:
+    key_ok: >-
+      {{ _exist_ok and _cksum_ok }}
+  vars:
+    _exist_ok: >-
+      {{ _stat | map(attribute='exists') | list is all }}
+    _cksum_ok: >-
+      {{ _stat | map(attribute='checksum') | list | unique | count == 1 }}
+    _stat: >-
+      {{ [inventory_hostname, leader] | unique | map('extract', hostvars, ['stat', 'stat']) | list }}
+  when: inventory_hostname != leader
+
+- name: Combine all results (ha)
+  ansible.builtin.set_fact:
+    all_key_ok: >-
+      {{ _followers | map('extract', hostvars, ['key_ok']) is all }}
+  vars:
+    _followers: >-
+      {{ federation.groups.frontend | reject('in', [leader]) }}
+  when: inventory_hostname == leader
+
+- always: # noqa key-order[task]
+    - name: Remove fireedge-leader.tar.gz (cleanup)
+      ansible.builtin.file:
+        path: &fireedge_leader_tar_gz /var/tmp/fireedge-leader.tar.gz
+        state: absent
+  block:
+    - when:
+        - inventory_hostname == leader
+        - not all_key_ok
+      block:
+        - name: Archive FireEdge data (ha)
+          community.general.archive:
+            dest: *fireedge_leader_tar_gz
+            path:
+              - *fireedge_key
+            format: gz
+            remove: false
+            owner: "{{ ansible_user }}"
+            mode: u=rw,go=
+
+    - when:
+        - inventory_hostname != leader
+        - not key_ok
+      block:
+        # NOTE: Artifacts are copied from Front-end to Front-end via RSYNC/SSH *directly*,
+        #       please make sure SSH/RSA keys are distributed accordingly (password-less login).
+        - name: Distribute FireEdge data (ha)
+          ansible.posix.synchronize:
+            dest: *fireedge_leader_tar_gz
+            src: *fireedge_leader_tar_gz
+            mode: push
+            checksum: true
+          delegate_to: "{{ leader }}"
+          become: false
+
+        - name: Unarchive FireEdge data into /var/lib/one/.one/ (ha)
+          ansible.builtin.unarchive:
+            dest: /var/lib/one/.one/
+            src: *fireedge_leader_tar_gz
+            remote_src: true
