@@ -144,17 +144,27 @@
 
 - when:
     - pci_forbidden_addresses is undefined
-    - ansible_facts.default_ipv4.interface is defined
+    - _default is defined
     - _interfaces | count > 0
   vars:
+    _facts: >-
+      {{ ansible_facts }}
+    _default: >-
+      {{ _facts.default_ipv4.interface }}
+    # NOTE: It also handles nested bridge/bond interfaces..
     _interfaces: >-
-      {{ ansible_facts[ansible_facts.default_ipv4.interface].interfaces | d([ansible_facts.default_ipv4.interface]) }}
-    _paths: >-
-      {{ _interfaces | map('regex_replace', '^(.*)$', "-p '/sys/class/net/\g<1>'") }}
+      {%- set output = [] -%}
+      {%- for v in _facts[_default].interfaces | d(_facts[_default].slaves) | d([_facts[_default].device | d(omit)]) -%}
+        {{- output.append(_facts[v].slaves | d([_facts[v].device | d(omit)])) -}}
+      {%- endfor -%}
+      {{- output | flatten -}}
   block:
     - name: Query udev for device info
       ansible.builtin.command:
         cmd: "udevadm info --json=short {{ _paths | join(' ') }}"
+      vars:
+        _paths: >-
+          {{ _interfaces | map('regex_replace', '^(.*)$', "-p '/sys/class/net/\g<1>'") }}
       register: command_udevadm_info
       changed_when: false
 
