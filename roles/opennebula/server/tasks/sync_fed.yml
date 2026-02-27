@@ -57,6 +57,7 @@
                 path: *_paths
                 format: gz
                 remove: false
+                force_archive: true
                 owner: "{{ federation.master_user }}"
                 mode: u=rw,go=
 
@@ -130,6 +131,7 @@
                 path: "/var/tmp/db_master-{{ inventory_hostname }}.sql"
                 format: gz
                 remove: true
+                force_archive: false
                 owner: "{{ federation.master_user }}"
                 mode: u=rw,go=
 
