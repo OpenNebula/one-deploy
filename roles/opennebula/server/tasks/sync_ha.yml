@@ -89,6 +89,7 @@
               - /var/lib/one/.ssh
             format: gz
             remove: false
+            force_archive: true
             owner: "{{ ansible_user }}"
             mode: u=rw,go=
 
@@ -139,6 +140,7 @@
             path: /var/tmp/db_leader.sql
             format: gz
             remove: true
+            force_archive: false
             owner: "{{ ansible_user }}"
             mode: u=rw,go=
 

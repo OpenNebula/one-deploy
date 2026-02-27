@@ -52,6 +52,7 @@
               - *fireedge_key
             format: gz
             remove: false
+            force_archive: true
             owner: "{{ ansible_user }}"
             mode: u=rw,go=
 
