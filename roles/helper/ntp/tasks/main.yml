@@ -1,0 +1,131 @@
+---
+- when:
+    - ntp is sequence
+    - ((_pools | count) + (_servers | count)) > 0
+  vars:
+    # Process user input.
+    _pools: >-
+      {{ ntp | selectattr('pool', 'defined') }}
+    _servers: >-
+      {{ ntp | selectattr('server', 'defined') }}
+    # Process service detection data.
+    _supported:
+      chronyd:
+        Debian: chrony.service
+        RedHat: chronyd.service
+      timesyncd:
+        Debian: systemd-timesyncd.service
+        RedHat: systemd-timesyncd.service
+    _enabled: >-
+      {{ systemd_ntp_services.results | selectattr('status.LoadState', 'defined')
+                                      | rejectattr('status.LoadState', 'in', ['masked', 'not-found'])
+                                      | selectattr('status.UnitFileState', 'defined')
+                                      | selectattr('status.UnitFileState', 'in', ['enabled'])
+                                      | map(attribute='item') }}
+    _detected: >-
+      {{ _enabled | first | d('') }}
+  block:
+    - name: Detect NTP services (query raw status)
+      ansible.builtin.systemd_service:
+        name: "{{ _supported[item][ansible_os_family] }}"
+      loop: "{{ _supported.keys() }}"
+      register: systemd_ntp_services
+      no_log: true
+
+    - name: Assert a single NTP-managing service is enabled
+      ansible.builtin.assert:
+        that: (_enabled | count) < 2 and _detected is truthy
+        fail_msg: More than one or none enabled NTP-managing services detected, aborting..
+
+    - when: _detected == 'chronyd'
+      vars:
+        _cfg_dirs:
+          Debian: /etc/chrony
+          RedHat: /etc
+        _cfg_path: "{{ _cfg_dirs[ansible_os_family] }}/chrony.conf"
+      block:
+        - name: Ensure /etc/chrony/sources.d
+          ansible.builtin.file:
+            path: /etc/chrony/sources.d
+            owner: 0
+            group: 0
+            mode: u=rwx,go=rx
+            state: directory
+
+        - name: Extend chrony.conf (fix)
+          ansible.builtin.blockinfile:
+            path: "{{ _cfg_path }}"
+            marker: >-
+              # {mark} managed by one-deploy
+            block: |
+              sourcedir /etc/chrony/sources.d
+          when: ansible_os_family in ['RedHat']
+
+        - name: Update NTP sources
+          ansible.builtin.copy:
+            dest: /etc/chrony/sources.d/99-ntp.sources
+            owner: 0
+            group: 0
+            mode: u=rw,go=r
+            content: |
+              # managed by one-deploy
+              {% for v in _pools %}
+              pool {{ v.pool }} iburst
+              {% endfor %}
+              {% for v in _servers %}
+              server {{ v.server }} iburst
+              {% endfor %}
+          register: copy_sources
+
+        - name: Cleanup chrony.conf
+          ansible.builtin.replace:
+            path: "{{ _cfg_path }}"
+            regexp: '^((pool|server|peer)\s.*)$'
+            replace: '# \g<1>'
+          register: replace_chrony_conf
+
+        - name: Restart chronyd (NOW)
+          ansible.builtin.systemd_service:
+            name: "{{ _supported[_detected][ansible_os_family] }}"
+            state: restarted
+          when: copy_sources is changed or replace_chrony_conf is changed
+
+    - when: _detected == 'timesyncd'
+      block:
+        - name: Ensure /etc/systemd/timesyncd.conf.d
+          ansible.builtin.file:
+            path: /etc/systemd/timesyncd.conf.d
+            owner: 0
+            group: 0
+            mode: u=rwx,go=rx
+            state: directory
+
+        - name: Update NTP sources
+          ansible.builtin.copy:
+            dest: /etc/systemd/timesyncd.conf.d/99-ntp.conf
+            owner: 0
+            group: 0
+            mode: u=rw,go=r
+            content: |
+              # managed by one-deploy
+              [Time]
+              NTP={{ _time_ntp | join(' ') }}
+          vars:
+            _time_ntp: >-
+              {{ [ _pools | map(attribute='pool'),
+                   _servers | map(attribute='server') ] | flatten
+                                                        | unique }}
+          register: copy_sources
+
+        - name: Cleanup timesyncd.conf
+          ansible.builtin.replace:
+            path: /etc/systemd/timesyncd.conf
+            regexp: '^((NTP|FallbackNTP)=.*)$'
+            replace: '# \g<1>'
+          register: replace_timesyncd_conf
+
+        - name: Restart timesyncd (NOW)
+          ansible.builtin.systemd_service:
+            name: "{{ _supported[_detected][ansible_os_family] }}"
+            state: restarted
+          when: copy_sources is changed or replace_timesyncd_conf is changed
