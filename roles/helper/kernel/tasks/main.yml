@@ -13,8 +13,14 @@
     - kernel_modules is sequence
     - kernel_modules | count > 0
 
-- name: Reboot (NOW)
-  ansible.builtin.reboot: {}
-  when:
+- when:
     - kernel_ok_to_reboot | bool is true
     - kernel_need_to_reboot | bool is true
+  block:
+    - name: Reboot (NOW)
+      ansible.builtin.reboot: {}
+
+    - name: Re-gather facts after reboot
+      ansible.builtin.include_role:
+        name: opennebula.deploy.helper.facts
+      vars: { _force: true }
