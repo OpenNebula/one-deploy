@@ -1,0 +1,100 @@
+---
+- vars:
+    _managed: >-
+      {%- set output = [] -%}
+      {%- for v in kernel_params -%}
+        {%- if v.managed | d(true) | bool is true -%}
+          {{- output.append(v | dict2items
+                              | rejectattr('value.managed', 'defined')
+                              | first) -}}
+        {%- endif -%}
+      {%- endfor -%}
+      {{- output -}}
+
+    _cleanup: >-
+      {{ _managed | map(attribute='key') | unique }}
+
+    _without_arg: >-
+      {{ _managed | selectattr('value', 'none') }}
+
+    _with_arg: >-
+      {{ _managed | rejectattr('value', 'none') }}
+
+    _must_be_present: >-
+      {{ [ _without_arg | map(attribute='key'),
+           _with_arg | map(attribute='key') | zip(_with_arg | map(attribute='value'))
+                                            | map('join', '=') ] | flatten }}
+  block:
+    # RedHat doesn't support Debian's /etc/default/grub.d logic, instead modification of the
+    # master file /etc/default/grub is necessary. Fortunately /etc/default/grub file is
+    # just a regular bash script, hence other custom files can be sourced in there directly.
+    - name: Extend /etc/default/grub (fix)
+      ansible.builtin.blockinfile:
+        path: /etc/default/grub
+        marker: >-
+          # {mark} managed by one-deploy
+        block: |
+          . /etc/default/grub.d/99-cmdline.cfg || :
+      when: ansible_os_family in ['RedHat']
+
+    - name: Ensure /etc/default/grub.d/
+      ansible.builtin.file:
+        path: /etc/default/grub.d/
+        owner: 0
+        group: 0
+        mode: u=rwx,go=rx
+        state: directory
+
+    - name: Update /etc/default/grub.d/99-cmdline.cfg
+      ansible.builtin.copy:
+        dest: /etc/default/grub.d/99-cmdline.cfg
+        owner: 0
+        group: 0
+        mode: u=rw,go=r
+        content: |
+          # managed by one-deploy
+          GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX {{ _must_be_present | join(' ') }}"
+      register: copy_cmdline_cfg
+
+    - name: Update grub
+      ansible.builtin.shell:
+        cmd: "{{ _shell[ansible_os_family].cmd }}"
+        executable: /bin/bash
+      vars:
+        _shell:
+          Debian:
+            cmd: |
+              set -o errexit
+              BEFORE="$(cksum /boot/grub/grub.cfg)"
+              grub-mkconfig -o /boot/grub/grub.cfg
+              AFTER="$(cksum /boot/grub/grub.cfg)"
+              if [[ "$AFTER" == "$BEFORE" ]]; then
+                exit 0
+              else
+                exit 78 # EREMCHG
+              fi
+          RedHat:
+            cmd: |
+              set -o errexit
+              BEFORE="$(cksum /boot/grub2/grub.cfg)"
+              grub2-mkconfig -o /boot/grub2/grub.cfg --update-bls-cmdline || grub2-mkconfig -o /boot/grub2/grub.cfg
+              AFTER="$(cksum /boot/grub2/grub.cfg)"
+              if [[ "$AFTER" == "$BEFORE" ]]; then
+                exit 0
+              else
+                exit 78 # EREMCHG
+              fi
+      register: shell_grub_mkconfig
+      changed_when:
+        - shell_grub_mkconfig.rc in [78]
+      failed_when:
+        - shell_grub_mkconfig.rc not in [0, 78]
+      when: copy_cmdline_cfg is changed
+
+    - name: Indicate if reboot is required
+      ansible.builtin.set_fact:
+        kernel_need_to_reboot: >-
+          {{ (kernel_need_to_reboot | bool) or _condition }}
+      vars:
+        _condition: >-
+          {{ shell_grub_mkconfig is defined and shell_grub_mkconfig is changed }}

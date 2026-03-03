@@ -1,0 +1,171 @@
+---
+- when: ((_to_blacklist | count) + (_to_load | count)) > 0
+  vars:
+    _to_blacklist: >-
+      {%- set output = [] -%}
+      {%- for v in kernel_modules | selectattr('blacklist', 'defined') -%}
+        {%- if v.managed | d(true) | bool is true -%}
+          {{- output.append([v.blacklist, v]) -}}
+        {%- endif -%}
+      {%- endfor -%}
+      {{- dict(output) -}}
+    _to_load: >-
+      {%- set output = [] -%}
+      {%- for v in kernel_modules | selectattr('load', 'defined') -%}
+        {%- if v.managed | d(true) | bool is true -%}
+          {{- output.append([v.load, v]) -}}
+        {%- endif -%}
+      {%- endfor -%}
+      {{- dict(output) -}}
+    _to_load_with_options: >-
+      {{ _to_load | dict2items
+                  | selectattr('value.options', 'defined')
+                  | selectattr('value.options', 'sequence')
+                  | selectattr('value.options', 'truthy')
+                  | items2dict }}
+  block:
+    - name: Get lists of modules
+      ansible.builtin.slurp:
+        path: "{{ _paths[item] }}"
+      loop: "{{ _paths.keys() }}"
+      vars:
+        _paths:
+          all: "/lib/modules/{{ ansible_kernel }}/modules.order"
+          builtin: "/lib/modules/{{ ansible_kernel }}/modules.builtin"
+          loaded_names: "/proc/modules"
+      register: slurp_modules
+
+    - name: Run modinfo to get back loaded module base-names
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit
+          {% for k in _loaded_names %}
+          modinfo --field filename '{{ k }}'
+          {% endfor %}
+        executable: /bin/bash
+      changed_when: false
+      vars:
+        _loaded_names: >-
+          {{ slurp_modules.results | selectattr('item', '==', 'loaded_names')
+                                   | map(attribute='content')
+                                   | first
+                                   | b64decode
+                                   | split(_sep)
+                                   | map('regex_replace', '^([^\s]+)\s.*\sLive\s.*$', '\g<1>')
+                                   | select }}
+        _sep: "\n"
+      register: shell_loaded
+
+    - vars:
+        _all: >-
+          {{ slurp_modules.results | selectattr('item', '==', 'all')
+                                   | map(attribute='content')
+                                   | first
+                                   | b64decode
+                                   | split
+                                   | map('regex_replace', '^.*/([^/]+)[.]ko[^/]*$', '\g<1>')
+                                   | select }}
+        _builtin: >-
+          {{ slurp_modules.results | selectattr('item', '==', 'builtin')
+                                   | map(attribute='content')
+                                   | first
+                                   | b64decode
+                                   | split
+                                   | map('regex_replace', '^.*/([^/]+)[.]ko[^/]*$', '\g<1>')
+                                   | select }}
+        _loadable: >-
+          {{ _all | difference(_builtin) }}
+        _loaded: >-
+          {{ shell_loaded.stdout | split
+                                 | map('regex_replace', '^.*/([^/]+)[.]ko[^/]*$', '\g<1>')
+                                 | select }}
+      block:
+        - when: _to_blacklist | count > 0
+          block:
+            - name: Persist module blacklisting
+              ansible.builtin.copy:
+                dest: /etc/modprobe.d/zz-blacklist.conf
+                owner: 0
+                group: 0
+                mode: u=rw,go=r
+                content: |
+                  # managed by one-deploy
+                  {% for k in _to_blacklist.keys() | sort %}
+                  blacklist {{ k }}
+                  {% endfor %}
+
+            - name: Try to unload blacklisted existing modules
+              ansible.builtin.shell:
+                cmd: |
+                  set -o errexit
+                  {% for k in _must_unload %}
+                  modprobe --remove '{{ k }}'
+                  {% endfor %}
+                executable: /bin/bash
+              changed_when: true
+              when: _must_unload | count > 0
+              vars:
+                _must_unload: >-
+                  {{ _to_blacklist.keys() | intersect(_loaded) }}
+              register: shell_modprobe_unload
+              ignore_errors: true # noqa ignore-errors
+
+        - when: _to_load | count > 0
+          block:
+            - name: Persist module loading
+              ansible.builtin.copy:
+                dest: /etc/modules-load.d/zz-load.conf
+                owner: 0
+                group: 0
+                mode: u=rw,go=r
+                content: |
+                  # managed by one-deploy
+                  {% for k in _to_load.keys() | sort %}
+                  {{ k }}
+                  {% endfor %}
+
+            - name: Persist module options
+              ansible.builtin.copy:
+                dest: /etc/modprobe.d/zz-load.conf
+                owner: 0
+                group: 0
+                mode: u=rw,go=r
+                content: |
+                  # managed by one-deploy
+                  {% for k in _to_load_with_options.keys() | sort %}
+                  options {{ k }} {{ _to_load_with_options[k].options | join(' ') }}
+                  {% endfor %}
+              register: copy_options
+
+            - name: Try to (re)load requested existing modules
+              ansible.builtin.shell:
+                cmd: |
+                  set -o errexit
+                  {% for k in _must_reload %}
+                  modprobe --remove '{{ k }}' && modprobe '{{ k }}'
+                  {% endfor %}
+                  {% for k in _must_load %}
+                  modprobe '{{ k }}'
+                  {% endfor %}
+                executable: /bin/bash
+              changed_when: true
+              when: ((_must_reload | count) + (_must_load | count)) > 0
+              vars:
+                _must_reload: >-
+                  {{ _to_load_with_options.keys() | intersect(_loaded) if copy_options is changed else [] }}
+                _must_load: >-
+                  {{ _to_load.keys() | intersect(_loadable) | difference(_loaded) }}
+              register: shell_modprobe_reload
+              ignore_errors: true # noqa ignore-errors
+
+    - name: Indicate if reboot is required
+      ansible.builtin.set_fact:
+        kernel_need_to_reboot: >-
+          {{ (kernel_need_to_reboot | bool) or _condition }}
+      vars:
+        _condition: >-
+          {{
+            (shell_modprobe_unload is defined and shell_modprobe_unload is failed)
+            or
+            (shell_modprobe_reload is defined and shell_modprobe_reload is failed)
+          }}
