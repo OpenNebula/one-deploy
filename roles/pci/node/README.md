@@ -33,6 +33,7 @@ Example Playbook
           - vendor: "1af4"
             device: "*"
             class: "0200"
+            set_driver: omit # NOTE: 'vfio-pci' is the default, 'omit' skips override altogether
             set_numvfs: max
       roles:
         - role: opennebula.deploy.helper.facts

@@ -121,6 +121,7 @@
           {%- if k | regex_search(x.key_regex) -%}
             {{-
               to_append.append(v | combine({
+                "set_driver": x.set_driver | d('vfio-pci'),
                 "set_numvfs": x.set_numvfs | d(0),
               }))
             -}}
@@ -131,6 +132,7 @@
           {%- if k | regex_search(x.key_regex) -%}
             {{-
               to_append.append(v | combine({
+                "set_driver": x.set_driver | d('vfio-pci'),
                 "set_numvfs": x.set_numvfs | d(0),
               }))
             -}}
