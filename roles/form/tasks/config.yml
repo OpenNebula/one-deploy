@@ -1,0 +1,11 @@
+---
+- name: Configure OneForm Server (:host)
+  opennebula.deploy.cfgtool:
+    dest: /etc/one/oneform-server.conf
+    parser: Yaml
+    actions:
+      - put:
+          path: [":host"]
+          value: "{{ form_bind_addr }}"
+  notify:
+    - Restart OneForm Server
