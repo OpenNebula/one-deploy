@@ -9,8 +9,12 @@
   <resource>
     <partition>/machine</partition>
   </resource>
-  <os>
+  <os firmware='efi'>
     <type arch='x86_64' machine='q35'>hvm</type>
+    <firmware>
+      <feature enabled='no' name='enrolled-keys'/>
+      <feature enabled='no' name='secure-boot'/>
+    </firmware>
     <boot dev='hd'/>
   </os>
   <features>
@@ -42,34 +46,35 @@
       <driver name='qemu' type='raw'/>
       <source file='{{ runtime_dir }}/{{ frontend }}.iso' index='1'/>
       <backingStore/>
-      <target dev='hda' bus='ide'/>
+      <target dev='sda' bus='sata'/>
       <readonly/>
-      <alias name='ide0-0-0'/>
-      <address type='drive' controller='0' bus='0' target='0' unit='0'/>
+      <alias name='sata0-0-0'/>
     </disk>
 
     <disk type='file' device='disk'>
-      <driver name='qemu' type='qcow2' cache='unsafe' discard='unmap'/>
+      <driver name='qemu' type='qcow2' cache='none' discard='unmap'/>
       <source file='{{ runtime_dir }}/{{ frontend }}.qcow2' index='2'/>
       <backingStore/>
-      <target dev='sda' bus='scsi'/>
-      <alias name='scsi0-0-0-0'/>
-      <address type='drive' controller='0' bus='0' target='0' unit='0'/>
+      <target dev='vda' bus='virtio'/>
+      <alias name='virtio-disk0'/>
     </disk>
 
-    <controller type='scsi' index='0' model='virtio-scsi'>
-      <driver queues='1'/>
-      <alias name='scsi0'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+    <controller type='pci' index='0' model='pcie-root'>
+      <alias name='pcie.0'/>
     </controller>
 
-    <controller type='pci' index='0' model='pci-root'>
-      <alias name='pci.0'/>
+    <controller type='pci' index='1' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='1' port='0x10'/>
+      <alias name='pcie-root-port-1'/>
     </controller>
 
-    <controller type='ide' index='0'>
-      <alias name='ide'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
+    <controller type='sata' index='0'>
+      <alias name='sata'/>
+    </controller>
+
+    <controller type='usb' index='0' model='qemu-xhci'>
+      <alias name='usb'/>
     </controller>
 
 {% for fs in passthrough_fs %}
@@ -84,7 +89,6 @@
 
     <controller type='virtio-serial' index='0'>
       <alias name='virtio-serial0'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
     </controller>
 
 {% if infra_bridge_type is defined and infra_bridge_type in ['bridge', 'openvswitch', 'openvswitch_dpdk'] %}
@@ -98,7 +102,7 @@
       <driver name='vhost' queues='2'/>
 {% endif %}
       <mac address='{{ context.ETH0_MAC | d("02:01:%02x:%02x:%02x:%02x" | format(*(context.ETH0_IP.split(".") | map("int")))) }}'/>
-{% if infra_bridge_type  == 'openvswitch' %}
+{% if infra_bridge_type == 'openvswitch' %}
       <virtualport type='openvswitch' />
 {% endif %}
 {% if infra_vlan_id is defined and infra_vlan_id %}
@@ -108,19 +112,20 @@
 {% endif %}
       <model type='virtio'/>
       <alias name='net0'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
     </interface>
 {% endif %}
 
     <channel type='unix'>
-        <source mode='bind'/><target type='virtio' name='org.qemu.guest_agent.0'/>
+      <source mode='bind'/>
+      <target type='virtio' name='org.qemu.guest_agent.0'/>
+      <alias name='channel0'/>
     </channel>
 
-    <input type='mouse' bus='ps2'>
+    <input type='mouse' bus='usb'>
       <alias name='input0'/>
     </input>
 
-    <input type='keyboard' bus='ps2'>
+    <input type='keyboard' bus='usb'>
       <alias name='input1'/>
     </input>
 
@@ -131,9 +136,8 @@
     <audio id='1' type='none'/>
 
     <video>
-      <model type='cirrus' vram='16384' heads='1' primary='yes'/>
+      <model type='virtio' vram='16384' heads='1' primary='yes'/>
       <alias name='video0'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
     </video>
   </devices>
 </domain>
