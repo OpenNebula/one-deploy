@@ -6,4 +6,6 @@ memory_KiB: 2097152 # 2 GiB
 vcpu_static: 1
 vnc_max_port: 65535
 infra_bridge: br0
+infra_bridge_type: bridge
+infra_install_opennebula_node_kvm: false
 passthrough_fs: []
