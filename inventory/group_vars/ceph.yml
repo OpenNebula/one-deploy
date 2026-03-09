@@ -1,5 +1,4 @@
 ---
-ceph_origin: distro
-ceph_stable_release: squid
+ceph_origin: distro # NOTE: This variable isn't supposed to be set/modified by the one-deploy user.
 configure_firewall: false
 no_log_on_ceph_key_tasks: false

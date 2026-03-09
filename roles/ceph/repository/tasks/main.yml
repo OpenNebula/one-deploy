@@ -2,6 +2,8 @@
 - when:
     - ceph.repo is defined
     - ceph.repo == 'distro'
+    - ceph.release is defined
+    - ceph.release is string
   tags: [preinstall]
   block:
     - name: Install extra Ceph/OpenNebula dependencies
@@ -11,7 +13,7 @@
         _common: []
         _specific:
           Debian: [qemu-utils]
-          RedHat: [qemu-img, "centos-release-ceph-{{ ceph_stable_release }}"]
+          RedHat: [qemu-img, "centos-release-ceph-{{ ceph.release }}"]
       register: package
       until: package is success
       retries: 12
@@ -20,6 +22,8 @@
 - when:
     - ceph.repo is defined
     - ceph.repo == 'community'
+    - ceph.release is defined
+    - ceph.release is string
   tags: [preinstall]
   block:
     - ansible.builtin.include_role:
