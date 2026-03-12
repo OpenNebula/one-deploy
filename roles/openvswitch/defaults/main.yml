@@ -1,0 +1,41 @@
+---
+ovs_defaults:
+  iface: {}
+  bond: {}
+  br: {}
+
+ovs_packages:
+  AlmaLinux:
+    - ethtool
+    - iproute
+    - iputils
+    - openvswitch3.5
+  Debian:
+    - ethtool
+    - iproute2
+    - iputils-arping
+    - openvswitch-switch
+  RedHat:
+    - ethtool
+    - iproute
+    - iputils
+    - openvswitch3.6
+
+ovs_packages_dpdk:
+  AlmaLinux:
+    - dpdk-tools
+    - ethtool
+    - iproute
+    - iputils
+    - openvswitch3.5
+  Debian:
+    - ethtool
+    - iproute2
+    - iputils-arping
+    - openvswitch-switch-dpdk
+  RedHat:
+    - dpdk-tools
+    - ethtool
+    - iproute
+    - iputils
+    - openvswitch3.6
