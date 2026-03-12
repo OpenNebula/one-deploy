@@ -1,0 +1,30 @@
+[Unit]
+Description=OVS Bridge Interface Network configuration
+{% if ansible_os_family == 'Debian' %}
+After=openvswitch-switch.service network-pre.target
+Wants=network-pre.target
+Before=network.target
+Requires=openvswitch-switch.service
+{% endif %}
+{% if ansible_os_family == 'RedHat' %}
+After=openvswitch.service network-pre.target
+Wants=network-pre.target
+Before=network.target
+Requires=openvswitch.service
+{% endif %}
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=
+ExecStart=/usr/local/sbin/opennebula-ovs.sh
+TimeoutStartSec=120
+StandardOutput=journal
+StandardError=journal
+# Ensure the service runs in a clean environment
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# Network operations require root
+User=root
+
+[Install]
+WantedBy=multi-user.target

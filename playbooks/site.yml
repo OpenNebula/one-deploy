@@ -15,6 +15,15 @@
     - role: repository
       tags: [preinstall, prometheus]
 
+- hosts:
+    - "{{ frontend_group | d('frontend') }}"
+    - "{{ node_group | d('node') }}"
+  collections:
+    - opennebula.deploy
+  roles:
+    - role: openvswitch
+      tags: [network, openvswitch]
+
 - hosts: "{{ frontend_group | d('frontend') }}"
   tags: [frontend, stage1]
   collections:
