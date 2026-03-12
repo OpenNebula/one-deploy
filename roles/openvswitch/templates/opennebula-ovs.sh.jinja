@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+set -o errexit -o pipefail
+
+# --- Helper functions
+
+log() { echo "$*" >&2; }
+die() { log "ERROR: $*"; exit 1; }
+
+# --- Basic assertions
+
+type -p arping find ip jq ovs-vsctl &>/dev/null
+{% if _dpdk_enabled %}
+type -p dpdk-devbind.py ethtool &>/dev/null
+{% endif %}
+
+{% for iface in _iface %}
+# {{ iface }}
+log 'Asserting {{ iface }} exists and is not used outside OVS'
+ip --json link show dev '{{ iface }}' | jq -re '.[0].master as $m | [null, "ovs-system"] | any(. == $m)' &>/dev/null
+{% endfor %}
+
+# --- OVS / DPDK initialization
+
+{% for addr in _dpdk_pci_addrs %}
+# {{ addr }}
+log 'Calling dpdk-devbind.py on {{ addr }}'
+dpdk-devbind.py --force --bind=vfio-pci '{{ addr }}' || die 'Failed to bind PCI device {{ addr }}'
+{% endfor %}
+
+{% for v in ovs.set | d([]) | map('dict2items') | flatten %}
+log 'Setting {{ v.key }}={{ v.value }}'
+ovs-vsctl --no-wait set Open_vSwitch . '{{ v.key }}={{ v.value }}' || die 'Failed to set {{ v.key }}={{ v.value }}'
+{% endfor %}
+
+# --- Bridge / Bond creation
+
+{% for br in ovs.br %}
+# {{ br }}
+if ovs-vsctl br-exists '{{ br }}' &>/dev/null; then
+    log 'WARNING: Bridge {{ br }} already exists, skipping creation'
+else
+    log 'Creating OVS bridge {{ br }}'
+    ovs-vsctl add-br '{{ br }}' \
+{% for v in ovs.br[br].set | d([]) | map('dict2items') | flatten %}
+        -- set bridge '{{ br }}' '{{ v.key }}={{ v.value }}' \
+{% endfor %}
+        || die 'Failed to create bridge {{ br }}'
+fi
+{% for port in ovs.br[br].ports %}
+if ovs-vsctl port-to-br '{{ port }}' &>/dev/null; then
+    log 'WARNING: Port {{ port }} already exists, skipping creation'
+else
+{% if port in ovs.iface %}
+    log 'Adding port {{ port }} to {{ br }}'
+    ovs-vsctl add-port '{{ br }}' '{{ port }}' \
+{% for v in ovs.iface[port].set | d([]) | map('dict2items') | flatten %}
+        -- set Interface '{{ port }}' '{{ v.key }}={{ v.value }}' \
+{% endfor %}
+        || die 'Failed to add port {{ port }}'
+{% endif %}
+{% if port in ovs.bond %}
+    log 'Adding bond {{ port }} to {{ br }}'
+    ovs-vsctl add-bond '{{ br }}' '{{ port }}' \
+{% for iface in ovs.bond[port].ifaces %}
+        '{{ iface }}' \
+{% endfor %}
+{% for v in ovs.bond[port].set | d([]) | map('dict2items') | flatten %}
+        '{{ v.key }}={{ v.value }}' \
+{% endfor %}
+{% for iface in ovs.bond[port].ifaces %}
+{% for v in ovs.iface[iface].set | d([]) | map('dict2items') | flatten %}
+        -- set Interface '{{ iface }}' '{{ v.key }}={{ v.value }}' \
+{% endfor %}
+{% endfor %}
+        || die 'Failed to add bond {{ port }}'
+{% endif %}
+fi
+{% endfor %}
+{% endfor %}
+
+# --- Checksum offload (internal)
+
+{% for br in _dpdk_br %}
+log 'Disabling checksum offloading for {{ br }}'
+ethtool --offload '{{ br }}' tx off rx off || log 'WARNING: Failed to disable checksum offloading for {{ br }}'
+{% endfor %}
+
+# --- Networking cleanup
+
+if type -p systemctl &>/dev/null && systemctl is-active --quiet NetworkManager; then
+    log 'Stopping and disabling NetworkManager'
+    systemctl disable NetworkManager || log 'WARNING: Failed to disable NetworkManager'
+    systemctl stop NetworkManager || log 'WARNING: Failed to stop NetworkManager'
+fi
+
+if type -p netplan &>/dev/null && netplan status -f json | jq -re '."netplan-global-state"."online"' &>/dev/null; then
+    log 'Disabling Netplan'
+    find /etc/netplan/ -type f -name '*.yaml' -exec mv {} {}.bak \;
+    netplan apply || log 'WARNING: Failed to disable Netplan'
+fi
+
+# --- IP configuration
+
+{% for dev, v in (_iface.items() | list + ovs.br.items() | list) %}
+# {{ dev }}
+log 'Flushing {{ dev }}'
+ip addr flush dev '{{ dev }}' || die 'Failed to flush {{ dev }}'
+{% for a in v.addrs | d([]) %}
+log 'Adding IP address {{ a.cidr }} to {{ dev }}'
+ip addr add '{{ a.cidr }}' dev '{{ dev }}' \
+    {{ "metric '{}'".format(a.metric) if a.metric is defined else "" }} || die 'Failed to add IP address to {{ dev }}'
+{% endfor %}
+log 'Bringing up {{ dev }}'
+ip link set dev '{{ dev }}' up || die 'Failed to bring up {{ dev }}'
+{% endfor %}
+
+# --- Default route
+
+{% set gw = ((ovs.iface.values() | list + ovs.br.values() | list) | selectattr('gw', 'defined') | first).gw | d(None) %}
+{% if gw is not none %}
+if ip --json route show default | jq -re '. != []' &>/dev/null; then
+    log 'WARNING: Default route already exists'
+else
+    log 'Adding default route via {{ gw }}'
+    ip route add default via '{{ gw }}' || die 'Failed to add default route {{ gw }}'
+fi
+{% endif %}
+
+# --- Nameserver configuration
+
+if type -p systemctl resolvectl &>/dev/null && systemctl is-active --quiet systemd-resolved; then
+{% for dev, v in (ovs.iface.items() | list + ovs.br.items() | list) %}
+    # {{ dev }}
+{% if v.dns is defined and v.dns is sequence %}
+    log 'Setting nameservers for {{ dev }}'
+    resolvectl dns '{{ dev }}' \
+        {{ v.dns | map('regex_replace', '^(.*)$', "'\g<1>'") | join(' ') }} \
+        || die 'Failed to setup nameservers'
+{% endif %}
+{% endfor %}
+fi
+
+# --- Networking refresh
+
+{% for br, v in ovs.br.items() %}
+# {{ br }}
+{% for a in v.addrs | d([]) %}
+log 'Sending gratuitous ARP for {{ a.cidr }} on {{ br }}'
+arping -c 3 -A -I '{{ br }}' '{{ a.cidr.split('/') | first }}' || log 'WARNING: arping failed'
+{% endfor %}
+{% endfor %}
+
+# ---
+
+log 'OVS network configuration completed successfully'
+exit 0
