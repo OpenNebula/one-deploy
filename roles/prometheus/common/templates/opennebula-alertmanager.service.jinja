@@ -1,0 +1,39 @@
+# managed by one-deploy
+[Service]
+{% if _peers | length > 0 %}
+# NOTE: Providing cluster peers from the command line seems to be
+#       the only supported way to configure HA Alertmanager.
+ExecStart=
+ExecStart=/usr/bin/alertmanager \
+          --config.file=/etc/one/alertmanager/alertmanager.yml \
+          --storage.path=/var/lib/alertmanager/data/ {{ _peers }}
+{% endif %}
+{# --- #}
+{% if oneprometheus_limits['opennebula-alertmanager.service'].CPUQuota is not none %}
+CPUQuota={{ oneprometheus_limits['opennebula-alertmanager.service'].CPUQuota }}
+{% endif %}
+{# --- #}
+{% if oneprometheus_limits['opennebula-alertmanager.service'].CPUWeight is not none %}
+CPUWeight={{ oneprometheus_limits['opennebula-alertmanager.service'].CPUWeight }}
+{% endif %}
+{# --- #}
+{% if oneprometheus_limits['opennebula-alertmanager.service'].MemoryHigh is not none %}
+MemoryHigh={{ oneprometheus_limits['opennebula-alertmanager.service'].MemoryHigh }}
+{% endif %}
+{# --- #}
+{% if oneprometheus_limits['opennebula-alertmanager.service'].MemoryMax is not none %}
+MemoryMax={{ oneprometheus_limits['opennebula-alertmanager.service'].MemoryMax }}
+{% endif %}
+{# --- #}
+{% if oneprometheus_limits['opennebula-alertmanager.service'].IOWeight is not none %}
+IOWeight={{ oneprometheus_limits['opennebula-alertmanager.service'].IOWeight }}
+{% endif %}
+{# --- #}
+{% if oneprometheus_limits['opennebula-alertmanager.service'].IOReadBandwidthMax is not none %}
+IOReadBandwidthMax={{ oneprometheus_limits['opennebula-alertmanager.service'].IOReadBandwidthMax }}
+{% endif %}
+{# --- #}
+{% if oneprometheus_limits['opennebula-alertmanager.service'].IOWriteBandwidthMax is not none %}
+IOWriteBandwidthMax={{ oneprometheus_limits['opennebula-alertmanager.service'].IOWriteBandwidthMax }}
+{% endif %}
+{# --- #}

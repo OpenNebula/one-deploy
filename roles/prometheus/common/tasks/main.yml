@@ -1,0 +1,5 @@
+---
+- name: Compute facts (Prometheus)
+  ansible.builtin.set_fact:
+    oneprometheus_limits: >-
+      {{ oneprometheus_limits_defaults | combine(oneprometheus_limits | d({}), recursive=true) }}

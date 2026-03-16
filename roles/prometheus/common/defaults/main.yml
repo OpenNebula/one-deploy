@@ -1,2 +1,52 @@
 ---
 node_hypervisor: kvm # currently "kvm" only
+
+oneprometheus_limits_defaults:
+  grafana-server.service:
+    CPUQuota: 100%
+    CPUWeight: 100
+    MemoryHigh: 1024M
+    MemoryMax: 2048M
+    IOWeight: null
+    IOReadBandwidthMax: null
+    IOWriteBandwidthMax: null
+  opennebula-alertmanager.service:
+    CPUQuota: 25%
+    CPUWeight: 150
+    MemoryHigh: 128M
+    MemoryMax: 256M
+    IOWeight: null
+    IOReadBandwidthMax: null
+    IOWriteBandwidthMax: null
+  opennebula-exporter.service:
+    CPUQuota: 25%
+    CPUWeight: 25
+    MemoryHigh: 128M
+    MemoryMax: 256M
+    IOWeight: null
+    IOReadBandwidthMax: null
+    IOWriteBandwidthMax: null
+  opennebula-libvirt-exporter.service:
+    CPUQuota: 25%
+    CPUWeight: 25
+    MemoryHigh: 128M
+    MemoryMax: 256M
+    IOWeight: null
+    IOReadBandwidthMax: null
+    IOWriteBandwidthMax: null
+  opennebula-node-exporter.service:
+    CPUQuota: 25%
+    CPUWeight: 25
+    MemoryHigh: 64M
+    MemoryMax: 128M
+    IOWeight: null
+    IOReadBandwidthMax: null
+    IOWriteBandwidthMax: null
+  opennebula-prometheus.service:
+    CPUQuota: 100%
+    CPUWeight: 100
+    MemoryHigh: 1024M
+    MemoryMax: 2048M
+    IOWeight: 200
+    IOReadBandwidthMax: /var/lib/prometheus 50M
+    IOWriteBandwidthMax: /var/lib/prometheus 25M
