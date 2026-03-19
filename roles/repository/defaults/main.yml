@@ -26,6 +26,7 @@ repo_constraints:
       {{ (groups.get(frontend_group | d('frontend'), []) + groups.get(node_group | d('node'), [])) | unique }}
 
 repos_enabled: [ceph, frr, grafana, opennebula]
+repository_manage: true
 
 ###
 

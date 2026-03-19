@@ -15,6 +15,7 @@ Role Variables
 |---------------------------------|--------|---------------|---------------------|-----------------------------------------------------------------------|
 | `one_version`                   | `str`  | `6.8`         | `6.8.3`             | OpenNebula version (CE/EE is decided by the presence of `one_token`). |
 | `one_token`                     | `str`  | undefined     | `asd123as:123asd12` | OpenNebula Enterprise Edition subscription token.                     |
+| `repository_manage`            | `bool` | `true`        | `false`             | Disable all repository management in this role globally.              |
 | `repos_enabled`                 | `list` | (check below) | `[frr]`             | Enable installation of specific repos.                                |
 |                                 |        |               |                     |                                                                       |
 | `ceph_repo_force_trusted`       | `bool` | `false`       |                     | Disable Ceph GPG / SSL repo verification.                             |
@@ -52,6 +53,7 @@ Example Playbook
 
     - hosts: frontend:node
       vars:
+        repository_manage: false
         repos_enabled: [ceph, frr, grafana, opennebula] # defaults
 
         # Enable OpenNebula EE repo.
