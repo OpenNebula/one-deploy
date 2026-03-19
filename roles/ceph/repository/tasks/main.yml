@@ -25,7 +25,7 @@
     - ansible.builtin.include_role:
         name: repository
       vars:
-        repos_enabled: [ceph]
+        repos_enabled_defaults: [ceph]
       when: ceph_repo is undefined
 
     - name: Install extra Ceph/OpenNebula dependencies

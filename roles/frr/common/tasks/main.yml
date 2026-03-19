@@ -4,7 +4,7 @@
     - ansible.builtin.include_role:
         name: repository
       vars:
-        repos_enabled: [frr]
+        repos_enabled_defaults: [frr]
       when: frr_repo is undefined
 
     - name: Install Free Range Routing (FRR)
