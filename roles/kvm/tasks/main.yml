@@ -4,7 +4,7 @@
     - ansible.builtin.include_role:
         name: repository
       vars:
-        repos_enabled: [opennebula]
+        repos_enabled_defaults: [opennebula]
       when: opennebula_repo is undefined
 
     - name: Install OpenNebula KVM packages

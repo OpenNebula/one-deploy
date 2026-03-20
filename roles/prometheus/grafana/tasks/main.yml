@@ -4,7 +4,7 @@
     - ansible.builtin.include_role:
         name: repository
       vars:
-        repos_enabled: [grafana, opennebula]
+        repos_enabled_defaults: [grafana, opennebula]
       when: grafana_repo is undefined or opennebula_repo is undefined
 
     - name: Install Grafana with dependencies
