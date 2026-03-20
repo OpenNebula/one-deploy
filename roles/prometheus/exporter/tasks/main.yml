@@ -7,7 +7,7 @@
         repos_enabled_defaults: [opennebula]
       when: opennebula_repo is undefined
 
-    - name: Install Prometheus and dependencies
+    - name: Install Prometheus with dependencies
       ansible.builtin.package:
         name: "{{ _common + _specific[ansible_os_family] }}"
       vars:
@@ -22,11 +22,43 @@
       retries: 12
       delay: 5
 
-- name: Enable / Start Prometheus exporters (NOW)
-  ansible.builtin.service:
-    name: "{{ item }}"
-    enabled: true
-    state: started
-  loop:
-    - opennebula-libvirt-exporter
-    - opennebula-node-exporter
+- vars:
+    _loop:
+      - name: opennebula-libvirt-exporter.service
+        dest: /etc/systemd/system/opennebula-libvirt-exporter.service.d/override.conf
+        src: "{{ role_path }}/../common/templates/opennebula-libvirt-exporter.service.jinja"
+      - name: opennebula-node-exporter.service
+        dest: /etc/systemd/system/opennebula-node-exporter.service.d/override.conf
+        src: "{{ role_path }}/../common/templates/opennebula-node-exporter.service.jinja"
+  block:
+    - name: Override systemd units (mkdir)
+      ansible.builtin.file:
+        path: "{{ item.dest | dirname }}"
+        state: directory
+        owner: 0
+        group: 0
+        mode: u=rwx,go=rx
+      loop: "{{ _loop }}"
+
+    - name: Override systemd units
+      ansible.builtin.template:
+        dest: "{{ item.dest }}"
+        src: "{{ item.src }}"
+        owner: 0
+        group: 0
+        mode: u=rw,go=r
+      loop: "{{ _loop }}"
+      register: template_override_units
+
+    - name: Enable / Start / Restart Prometheus exporters (NOW)
+      ansible.builtin.systemd_service:
+        name: "{{ item.name }}"
+        enabled: true
+        state: >-
+          {{ 'restarted' if _changed else 'started' }}
+        daemon_reload: >-
+          {{ _changed }}
+      loop: "{{ _loop }}"
+      vars:
+        _changed: >-
+          {{ template_override_units is changed }}

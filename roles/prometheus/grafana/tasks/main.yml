@@ -24,40 +24,70 @@
     name: opennebula/leader
   when: leader is undefined
 
-- name: Provision Grafana datasources
+- name: Update Grafana provisioning
   ansible.builtin.copy:
-    dest: /etc/grafana/provisioning/datasources/prometheus.yml
+    dest: "{{ item.dest }}"
+    content: "{{ item.content }}"
+    owner: 0
+    group: grafana
     mode: u=rw,go=r
-    content: |
-      apiVersion: 1
-      datasources:
-      - name: prometheus
-        type: prometheus
-        access: proxy
-        url: "http://{{ one_vip | default(leader) }}:9090"
-        isDefault: true
-        editable: false
-  register: copy_datasources
-
-- name: Provision Grafana dashboards
-  ansible.builtin.copy:
-    dest: /etc/grafana/provisioning/dashboards/opennebula.yml
-    mode: u=rw,go=r
-    content: |
-      apiVersion: 1
-      providers:
-      - name: opennebula
-        type: file
-        folder: ONE
-        options: { path: /usr/share/one/grafana/dashboards/ }
-  register: copy_dashboards
-
-- name: Enable / Start / Restart Grafana service (NOW)
-  ansible.builtin.service:
-    name: grafana-server
-    enabled: true
-    state: >-
-      {{ 'restarted' if _changed else 'started' }}
+  loop: "{{ _loop }}"
   vars:
-    _changed: >-
-      {{ (copy_datasources is changed) or (copy_dashboards is changed) }}
+    _loop:
+      - dest: /etc/grafana/provisioning/datasources/prometheus.yml
+        content: |
+          apiVersion: 1
+          datasources:
+          - name: prometheus
+            type: prometheus
+            access: proxy
+            url: "http://{{ one_vip | d(leader) }}:9090"
+            isDefault: true
+            editable: false
+      - dest: /etc/grafana/provisioning/dashboards/opennebula.yml
+        content: |
+          apiVersion: 1
+          providers:
+          - name: opennebula
+            type: file
+            folder: ONE
+            options: { path: /usr/share/one/grafana/dashboards/ }
+  register: copy_grafana_provisioning
+
+- vars:
+    _loop:
+      - name: grafana-server.service
+        dest: /etc/systemd/system/grafana-server.service.d/override.conf
+        src: "{{ role_path }}/../common/templates/grafana-server.service.jinja"
+  block:
+    - name: Override systemd units (mkdir)
+      ansible.builtin.file:
+        path: "{{ item.dest | dirname }}"
+        state: directory
+        owner: 0
+        group: 0
+        mode: u=rwx,go=rx
+      loop: "{{ _loop }}"
+
+    - name: Override systemd units
+      ansible.builtin.template:
+        dest: "{{ item.dest }}"
+        src: "{{ item.src }}"
+        owner: 0
+        group: 0
+        mode: u=rw,go=r
+      loop: "{{ _loop }}"
+      register: template_override_units
+
+    - name: Enable / Start / Restart Grafana service (NOW)
+      ansible.builtin.systemd_service:
+        name: "{{ item.name }}"
+        enabled: true
+        state: >-
+          {{ 'restarted' if _changed else 'started' }}
+        daemon_reload: >-
+          {{ _changed }}
+      loop: "{{ _loop }}"
+      vars:
+        _changed: >-
+          {{ copy_grafana_provisioning is changed or template_override_units is changed }}

@@ -1,0 +1,31 @@
+# managed by one-deploy
+[Service]
+{# --- #}
+{% if oneprometheus_limits['opennebula-libvirt-exporter.service'].CPUQuota is not none %}
+CPUQuota={{ oneprometheus_limits['opennebula-libvirt-exporter.service'].CPUQuota }}
+{% endif %}
+{# --- #}
+{% if oneprometheus_limits['opennebula-libvirt-exporter.service'].CPUWeight is not none %}
+CPUWeight={{ oneprometheus_limits['opennebula-libvirt-exporter.service'].CPUWeight }}
+{% endif %}
+{# --- #}
+{% if oneprometheus_limits['opennebula-libvirt-exporter.service'].MemoryHigh is not none %}
+MemoryHigh={{ oneprometheus_limits['opennebula-libvirt-exporter.service'].MemoryHigh }}
+{% endif %}
+{# --- #}
+{% if oneprometheus_limits['opennebula-libvirt-exporter.service'].MemoryMax is not none %}
+MemoryMax={{ oneprometheus_limits['opennebula-libvirt-exporter.service'].MemoryMax }}
+{% endif %}
+{# --- #}
+{% if oneprometheus_limits['opennebula-libvirt-exporter.service'].IOWeight is not none %}
+IOWeight={{ oneprometheus_limits['opennebula-libvirt-exporter.service'].IOWeight }}
+{% endif %}
+{# --- #}
+{% if oneprometheus_limits['opennebula-libvirt-exporter.service'].IOReadBandwidthMax is not none %}
+IOReadBandwidthMax={{ oneprometheus_limits['opennebula-libvirt-exporter.service'].IOReadBandwidthMax }}
+{% endif %}
+{# --- #}
+{% if oneprometheus_limits['opennebula-libvirt-exporter.service'].IOWriteBandwidthMax is not none %}
+IOWriteBandwidthMax={{ oneprometheus_limits['opennebula-libvirt-exporter.service'].IOWriteBandwidthMax }}
+{% endif %}
+{# --- #}
