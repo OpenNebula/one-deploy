@@ -33,11 +33,13 @@
     path: /var/lib/one/.ssh/id_rsa.pub
   register: slurp
   delegate_to: "{{ leader }}"
+  tags: [add_node_to_opennebula]
 
 - name: Add oneadmin's pubkey to authorized keys
   ansible.posix.authorized_key:
     user: oneadmin
     key: "{{ slurp.content | b64decode }}"
+  tags: [add_node_to_opennebula]
 
 - delegate_to: "{{ leader }}"
   block:
@@ -69,3 +71,4 @@
       until: shell is success
       retries: 12
       delay: 5
+  tags: [add_node_to_opennebula]
