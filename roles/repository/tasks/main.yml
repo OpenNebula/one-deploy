@@ -1,37 +1,35 @@
 ---
-- name: Install dependencies (TRY)
-  ansible.builtin.package:
-    name: "{{ _common + _specific[ansible_os_family] }}"
-  vars:
-    _common: [ca-certificates, gnupg2]
-    _specific:
-      Debian: [apt-transport-https, dirmngr, software-properties-common]
-      RedHat: []
-  # NOTE: This allows for some limited recovery if re-executed, it is likely
-  #       required packages are already installed.
-  ignore_errors: true # noqa ignore-errors
-
-- ansible.builtin.include_tasks:
-    file: "{{ role_path }}/tasks/{{ _item }}.yml"
-  when:
-    - repo_constraints[_item].condition
-    - inventory_hostname in repo_constraints[_item].hosts
-  loop: "{{ _repos_enabled }}"
-  loop_control: { loop_var: _item }
+- when: _repos_enabled | count > 0
   vars:
     _repos_enabled: >-
-      {{ repos_enabled_defaults if repos_enabled is not defined
-         else (repos_enabled | intersect(repos_enabled_defaults)) }}
+      {{ repos_enabled | d(repos_enabled_defaults) | intersect(repos_enabled_defaults) }}
+  block:
+    - name: Install dependencies (TRY)
+      ansible.builtin.package:
+        name: "{{ _common + _specific[ansible_os_family] }}"
+      vars:
+        _common: [ca-certificates, gnupg2]
+        _specific:
+          Debian: [apt-transport-https, dirmngr, software-properties-common]
+          RedHat: []
+      # NOTE: This allows for some limited recovery if re-executed, it is likely
+      #       required packages are already installed.
+      ignore_errors: true # noqa ignore-errors
 
-- name: Update package manager cache
-  ansible.builtin.package:
-    update_cache: "{{ _changed is any }}"
-  vars:
-    _repos_enabled: >-
-      {{ repos_enabled_defaults if repos_enabled is not defined
-         else (repos_enabled | intersect(repos_enabled_defaults)) }}
-    # Gather all existing results from repo config rendering.
-    _changed: >-
-      {{ _repos_enabled | map('regex_replace', '^(.*)$', '\g<1>_repo')
-                        | map('extract', hostvars[inventory_hostname], ['changed'])
-                        | map('default', false) }}
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/{{ _item }}.yml"
+      when:
+        - repo_constraints[_item].condition
+        - inventory_hostname in repo_constraints[_item].hosts
+      loop: "{{ _repos_enabled }}"
+      loop_control: { loop_var: _item }
+
+    - name: Update package manager cache
+      ansible.builtin.package:
+        update_cache: "{{ _changed is any }}"
+      vars:
+        # Gather all existing results from repo config rendering.
+        _changed: >-
+          {{ _repos_enabled | map('regex_replace', '^(.*)$', '\g<1>_repo')
+                            | map('extract', hostvars[inventory_hostname], ['changed'])
+                            | map('default', false) }}
