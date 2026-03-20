@@ -6,12 +6,18 @@
   block:
     - name: Install dependencies (TRY)
       ansible.builtin.package:
-        name: "{{ _common + _specific[ansible_os_family] }}"
+        name: "{{ _common + (_specific[_d][_v] | d(_default[_f])) }}"
       vars:
         _common: [ca-certificates, gnupg2]
         _specific:
+          Debian:
+            '13': [apt-transport-https, dirmngr]
+        _default:
           Debian: [apt-transport-https, dirmngr, software-properties-common]
           RedHat: []
+        _d: "{{ ansible_distribution }}"
+        _v: "{{ ansible_distribution_major_version }}"
+        _f: "{{ ansible_os_family }}"
       # NOTE: This allows for some limited recovery if re-executed, it is likely
       #       required packages are already installed.
       ignore_errors: true # noqa ignore-errors
