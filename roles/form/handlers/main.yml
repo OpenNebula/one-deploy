@@ -1,0 +1,8 @@
+---
+- name: Restart OneForm Server
+  ansible.builtin.service:
+    name: opennebula-form
+    state: restarted
+  when:
+    - inventory_hostname == leader
+    - form_no_restart is false
