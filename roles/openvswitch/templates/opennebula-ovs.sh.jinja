@@ -8,6 +8,7 @@ die() { log "ERROR: $*"; exit 1; }
 
 # --- Basic assertions
 
+log 'Asserting required binaries and scripts are available'
 type -p arping find ip jq ovs-vsctl &>/dev/null
 {% if _dpdk_enabled %}
 type -p dpdk-devbind.py ethtool &>/dev/null
@@ -32,58 +33,34 @@ log 'Setting {{ v.key }}={{ v.value }}'
 ovs-vsctl --no-wait set Open_vSwitch . '{{ v.key }}={{ v.value }}' || die 'Failed to set {{ v.key }}={{ v.value }}'
 {% endfor %}
 
-# --- Bridge / Bond creation
+# --- Bridge / Port cleanup
 
-{% for br in ovs.br %}
-# {{ br }}
-if ovs-vsctl br-exists '{{ br }}' &>/dev/null; then
-    log 'WARNING: Bridge {{ br }} already exists, skipping creation'
-else
-    log 'Creating OVS bridge {{ br }}'
-    ovs-vsctl add-br '{{ br }}' \
-{% for v in ovs.br[br].set | d([]) | map('dict2items') | flatten %}
-        -- set bridge '{{ br }}' '{{ v.key }}={{ v.value }}' \
-{% endfor %}
-        || die 'Failed to create bridge {{ br }}'
-fi
-{% for port in ovs.br[br].ports %}
-if ovs-vsctl port-to-br '{{ port }}' &>/dev/null; then
-    log 'WARNING: Port {{ port }} already exists, skipping creation'
-else
-{% if port in ovs.iface %}
-    log 'Adding port {{ port }} to {{ br }}'
-    ovs-vsctl add-port '{{ br }}' '{{ port }}' \
-{% for v in ovs.iface[port].set | d([]) | map('dict2items') | flatten %}
-        -- set Interface '{{ port }}' '{{ v.key }}={{ v.value }}' \
-{% endfor %}
-        || die 'Failed to add port {{ port }}'
-{% endif %}
-{% if port in ovs.bond %}
-    log 'Adding bond {{ port }} to {{ br }}'
-    ovs-vsctl add-bond '{{ br }}' '{{ port }}' \
-{% for iface in ovs.bond[port].ifaces %}
-        '{{ iface }}' \
-{% endfor %}
-{% for v in ovs.bond[port].set | d([]) | map('dict2items') | flatten %}
-        '{{ v.key }}={{ v.value }}' \
-{% endfor %}
-{% for iface in ovs.bond[port].ifaces %}
-{% for v in ovs.iface[iface].set | d([]) | map('dict2items') | flatten %}
-        -- set Interface '{{ iface }}' '{{ v.key }}={{ v.value }}' \
-{% endfor %}
-{% endfor %}
-        || die 'Failed to add bond {{ port }}'
-{% endif %}
-fi
-{% endfor %}
-{% endfor %}
+declare -A _ALL_BOND_IFACES=({{ _all_bond_ifaces | map('regex_replace', '^(.*)$', '[\g<1>]=1') | join(' ') }})
 
-# --- Checksum offload (internal)
+ovs-vsctl --no-headings --columns=name find Interface 'external_ids:one-deploy-bond!=""' | while read -r IFACE; do
+    if [[ -n "$IFACE" ]] && [[ ! -v _ALL_BOND_IFACES[$IFACE] ]]; then
+        log "Deleting leftover iface $IFACE"
+        ovs-vsctl --with-iface del-port "$IFACE" || die "Failed to delete iface $IFACE"
+    fi
+done
 
-{% for br in _dpdk_br %}
-log 'Disabling checksum offloading for {{ br }}'
-ethtool --offload '{{ br }}' tx off rx off || log 'WARNING: Failed to disable checksum offloading for {{ br }}'
-{% endfor %}
+declare -A _ALL_BR_PORTS=({{ _all_br_ports | map('regex_replace', '^(.*)$', '[\g<1>]=1') | join(' ') }})
+
+ovs-vsctl --no-headings --columns=name find Port 'external_ids:one-deploy-bond=""' | while read -r PORT; do
+    if [[ -n "$PORT" ]] && [[ ! -v _ALL_BR_PORTS[$PORT] ]]; then
+        log "Deleting leftover port $PORT"
+        ovs-vsctl del-port "$PORT" || die "Failed to delete port $PORT"
+    fi
+done
+
+declare -A _ALL_BR=({{ ovs.br.keys() | map('regex_replace', '^(.*)$', '[\g<1>]=1') | join(' ') }})
+
+ovs-vsctl --no-headings --columns=name find Bridge 'external_ids:one-deploy-br!=""' | while read -r BR; do
+    if [[ -n "$BR" ]] && [[ ! -v _ALL_BR[$BR] ]]; then
+        log "Deleting leftover br $BR"
+        ovs-vsctl del-br "$BR" || die "Failed to delete br $BR"
+    fi
+done
 
 # --- Networking cleanup
 
@@ -98,6 +75,92 @@ if type -p netplan &>/dev/null && netplan status -f json | jq -re '."netplan-glo
     find /etc/netplan/ -type f -name '*.yaml' -exec mv {} {}.bak \;
     netplan apply || log 'WARNING: Failed to disable Netplan'
 fi
+
+# --- Bridge creation
+
+{% for br in ovs.br %}
+# {{ br }}
+log 'Creating OVS bridge {{ br }}'
+ovs-vsctl --may-exist add-br '{{ br }}' \
+    -- set Bridge '{{ br }}' 'external_ids:one-deploy-br={{ br }}' \
+{% for v in ovs.br[br].set | d([]) | map('dict2items') | flatten %}
+    -- set Bridge '{{ br }}' '{{ v.key }}={{ v.value }}' \
+{% endfor %}
+    || die 'Failed to configure bridge {{ br }}'
+{% endfor %}
+
+# --- Port creation
+
+{% for br in ovs.br %}
+# {{ br }}
+{% for port in ovs.br[br].ports | select('in', ovs.iface) %}
+log 'Adding port {{ port }} to {{ br }}'
+ovs-vsctl --may-exist add-port '{{ br }}' '{{ port }}' \
+    'external_ids:one-deploy-br={{ br }}' \
+    'external_ids:one-deploy-bond=""' \
+    -- set Interface '{{ port }}' 'external_ids:one-deploy-br={{ br }}' \
+    -- set Interface '{{ port }}' 'external_ids:one-deploy-bond=""' \
+{% for v in ovs.iface[port].set | d([]) | map('dict2items') | flatten %}
+    -- set Interface '{{ port }}' '{{ v.key }}={{ v.value }}' \
+{% endfor %}
+    || die 'Failed to add port {{ port }}'
+{% endfor %}
+{% endfor %}
+
+# --- Bond creation
+
+{% for br in ovs.br %}
+# {{ br }}
+{% for port in ovs.br[br].ports | select('in', ovs.bond) %}
+log 'Adding bond {{ port }} to {{ br }}'
+ovs-vsctl --if-exists del-port '{{ port }}' -- add-bond '{{ br }}' '{{ port }}' \
+{% for iface in ovs.bond[port].ifaces %}
+    '{{ iface }}' \
+{% endfor %}
+    'external_ids:one-deploy-br={{ br }}' \
+    'external_ids:one-deploy-bond={{ port }}' \
+{% for v in ovs.bond[port].set | d([]) | map('dict2items') | flatten %}
+    '{{ v.key }}={{ v.value }}' \
+{% endfor %}
+{% for iface in ovs.bond[port].ifaces %}
+    -- set Interface '{{ iface }}' 'external_ids:one-deploy-br={{ br }}' \
+    -- set Interface '{{ iface }}' 'external_ids:one-deploy-bond={{ port }}' \
+{% for v in ovs.iface[iface].set | d([]) | map('dict2items') | flatten %}
+    -- set Interface '{{ iface }}' '{{ v.key }}={{ v.value }}' \
+{% endfor %}
+{% endfor %}
+    || die 'Failed to add bond {{ port }}'
+{% endfor %}
+{% endfor %}
+
+# --- Bridge / Interface reconfiguration
+
+{% for br in ovs.br | dict2items | selectattr('value.set', 'defined') | map(attribute='key') %}
+# {{ br }}
+log 'Reconfiguring OVS bridge {{ br }}'
+ovs-vsctl \
+{% for v in ovs.br[br].set | d([]) | map('dict2items') | flatten %}
+    -- set Bridge '{{ br }}' '{{ v.key }}={{ v.value }}' \
+{% endfor %}
+    || die 'Failed to reconfigure {{ br }}'
+{% endfor %}
+
+{% for iface in ovs.iface | dict2items | selectattr('value.set', 'defined') | map(attribute='key') %}
+# {{ iface }}
+log 'Reconfiguring interface {{ iface }}'
+ovs-vsctl \
+{% for v in ovs.iface[iface].set | d([]) | map('dict2items') | flatten %}
+    -- --if-exists set Interface '{{ iface }}' '{{ v.key }}={{ v.value }}' \
+{% endfor %}
+    || die 'Failed to reconfigure {{ iface }}'
+{% endfor %}
+
+# --- Checksum offload (kernel)
+
+{% for br in _dpdk_br %}
+log 'Disabling checksum offloading for {{ br }}'
+ethtool --offload '{{ br }}' tx off rx off || log 'WARNING: Failed to disable checksum offloading for {{ br }}'
+{% endfor %}
 
 # --- IP configuration
 
@@ -118,12 +181,8 @@ ip link set dev '{{ dev }}' up || die 'Failed to bring up {{ dev }}'
 
 {% set gw = ((ovs.iface.values() | list + ovs.br.values() | list) | selectattr('gw', 'defined') | first).gw | d(None) %}
 {% if gw is not none %}
-if ip --json route show default | jq -re '. != []' &>/dev/null; then
-    log 'WARNING: Default route already exists'
-else
-    log 'Adding default route via {{ gw }}'
-    ip route add default via '{{ gw }}' || die 'Failed to add default route {{ gw }}'
-fi
+log 'Replacing default route to via {{ gw }}'
+ip route replace default via '{{ gw }}' || die 'Failed to replace default route {{ gw }}'
 {% endif %}
 
 # --- Nameserver configuration
