@@ -53,17 +53,23 @@ Example Playbook
             - other_config:dpdk-init: 'true'
             - other_config:dpdk-socket-mem: '1024,0'
           iface:
+            ovsbr0: # "internal" port
+              set:
+                - mtu_request: 1500
             dpdk-p0:
               set:
                 - type: dpdkvhostuserclient
+                - mtu_request: 9000
                 - options:vhost-server-path: /var/tmp/dpdk-p0
             dpdk-p1:
               set:
                 - type: dpdk
+                - mtu_request: 9000
                 - options:dpdk-devargs: '0000:02:00.0'
             dpdk-p2:
               set:
                 - type: dpdk
+                - mtu_request: 9000
                 - options:dpdk-devargs: '0000:03:00.0'
             eth3: {} # non-DPDK device
           bond:

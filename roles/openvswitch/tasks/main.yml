@@ -39,9 +39,14 @@
       {{- output -}}
     _dpdk_pci_addrs: >-
       {{ _dpdk_pci_addrs_raw | select | unique }}
+    _internal_iface: >-
+      {{ ovs.iface | dict2items
+                   | selectattr('key', 'in', ovs.br.keys())
+                   | items2dict }}
     _iface: >-
       {{ ovs.iface | dict2items
                    | rejectattr('key', 'in', _dpdk_iface.keys())
+                   | rejectattr('key', 'in', _internal_iface.keys())
                    | items2dict }}
     _pci_addrs: >-
       {{ command_udevadm_pci_addresses.stdout_lines | d([])
