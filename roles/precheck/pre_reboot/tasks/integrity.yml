@@ -63,6 +63,7 @@
       - Debian
       - openSUSE Leap
       - RedHat
+      - SLES
       - Ubuntu
 
 - name: Check if DB backend is supported for the HA setup

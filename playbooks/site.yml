@@ -37,7 +37,10 @@
 
     - role: form
       tags: [form]
-      when: one_version is version('7.1.80', '>=')
+      when:
+        - one_version is version('7.1.80', '>=')
+        # NOTE: Due to too old version of ruby in SLES 15 OneForm is unsupported.
+        - not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15')
 
     - role: gui
       tags: [gui]
