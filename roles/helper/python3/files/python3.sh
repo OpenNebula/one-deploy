@@ -12,3 +12,8 @@ if [[ -f /etc/redhat-release ]]; then
     dnf -q install -y python3
     exit
 fi
+
+if [[ -f /etc/SUSE-brand ]]; then
+    zypper --non-interactive install -y python3
+    exit
+fi

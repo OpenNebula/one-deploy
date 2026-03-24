@@ -11,10 +11,11 @@
       ansible.builtin.package:
         name: "{{ _common + _specific[ansible_os_family] }}"
       vars:
-        _common: [frr, frr-pythontools]
+        _common: [frr]
         _specific:
-          Debian: []
-          RedHat: []
+          Debian: [frr-pythontools]
+          RedHat: [frr-pythontools]
+          Suse: []
       register: package
       until: package is success
       retries: 12
@@ -44,7 +45,7 @@
         enabled: true
         state: >-
           {{ 'restarted'
-              if ((file_frr_conf is changed)
-                  or
-                  (replace_daemons is changed)) else
+             if ((file_frr_conf is changed)
+                 or
+                 (replace_daemons is changed)) else
              'started' }}

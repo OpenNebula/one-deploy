@@ -10,6 +10,7 @@
     _specific:
       Debian: [qemu-utils]
       RedHat: [qemu-img]
+      Suse: [qemu-img]
   register: package
   until: package is success
   retries: 12

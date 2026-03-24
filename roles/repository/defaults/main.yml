@@ -1,5 +1,5 @@
 ---
-one_version: '6.10'
+one_version: '7.2'
 
 repo_constraints:
   ceph:
@@ -39,18 +39,22 @@ ceph_repo_url: {}
 ceph_repo_key_path_defaults:
   Debian: /etc/apt/trusted.gpg.d/ceph.asc
   RedHat: /etc/pki/rpm-gpg/RPM-GPG-KEY-ceph
+  Suse: null
 
 ceph_repo_key_url_defaults:
   Debian: https://download.ceph.com/keys/release.asc
   RedHat: https://download.ceph.com/keys/release.asc
+  Suse: null
 
 ceph_repo_path_defaults:
   Debian: /etc/apt/sources.list.d/ceph.list
   RedHat: /etc/yum.repos.d/ceph.repo
+  Suse: null
 
 ceph_repo_url_defaults:
   Debian: https://download.ceph.com/debian-{{ ceph.release }}
   RedHat: https://download.ceph.com/rpm-{{ ceph.release }}
+  Suse: null
 
 ###
 
@@ -64,18 +68,22 @@ frr_repo_url: {}
 frr_repo_key_path_defaults:
   Debian: /etc/apt/trusted.gpg.d/frr.asc
   RedHat: /etc/pki/rpm-gpg/RPM-GPG-KEY-frr
+  Suse: null
 
 frr_repo_key_url_defaults:
   Debian: https://deb.frrouting.org/frr/keys.asc
   RedHat: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x7AB8AC624CBA356CB6216D48F66B5A9140673A87
+  Suse: null
 
 frr_repo_path_defaults:
   Debian: /etc/apt/sources.list.d/frr.list
   RedHat: /etc/yum.repos.d/frr.repo
+  Suse: null
 
 frr_repo_url_defaults:
   Debian: https://deb.frrouting.org/frr
   RedHat: https://rpm.frrouting.org/repo/el$releasever
+  Suse: null
 
 ###
 
@@ -89,18 +97,22 @@ grafana_repo_url: {}
 grafana_repo_key_path_defaults:
   Debian: /etc/apt/trusted.gpg.d/grafana.asc
   RedHat: /etc/pki/rpm-gpg/RPM-GPG-KEY-grafana
+  Suse: /etc/pki/rpm-gpg/RPM-GPG-KEY-grafana
 
 grafana_repo_key_url_defaults:
   Debian: https://apt.grafana.com/gpg.key
   RedHat: https://rpm.grafana.com/gpg.key
+  Suse: https://rpm.grafana.com/gpg.key
 
 grafana_repo_path_defaults:
   Debian: /etc/apt/sources.list.d/grafana.list
   RedHat: /etc/yum.repos.d/grafana.repo
+  Suse: /etc/zypp/repos.d/grafana.repo
 
 grafana_repo_url_defaults:
   Debian: https://apt.grafana.com
   RedHat: https://rpm.grafana.com
+  Suse: https://rpm.grafana.com
 
 ###
 
@@ -114,27 +126,25 @@ opennebula_repo_url: {}
 opennebula_repo_key_path_defaults:
   Debian: /etc/apt/trusted.gpg.d/opennebula2.asc
   RedHat: /etc/pki/rpm-gpg/RPM-GPG-KEY-opennebula2
+  Suse: /etc/pki/rpm-gpg/RPM-GPG-KEY-opennebula2
 
 opennebula_repo_key_url_defaults:
   Debian: https://downloads.opennebula.io/repo/repo2.key
   RedHat: https://downloads.opennebula.io/repo/repo2.key
+  Suse: https://downloads.opennebula.io/repo/repo2.key
 
 opennebula_repo_path_defaults:
   Debian: /etc/apt/sources.list.d/opennebula.list
   RedHat: /etc/yum.repos.d/opennebula.repo
+  Suse: /etc/zypp/repos.d/opennebula.repo
 
 opennebula_repo_url_defaults:
+  # DEB
   Debian: >-
     {%- if one_token is defined and one_token is truthy -%}
       https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_major_version }}
     {%- else -%}
       https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_major_version }}
-    {%- endif -%}
-  RedHat: >-
-    {%- if one_token is defined and one_token is truthy -%}
-      https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
-    {%- else -%}
-      https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
     {%- endif -%}
   Ubuntu: >-
     {%- if one_token is defined and one_token is truthy -%}
@@ -142,6 +152,20 @@ opennebula_repo_url_defaults:
     {%- else -%}
       https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }}
     {%- endif -%}
+  # RPM
+  openSUSE Leap: >-
+    {%- if one_token is defined and one_token is truthy -%}
+      https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/openSUSE
+    {%- else -%}
+      https://downloads.opennebula.io/repo/{{ one_version }}/openSUSE
+    {%- endif -%}
+  RedHat: >-
+    {%- if one_token is defined and one_token is truthy -%}
+      https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
+    {%- else -%}
+      https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
+    {%- endif -%}
+  Suse: null
 
 opennebula_repo_pre_enable_defaults:
   AlmaLinux:
@@ -149,24 +173,45 @@ opennebula_repo_pre_enable_defaults:
       '8': []
       '9': []
       '10': []
-    extra_rpms:
-      '8': []
-      '9': []
-      '10': []
     config_manager:
       '8': [epel, powertools, ha]
       '9': [epel, crb, highavailability]
       '10': [epel, crb, highavailability]
+    extra_repos:
+      '8': []
+      '9': []
+      '10': []
+    extra_rpms:
+      '8': []
+      '9': []
+      '10': []
+  openSUSE Leap:
+    extra_repos:
+      '16':
+        - alias: science
+          uri: https://download.opensuse.org/repositories/science/openSUSE_Leap_16.0/
+        - alias: multimedia
+          uri: https://download.opensuse.org/repositories/multimedia:/apps/16.0/
+        - alias: devel_languages_go
+          uri: https://download.opensuse.org/repositories/devel:/languages:/go/16.0/
+        - alias: nodejs20-16
+          uri: https://download.opensuse.org/repositories/home:/one-infra:/nodejs:/16.0/16.0/
+    extra_rpms:
+      '16': []
   RedHat:
     subscription_manager:
       '8': [codeready-builder-for-rhel-8-x86_64-rpms, rhel-8-for-x86_64-highavailability-rpms]
       '9': [codeready-builder-for-rhel-9-x86_64-rpms, rhel-9-for-x86_64-highavailability-rpms]
       '10': [codeready-builder-for-rhel-10-x86_64-rpms, rhel-10-for-x86_64-highavailability-rpms]
-    extra_rpms:
-      '8': ["https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm"]
-      '9': ["https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm"]
-      '10': ["https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm"]
     config_manager:
       '8': [epel]
       '9': [epel]
       '10': [epel]
+    extra_repos:
+      '8': []
+      '9': []
+      '10': []
+    extra_rpms:
+      '8': [https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm]
+      '9': [https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm]
+      '10': [https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm]

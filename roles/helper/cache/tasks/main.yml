@@ -25,5 +25,6 @@
 
 - name: Update package cache
   ansible.builtin.package:
+    name: []
     update_cache: true
   when: update_pkg_cache | bool is true

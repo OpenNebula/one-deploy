@@ -16,3 +16,28 @@
   notify:
     - Restart FireEdge Server
   when: one_token is defined and one_token is truthy
+
+- name: Enable/Persist httpd_can_network_connect
+  ansible.builtin.shell:
+    cmd: |
+      set -o errexit
+      BEFORE="$(getsebool httpd_can_network_connect)"
+      setsebool -P httpd_can_network_connect on
+      AFTER="$(getsebool httpd_can_network_connect)"
+      if [[ "$AFTER" == "$BEFORE" ]]; then
+        exit 0
+      else
+        exit 78 # EREMCHG
+      fi
+    executable: /bin/bash
+  register: shell
+  changed_when:
+    - shell.rc in [78]
+  failed_when:
+    - shell.rc not in [0, 78]
+  when:
+    - ssl.web_server is defined
+    - ssl.web_server is string
+    - ssl.web_server is truthy
+    - ansible_facts.selinux.status is defined
+    - ansible_facts.selinux.status in ['enabled']

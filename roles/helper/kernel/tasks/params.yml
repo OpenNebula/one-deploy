@@ -35,7 +35,7 @@
           # {mark} managed by one-deploy
         block: |
           . /etc/default/grub.d/99-cmdline.cfg || :
-      when: ansible_os_family in ['RedHat']
+      when: ansible_os_family in ['RedHat', 'Suse']
 
     - name: Ensure /etc/default/grub.d/
       ansible.builtin.file:
@@ -78,6 +78,17 @@
               set -o errexit
               BEFORE="$(cksum /boot/grub2/grub.cfg)"
               grub2-mkconfig -o /boot/grub2/grub.cfg --update-bls-cmdline || grub2-mkconfig -o /boot/grub2/grub.cfg
+              AFTER="$(cksum /boot/grub2/grub.cfg)"
+              if [[ "$AFTER" == "$BEFORE" ]]; then
+                exit 0
+              else
+                exit 78 # EREMCHG
+              fi
+          Suse:
+            cmd: |
+              set -o errexit
+              BEFORE="$(cksum /boot/grub2/grub.cfg)"
+              grub2-mkconfig -o /boot/grub2/grub.cfg
               AFTER="$(cksum /boot/grub2/grub.cfg)"
               if [[ "$AFTER" == "$BEFORE" ]]; then
                 exit 0

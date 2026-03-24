@@ -45,6 +45,8 @@
         RedHat:
           '9': [community]
           '10': []
+        openSUSE Leap:
+          '16': []
       tentacle: # Ceph 20.2.z
         Debian:
           '12': [community]
@@ -58,4 +60,6 @@
         RedHat:
           '9': [community]
           '10': []
+        openSUSE Leap:
+          '16': []
   tags: [preinstall]

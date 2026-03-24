@@ -8,13 +8,14 @@
       ansible.builtin.package:
         name: "{{ _common + (_specific[_d][_v] | d(_default[_f])) }}"
       vars:
-        _common: [ca-certificates, gnupg2]
+        _common: [ca-certificates]
         _specific:
           Debian:
-            '13': [apt-transport-https, dirmngr]
+            '13': [apt-transport-https, dirmngr, gnupg2]
         _default:
-          Debian: [apt-transport-https, dirmngr, software-properties-common]
-          RedHat: []
+          Debian: [apt-transport-https, dirmngr, gnupg2, software-properties-common]
+          RedHat: [gnupg2]
+          Suse: [gpg2]
         _d: "{{ ansible_distribution }}"
         _v: "{{ ansible_distribution_major_version }}"
         _f: "{{ ansible_os_family }}"
@@ -32,6 +33,7 @@
 
     - name: Update package manager cache
       ansible.builtin.package:
+        name: []
         update_cache: "{{ _changed is any }}"
       vars:
         # Gather all existing results from repo config rendering.

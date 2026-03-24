@@ -141,6 +141,7 @@
     _supported:
       - Debian
       - RedHat
+      - Suse
 
 - name: Check if distro is supported
   ansible.builtin.assert:
@@ -150,6 +151,7 @@
       - AlmaLinux
       - Debian
       - RedHat
+      - openSUSE Leap
       - Ubuntu
 
 - name: Check if node_hv is supported
