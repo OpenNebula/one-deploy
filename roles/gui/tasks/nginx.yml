@@ -9,14 +9,15 @@
       retries: 12
       delay: 5
 
-
 - vars:
     _destdir:
       Debian: /etc/nginx/sites-available
       RedHat: /etc/nginx/conf.d
+      Suse: /etc/nginx/conf.d
     _default_conf_file:
       Debian: /etc/nginx/sites-enabled/default
       RedHat: /etc/nginx/conf.d/default.conf
+      Suse: null
     _template: reverse_proxy_ssl_nginx.conf.j2
     _loop:
       - name: opennebula-ssl
@@ -29,6 +30,7 @@
       ansible.builtin.file:
         path: "{{ _default_conf_file[ansible_os_family] }}"
         state: absent
+      when: _default_conf_file[ansible_os_family] is not none
 
     - name: Configure OpenNebula VHOSTs (nginx)
       ansible.builtin.template:
@@ -52,7 +54,6 @@
       loop: "{{ _loop }}"
       notify:
         - Reload nginx
-
 
 - name: Enable nginx Server
   ansible.builtin.service:

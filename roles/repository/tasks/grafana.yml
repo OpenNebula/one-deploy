@@ -1,5 +1,10 @@
 ---
-- vars:
+- when:
+    - (_repo_key_path[ansible_distribution] | d(_repo_key_path[ansible_os_family])) is not none
+    - (_repo_key_url[ansible_distribution] | d(_repo_key_url[ansible_os_family])) is not none
+    - (_repo_path[ansible_distribution] | d(_repo_path[ansible_os_family])) is not none
+    - (_repo_url[ansible_distribution] | d(_repo_url[ansible_os_family])) is not none
+  vars:
     # Merge repository config with defaults.
     _repo_key_path: "{{ grafana_repo_key_path_defaults | combine(grafana_repo_key_path, recursive=true) }}"
     _repo_key_url: "{{ grafana_repo_key_url_defaults | combine(grafana_repo_key_url, recursive=true) }}"
@@ -29,6 +34,14 @@
                 return_content: true
               run_once: true
               register: uri
+
+            - name: Create directory for GPG keys
+              ansible.builtin.file:
+                dest: "{{ _repo_key_path[ansible_os_family] | trim | dirname }}"
+                state: directory
+                owner: 0
+                group: 0
+                mode: u=rwx,g=rx
 
             - name: Install Grafana GPG key
               ansible.builtin.copy:
@@ -60,6 +73,21 @@
             gpgkey=file://{{ _repo_key_path.RedHat | trim }}
             sslverify=1
             sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            {% else %}
+            repo_gpgcheck=0
+            gpgcheck=0
+            sslverify=0
+            {% endif %}
+          Suse: |
+            [grafana]
+            name=grafana
+            baseurl={{ _repo_url.Suse | trim }}
+            enabled=1
+            {% if grafana_repo_force_trusted | bool is false %}
+            repo_gpgcheck=1
+            gpgcheck=1
+            gpgkey=file://{{ _repo_key_path.Suse | trim }}
+            sslverify=1
             {% else %}
             repo_gpgcheck=0
             gpgcheck=0

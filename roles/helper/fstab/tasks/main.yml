@@ -9,6 +9,8 @@
         - "{{ 'nfs-common' if ('nfs' in _fstypes) else None }}"
       RedHat:
         - "{{ 'nfs-utils' if ('nfs' in _fstypes) else None }}"
+      Suse:
+        - "{{ 'nfs-client' if ('nfs' in _fstypes) else None }}"
     _fstypes: >-
       {{ fstab | d([])
                | map(attribute='fstype')

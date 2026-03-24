@@ -14,6 +14,10 @@
       RedHat:
         MariaDB: [mariadb-server]
         SQLite: [sqlite]
+      Suse:
+        MariaDB: [mariadb]
+        SQLite: [sqlite3]
+
   register: package
   until: package is success
   retries: 12
@@ -32,6 +36,8 @@
           Debian:
             MariaDB: mariadb
           RedHat:
+            MariaDB: mariadb
+          Suse:
             MariaDB: mariadb
 
     - name: Create DB instance for OpenNebula

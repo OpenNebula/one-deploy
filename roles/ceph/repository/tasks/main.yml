@@ -14,6 +14,7 @@
         _specific:
           Debian: [qemu-utils]
           RedHat: [qemu-img, "centos-release-ceph-{{ ceph.release }}"]
+          Suse: [qemu-img]
       register: package
       until: package is success
       retries: 12
@@ -40,6 +41,7 @@
         _specific:
           Debian: [qemu-utils]
           RedHat: [qemu-img]
+          Suse: [qemu-img]
       register: package
       until: package is success
       retries: 12

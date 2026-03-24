@@ -18,6 +18,7 @@
     _specific:
       Debian: [python3-ruamel.yaml]
       RedHat: [python3-ruamel-yaml]
+      Suse: [python3-ruamel.yaml]
   register: package
   until: package is success
   retries: 12

@@ -9,26 +9,66 @@
         _specific:
           Debian: [apache2]
           RedHat: [httpd, mod_ssl]
+          Suse: [apache2]
       register: package
       until: package is success
       retries: 12
       delay: 5
 
     # NOTE: All modules specified below are not enabled automatically
-    #       in Debian-like distros.
-    - name: Enable Apache2 modules
-      ansible.builtin.command:
-        cmd: a2enmod '{{ item }}'
-        creates: "/etc/apache2/mods-enabled/{{ item }}.load"
-      loop: [headers, proxy, proxy_http, proxy_wstunnel, rewrite, ssl]
+    #       in Debian-like and Suse-like distros.
+    - name: Manage Apache2 modules
+      ansible.builtin.shell:
+        cmd: "{{ _shell[ansible_os_family].cmd }}"
+        executable: /bin/bash
+      when:
+        - ansible_os_family in _mods
+        - ansible_os_family in _shell
+      vars:
+        _mods:
+          Debian: [headers, proxy, proxy_http, proxy_wstunnel, rewrite, ssl]
+          Suse: [access_compat, headers, proxy, proxy_http, proxy_wstunnel, rewrite, ssl]
+        _shell:
+          Debian:
+            cmd: |
+              set -o errexit -o pipefail
+              BEFORE="$(a2query -m | sort | cksum)"
+              {% for v in _mods.Debian %}
+              a2enmod '{{ v }}'
+              {% endfor %}
+              AFTER="$(a2query -m | sort | cksum)"
+              if [[ "$AFTER" == "$BEFORE" ]]; then
+                exit 0
+              else
+                exit 78 # EREMCHG
+              fi
+          Suse:
+            cmd: |
+              set -o errexit -o pipefail
+              BEFORE="$(a2enmod -l | sort | cksum)"
+              {% for v in _mods.Suse %}
+              a2enmod '{{ v }}'
+              {% endfor %}
+              a2enflag SSL
+              AFTER="$(a2enmod -l | sort | cksum)"
+              if [[ "$AFTER" == "$BEFORE" ]]; then
+                exit 0
+              else
+                exit 78 # EREMCHG
+              fi
+      register: shell
+      changed_when:
+        - shell.rc in [78]
+      failed_when:
+        - shell.rc not in [0, 78]
       notify:
-        - Restart FireEdge Server
-      when: ansible_os_family == 'Debian'
+        - Reload Apache2
 
 - vars:
     _destdir:
       Debian: /etc/apache2/sites-available
       RedHat: /etc/httpd/conf.d
+      Suse: /etc/apache2/conf.d
     _template: reverse_proxy_ssl_apache2.conf.j2
     _loop:
       - name: opennebula-ssl
@@ -59,16 +99,10 @@
       notify:
         - Reload Apache2
 
-- name: Enable Apache2 Server
-  ansible.builtin.service:
-    name: "{{ _name[ansible_os_family] }}"
-    enabled: true
-  vars:
-    _name: { Debian: apache2, RedHat: httpd }
-
-- name: Start Apache2 Server
-  ansible.builtin.service:
-    name: "{{ _name[ansible_os_family] }}"
-    state: started
-  vars:
-    _name: { Debian: apache2, RedHat: httpd }
+    - name: Enable/Start Apache2 Server
+      ansible.builtin.service:
+        name: "{{ _name[ansible_os_family] }}"
+        enabled: true
+        state: started
+      vars:
+        _name: { Debian: apache2, RedHat: httpd, Suse: apache2 }

@@ -13,9 +13,11 @@
       chronyd:
         Debian: chrony.service
         RedHat: chronyd.service
+        Suse: chronyd.service
       timesyncd:
         Debian: systemd-timesyncd.service
         RedHat: systemd-timesyncd.service
+        Suse: systemd-timesyncd.service
     _enabled: >-
       {{ systemd_ntp_services.results | selectattr('status.LoadState', 'defined')
                                       | rejectattr('status.LoadState', 'in', ['masked', 'not-found'])
@@ -42,6 +44,7 @@
         _cfg_dirs:
           Debian: /etc/chrony
           RedHat: /etc
+          Suse: /etc
         _cfg_path: "{{ _cfg_dirs[ansible_os_family] }}/chrony.conf"
       block:
         - name: Ensure /etc/chrony/sources.d
@@ -59,7 +62,7 @@
               # {mark} managed by one-deploy
             block: |
               sourcedir /etc/chrony/sources.d
-          when: ansible_os_family in ['RedHat']
+          when: ansible_os_family in ['RedHat', 'Suse']
 
         - name: Update NTP sources
           ansible.builtin.copy:
@@ -80,7 +83,7 @@
         - name: Cleanup chrony.conf
           ansible.builtin.replace:
             path: "{{ _cfg_path }}"
-            regexp: '^((pool|server|peer)\s.*)$'
+            regexp: '^((pool|server|peer|include)\s.*)$'
             replace: '# \g<1>'
           register: replace_chrony_conf
 

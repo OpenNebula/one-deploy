@@ -18,6 +18,7 @@
         _specific:
           Debian: []
           RedHat: []
+          Suse: []
       register: package
       until: package is success
       retries: 12

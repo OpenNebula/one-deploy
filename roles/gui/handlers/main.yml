@@ -10,7 +10,7 @@
     name: "{{ _name[ansible_os_family] }}"
     state: reloaded
   vars:
-    _name: { Debian: apache2, RedHat: httpd }
+    _name: { Debian: apache2, RedHat: httpd, Suse: apache2 }
 
 - name: Reload nginx
   ansible.builtin.service:

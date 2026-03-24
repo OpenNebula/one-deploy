@@ -27,6 +27,15 @@
             swap: util-linux
             vfat: dosfstools
             xfs: xfsprogs
+          Suse:
+            btrfs: btrfsprogs
+            ext2: e2fsprogs
+            ext3: e2fsprogs
+            ext4: e2fsprogs
+            lvm: lvm2
+            swap: util-linux
+            vfat: dosfstools
+            xfs: xfsprogs
         _known: >-
           {%- set output = [] -%}
           {%- for fstype in mkfs | map(attribute='fstype') -%}
