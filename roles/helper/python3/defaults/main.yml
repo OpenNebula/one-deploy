@@ -1,0 +1,53 @@
+---
+python3_os_packages:
+  Debian:
+    - >-
+      {{ 'python3-ruamel.yaml'
+         if (ansible_python_interpreter | basename) == 'python3' else
+         None }}
+    - >-
+      {{ ((ansible_python_interpreter | basename) ~ '-pip')
+         if (python3_pip_packages.Debian | select | count > 0) else
+         None }}
+  openSUSE Leap:
+    - >-
+      {{ 'python3-ruamel.yaml'
+         if (ansible_python_interpreter | basename) == 'python3' else
+         None }}
+    - >-
+      {{ ((ansible_python_interpreter | basename) ~ '-pip')
+         if (python3_pip_packages['openSUSE Leap'] | select | count > 0) else
+         None }}
+  RedHat:
+    - >-
+      {{ 'python3-ruamel-yaml'
+         if (ansible_python_interpreter | basename) == 'python3' else
+         None }}
+    - >-
+      {{ ((ansible_python_interpreter | basename) ~ '-pip')
+         if (python3_pip_packages.RedHat | select | count > 0) else
+         None }}
+  Suse:
+    - >-
+      {{ ((ansible_python_interpreter | basename | replace('.', '')) ~ '-pip')
+         if (python3_pip_packages.Suse | select | count > 0) else
+         None }}
+
+python3_pip_packages:
+  Debian:
+    - >-
+      {{ 'ruamel.yaml'
+         if (ansible_python_interpreter | basename) != 'python3' else
+         None }}
+  openSUSE Leap:
+    - >-
+      {{ 'ruamel.yaml'
+         if (ansible_python_interpreter | basename) != 'python3' else
+         None }}
+  RedHat:
+    - >-
+      {{ 'ruamel.yaml'
+         if (ansible_python_interpreter | basename) != 'python3' else
+         None }}
+  Suse:
+    - ruamel.yaml
