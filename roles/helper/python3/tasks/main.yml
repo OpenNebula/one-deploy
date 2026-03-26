@@ -1,26 +1,46 @@
 ---
-- name: Bootstrap python3 intepreter
-  ansible.builtin.script:
-    cmd: python3.sh
-    executable: /bin/bash
-    creates: /usr/bin/python3
-  register: script
-  until: script is success
-  retries: 12
-  delay: 5
-  when: setup is undefined
+- name: Forcefully (re)define ansible_python_interpreter
+  ansible.builtin.set_fact:
+    ansible_python_interpreter: >-
+      {{ ansible_python_interpreter | d('/usr/bin/python3') }}
 
-- name: Install required python3 packages
-  ansible.builtin.package:
-    name: "{{ _common + _specific[ansible_os_family] }}"
+- when: setup is undefined
+  block:
+    - name: Bootstrap python3 intepreter
+      ansible.builtin.script:
+        cmd: python3.sh
+        executable: /bin/bash
+        creates: "{{ ansible_python_interpreter }}"
+      environment:
+        PYTHON3: "{{ ansible_python_interpreter | basename }}"
+      register: script
+      until: script is success
+      retries: 12
+      delay: 5
+
+- when: setup is defined
   vars:
-    _common: []
-    _specific:
-      Debian: [python3-ruamel.yaml]
-      RedHat: [python3-ruamel-yaml]
-      Suse: [python3-ruamel.yaml]
-  register: package
-  until: package is success
-  retries: 12
-  delay: 5
-  when: setup is defined
+    _python3_os_packages: >-
+      {{ python3_os_packages[_d] | d(python3_os_packages[_f]) | select }}
+    _python3_pip_packages: >-
+      {{ python3_pip_packages[_d] | d(python3_pip_packages[_f]) | select }}
+    _d: "{{ ansible_distribution }}"
+    _f: "{{ ansible_os_family }}"
+  block:
+    - name: Install python3 packages
+      ansible.builtin.package:
+        name: "{{ _python3_os_packages }}"
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+      when: _python3_os_packages | count > 0
+
+    - name: Install python3 packages (pip)
+      ansible.builtin.pip:
+        name: "{{ _python3_pip_packages }}"
+      register: pip
+      until: pip is success
+      retries: 12
+      delay: 5
+      when: _python3_pip_packages | count > 0
