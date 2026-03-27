@@ -1,0 +1,106 @@
+---
+- name: Check ansible version
+  ansible.builtin.assert:
+    that: ansible_version.full is version('2.14.0', '>=')
+    fail_msg: Please use ansible version >= 2.14.0.
+  run_once: true
+
+- name: Check if parallel federation deployment has been requested
+  ansible.builtin.assert:
+    that: (groups[_frontend_group ~ '0'] is undefined)
+          and
+          (groups[_frontend_group ~ '1'] is undefined)
+          and
+          (groups[_node_group ~ '0'] is undefined)
+          and
+          (groups[_node_group ~ '1'] is undefined)
+    fail_msg: The parallel federation deployment has been removed, please consider using sequential mode instead.
+  vars:
+    _frontend_group: "{{ frontend_group | d('frontend') }}"
+    _node_group: "{{ node_group | d('node') }}"
+
+- name: Ensure zone_name is always defined in federated clusters
+  ansible.builtin.assert:
+    that: (federation.role != 'SLAVE')
+          or
+          (zone_name is defined)
+    fail_msg: Please define zone_name for this federated cluster.
+
+- name: Check if one_vip/force_ha settings are valid
+  ansible.builtin.assert:
+    that: ((one_vip is defined) and ((_frontend_count | int > 1) or (_force_ha is true)))
+          or
+          ((one_vip is undefined) and ((_frontend_count | int == 1) and (_force_ha is false)))
+    fail_msg: Please either define one_vip in the inventory, add more Front-ends or enable force_ha.
+  vars:
+    _frontend_count: >-
+      {{ federation.groups.frontend | count }}
+    _force_ha: >-
+      {{ force_ha | d(false) | bool }}
+
+- name: Check if all vip related settings are provided
+  ansible.builtin.assert:
+    that: ((one_vip is defined) and (one_vip_cidr is defined) and (one_vip_if is defined))
+          or
+          ((one_vip is undefined) and (one_vip_cidr is undefined) and (one_vip_if is undefined))
+    fail_msg: Please either define all or undefine all one_vip, one_vip_cidr, one_vip_if vars.
+
+- name: Check if distro family is supported
+  ansible.builtin.assert:
+    that: ansible_os_family in _supported
+  vars:
+    _supported:
+      - Debian
+      - RedHat
+      - Suse
+
+- name: Check if distro is supported
+  ansible.builtin.assert:
+    that: ansible_distribution in _supported
+  vars:
+    _supported:
+      - AlmaLinux
+      - Debian
+      - openSUSE Leap
+      - RedHat
+      - Ubuntu
+
+- name: Check if DB backend is supported for the HA setup
+  ansible.builtin.assert:
+    that: ((_frontend_count | int == 1) and (_force_ha is false))
+          or
+          (db_backend | d('MariaDB') != 'SQLite')
+    fail_msg: Please use MariaDB as DB backend for HA setup.
+  vars:
+    _frontend_count: "{{ federation.groups.frontend | count }}"
+    _force_ha: "{{ force_ha | d(false) | bool }}"
+
+- name: Check if using a supported web server
+  ansible.builtin.assert:
+    that: (ssl is undefined)
+          or
+          ((ssl.web_server is defined) and (ssl.web_server in ['nginx', 'apache']))
+    fail_msg: The only supported web servers are 'apache' and 'nginx'.
+  run_once: true
+
+- name: Check Front-end hostname is valid
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.hostname | lower not in ['localhost', 'localhost.localdomain', '127.0.0.1', '::1']
+    fail_msg: "Front-end's hostname '{{ ansible_facts.hostname }}' is invalid (must not be localhost/loopback)."
+  when: inventory_hostname in groups[frontend_group | d('frontend')]
+
+- block:
+    - name: Check Front-end hostnames are resolvable
+      ansible.builtin.getent:
+        database: hosts
+        key: "{{ hostvars[item].ansible_facts.hostname }}"
+        fail_key: true
+      loop: "{{ groups[frontend_group | d('frontend')] }}"
+      loop_control:
+        label: "{{ item }}"
+  rescue:
+    - ansible.builtin.fail:
+        msg: |
+          Please make sure each cluster member can resolve all Front-end hostnames
+          (you could try enabling both ensure_hostname and ensure_hosts as a workaround).

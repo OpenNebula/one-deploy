@@ -7,7 +7,7 @@
           (features.ceph | bool is false)
           or
           ((ceph.release is defined) and (ceph.release in _supported))
-    msg: Please specify one of the supported Ceph versions {{ _supported }} in ceph.release variable.
+    fail_msg: Please specify one of the supported Ceph versions {{ _supported }} in ceph.release variable.
   vars:
     _supported:
       - squid
@@ -26,8 +26,8 @@
           (features.ceph | bool is false)
           or
           ((ceph.release is defined) and (_repo in _repos))
-    msg: Please use one of the supported linux distro families to run Ceph {{ ceph.release | d('') }} version
-         ({{ ansible_distribution }}/{{ ansible_distribution_major_version }}/{{ _repo }} combination is unsupported).
+    fail_msg: Please use one of the supported linux distro families to run Ceph {{ ceph.release | d('') }} version
+              ({{ ansible_distribution }}/{{ ansible_distribution_major_version }}/{{ _repo }} combination is unsupported).
   vars:
     _repo: "{{ ceph.repo | d('community') }}"
     _repos: "{{ _supported[ceph.release][ansible_distribution][ansible_distribution_major_version] }}"

@@ -1,0 +1,30 @@
+---
+- when: inventory_hostname in _hosts
+  vars:
+    _hosts: >-
+      {{ (groups.get(node_group | d('node'), []) + groups.get(mon_group_name | d('mons'), [])
+                                                 + groups.get(mgr_group_name | d('mgrs'), [])
+                                                 + groups.get(osd_group_name | d('osds'), [])) | unique }}
+  block:
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/ceph.yml"
+
+- when: inventory_hostname in _hosts
+  vars:
+    _hosts: >-
+      {{ (groups.get(node_group | d('node'), []) + groups.get(frontend_group | d('frontend'), [])) | unique }}
+  block:
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/integrity.yml"
+
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/security.yml"
+
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/features.yml"
+
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/tproxy.yml"
+
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/consent.yml"
