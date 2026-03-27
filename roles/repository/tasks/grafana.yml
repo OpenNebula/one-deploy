@@ -14,14 +14,16 @@
             get_attributes: false
             get_checksum: false
             get_mime: false
-          register: stat
+          register: stat_grafana_gpg
 
         # NOTE: GPG keys are downloaded when any of them is missing on any of the play hosts.
         #       That way we make sure:
         #       - the key is downloaded only once and only when necessary
         #       - keys are identical everywhere
         - when: repo_constraints.grafana.hosts | select('in', ansible_play_batch)
-                                               | map('extract', hostvars, ['stat', 'stat', 'exists']) is not all
+                                               | map('extract', hostvars)
+                                               | selectattr('stat_grafana_gpg.stat.exists', 'defined')
+                                               | map(attribute='stat_grafana_gpg.stat.exists') is not all
           block:
             - name: Download Grafana GPG key (once)
               ansible.builtin.uri:

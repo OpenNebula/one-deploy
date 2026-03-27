@@ -14,14 +14,16 @@
             get_attributes: false
             get_checksum: false
             get_mime: false
-          register: stat
+          register: stat_frr_gpg
 
         # NOTE: GPG keys are downloaded when any of them is missing on any of the play hosts.
         #       That way we make sure:
         #       - the key is downloaded only once and only when necessary
         #       - keys are identical everywhere
         - when: repo_constraints.frr.hosts | select('in', ansible_play_batch)
-                                           | map('extract', hostvars, ['stat', 'stat', 'exists']) is not all
+                                           | map('extract', hostvars)
+                                           | selectattr('stat_frr_gpg.stat.exists', 'defined')
+                                           | map(attribute='stat_frr_gpg.stat.exists') is not all
           block:
             - name: Download Free Range Routing GPG key (once)
               ansible.builtin.uri:
