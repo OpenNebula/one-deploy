@@ -151,7 +151,7 @@
             {% if opennebula_repo_force_trusted | bool is false %}
             repo_gpgcheck=1
             gpgcheck=1
-            gpgkey=file://{{ _repo_key_path['openSUSE Leap'] | trim }}
+            gpgkey=file://{{ _repo_key_path.Suse | trim }}
             sslverify=1
             {% else %}
             repo_gpgcheck=0
