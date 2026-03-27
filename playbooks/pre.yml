@@ -46,10 +46,7 @@
   roles:
     - role: helper/facts
       tags: [always]
-  post_tasks:
-    - ansible.builtin.include_role:
-        name: precheck
-        tasks_from: main
+    - role: precheck/pre_reboot
 
 - hosts:
     - "{{ frontend_group | d('frontend') }}"
@@ -72,14 +69,4 @@
     - role: helper/kernel
       tags: [kernel]
 
-- hosts:
-    - "{{ node_group | d('node') }}"
-  collections:
-    - opennebula.deploy
-  pre_tasks:
-    - ansible.builtin.include_role:
-        name: precheck
-        tasks_from: pci
-  roles:
-    - role: helper/pci
-      tags: [pci, pci_passthrough]
+    - role: precheck/post_reboot

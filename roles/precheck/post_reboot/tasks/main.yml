@@ -1,0 +1,7 @@
+---
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/pci.yml"
+  vars:
+    _hosts: >-
+      {{ groups.get(node_group | d('node'), []) }}
+  when: inventory_hostname in _hosts

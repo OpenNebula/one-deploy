@@ -1,0 +1,37 @@
+---
+- name: Make sure user gave consent to run wipefs on requested block devices
+  ansible.builtin.assert:
+    that:
+      (mkfs is undefined)
+      or
+      (mkfs is sequence and mkfs | count == 0)
+      or
+      (_no_wipefs_requested)
+      or
+      (mkfs_ok_to_wipefs is defined and mkfs_ok_to_wipefs | bool is true)
+    fail_msg: Please set 'mkfs_ok_to_wipefs' to true (give consent) or disable all 'force' flags inside the 'mkfs' list.
+  vars:
+    _no_wipefs_requested: >-
+      {{ mkfs | selectattr('force', 'defined')
+              | selectattr('force', 'true')
+              | count == 0 }}
+
+- name: Make sure user gave consent to reboot after kernel's cmdline update
+  ansible.builtin.assert:
+    that:
+      (kernel_params is undefined)
+      or
+      (kernel_params is sequence and kernel_params | count == 0)
+      or
+      (kernel_ok_to_reboot is defined and kernel_ok_to_reboot | bool is true)
+    fail_msg: Please set 'kernel_ok_to_reboot' to true (give consent) or remove 'kernel_params' from inventory.
+
+- name: Make sure user gave consent to reboot after kernel's module config update
+  ansible.builtin.assert:
+    that:
+      (kernel_modules is undefined)
+      or
+      (kernel_modules is sequence and kernel_modules | count == 0)
+      or
+      (kernel_ok_to_reboot is defined and kernel_ok_to_reboot | bool is true)
+    fail_msg: Please set 'kernel_ok_to_reboot' to true (give consent) or remove 'kernel_modules' from inventory.

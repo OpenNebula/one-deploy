@@ -1,0 +1,84 @@
+---
+- name: Check if parallel federation deployment has been requested
+  ansible.builtin.assert:
+    that: (groups[_frontend_group ~ '0'] is undefined)
+          and
+          (groups[_frontend_group ~ '1'] is undefined)
+          and
+          (groups[_node_group ~ '0'] is undefined)
+          and
+          (groups[_node_group ~ '1'] is undefined)
+    fail_msg: The parallel federation deployment has been removed, please consider using sequential mode instead.
+  vars:
+    _frontend_group: "{{ frontend_group | d('frontend') }}"
+    _node_group: "{{ node_group | d('node') }}"
+
+- name: Check if Prometheus can be enabled (one_token)
+  ansible.builtin.assert:
+    that: (features.prometheus | bool is false)
+          or
+          (one_version is version('6.10', '>='))
+          or
+          (one_token is defined and one_token is truthy)
+    fail_msg: Please either disable the Prometheus feature or provide one_token.
+  run_once: true
+
+- name: Check if Prometheus can be enabled (one_version)
+  ansible.builtin.assert:
+    that: (features.prometheus | bool is false)
+          or
+          (one_version is version('6.6', '>='))
+    fail_msg: Please either disable the Prometheus feature or use OpenNebula version >= 6.6.
+  run_once: true
+
+- name: Check if Prometheus can be enabled (federation)
+  ansible.builtin.assert:
+    that: (features.prometheus | bool is false)
+          or
+          (one_version is version('6.8.2', '>'))
+          or
+          ((groups[_federation_group] is undefined)
+          and
+          ((force_master is undefined) or (force_master | bool is false)))
+    fail_msg: Prometheus provisioning has been *temporarily* disabled for federated environments.
+  vars:
+    _federation_group: "{{ federation_group | d('federation') }}"
+
+- name: Check if legacy OneGate Proxy has been requested
+  ansible.builtin.assert:
+    that: features.gateproxy is undefined
+    fail_msg: Legacy OneGate Proxy support has been removed.
+  run_once: true
+
+- name: Check if node_hv is supported
+  ansible.builtin.assert:
+    that: (node_hv is undefined)
+          or
+          (node_hv | lower in _supported)
+    fail_msg: Please use one of the supported hypervisors _supported.
+  vars:
+    _supported:
+      - kvm
+      - qemu
+
+- name: Check if Apache Passenger has been requested
+  ansible.builtin.assert:
+    that:
+      - features.passenger is undefined
+      - public_fireedge_endpoint is undefined
+      - apache2_https is undefined
+      - apache2_http is undefined
+    fail_msg: Legacy Ruby Sunstone support has been removed in favor of FireEdge Sunstone.
+              Apache Passenger is no longer required.
+              Only reverse proxying with SSL termination is supported.
+              Please use the ssl.web_server (nginx or apache), ssl.key and ssl.certchain variables.
+              Use one-deploy version <= 1.2.0 if required.
+  run_once: true
+
+- name: Check if OneForm is supported for the current distro
+  ansible.builtin.assert:
+    that:
+      (form_bind_addr is undefined)
+      or
+      (one_version is version('7.1.80', '>='))
+    fail_msg: OneForm is unsupported for this OS / OpenNebula combination, please remove 'form_bind_addr' from inventory.
