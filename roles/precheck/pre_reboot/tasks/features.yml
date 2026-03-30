@@ -82,3 +82,9 @@
       or
       (one_version is version('7.1.80', '>='))
     fail_msg: OneForm is unsupported for this OS / OpenNebula combination, please remove 'form_bind_addr' from inventory.
+
+- name: Check if OneProvision has been requested
+  ansible.builtin.assert:
+    that: features.provision is undefined
+    fail_msg: OneProvision has been removed from one-deploy, please undefine 'features.provision'.
+  run_once: true
