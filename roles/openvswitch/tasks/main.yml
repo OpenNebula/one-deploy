@@ -63,7 +63,7 @@
                   | selectattr('value.ifaces', 'defined')
                   | selectattr('value.ifaces', 'subset', _iface.keys())
                   | items2dict }}
-    _all_bond_ifaces: >-
+    _bond_ifaces: >-
       {{ ovs.bond | dict2items
                   | selectattr('value.ifaces', 'defined')
                   | map(attribute='value.ifaces')
@@ -83,7 +83,7 @@
       {{ ovs.br | dict2items
                 | rejectattr('key', 'in', _dpdk_br.keys())
                 | items2dict }}
-    _all_br_ports: >-
+    _br_ports: >-
       {{ ovs.br | dict2items
                 | selectattr('value.ports', 'defined')
                 | map(attribute='value.ports')
@@ -136,9 +136,9 @@
     - name: Assert all bond 'ifaces' are unique subset of ovs.iface devices
       ansible.builtin.assert:
         that:
-          - _all_bond_ifaces == _all_bond_ifaces | unique # no duplicated
-          - _all_bond_ifaces is subset(ovs.iface.keys())
-        fail_msg: Please ensure ALL bond 'ifaces' are declared in ovs.iface and uniquely distributed among bond resources.
+          - _bond_ifaces == _bond_ifaces | unique # no duplicated
+          - _bond_ifaces is subset(ovs.iface.keys())
+        fail_msg: Please ensure bond 'ifaces' are declared in ovs.iface and uniquely distributed among bond resources.
 
     - name: Assert each bond resource contains at least 2 'ifaces'
       ansible.builtin.assert:
@@ -166,12 +166,18 @@
         _all_bond_keys: >-
           {{ ovs.bond.keys() }}
 
-    - name: Assert all br 'ports' are unique subset of ovs.iface and ovs.bond devices
+    - name: Assert ovs.port is a subset of available ports (including internal)
       ansible.builtin.assert:
         that:
-          - _all_br_ports == _all_br_ports | unique # no duplicated
-          - _all_br_ports is subset(ovs.iface.keys() | list + ovs.bond.keys() | list)
-        fail_msg: Please ensure ALL br 'ports' are declared in ovs.iface and ovs.bond and uniquely distributed among br resources.
+          - ovs.port.keys() is subset(ovs.br.keys() | list + _br_ports)
+        fail_msg: Please ensure ovs.port is a subset of available ports.
+
+    - name: Assert br 'ports' are unique subset of ovs.bond + ovs.iface resources
+      ansible.builtin.assert:
+        that:
+          - _br_ports == _br_ports | unique # no duplicated
+          - _br_ports is subset(ovs.bond.keys() | list + ovs.iface.keys() | list)
+        fail_msg: Please ensure br 'ports' are declared in ovs.bond and ovs.iface and uniquely distributed among br resources.
 
     - name: Assert each non-DPDK br 'ports' do not contain DPDK resources
       ansible.builtin.assert:
@@ -188,10 +194,10 @@
     - name: Assert addrs/gw/dns are not declared for br 'ports' and bond 'ifaces'
       ansible.builtin.assert:
         that: _matched | count == 0
-        fail_msg: Please remove ALL addrs/gw/dns attributes from br 'ports' and bond 'ifaces'.
+        fail_msg: Please remove addrs/gw/dns attributes from br 'ports' and bond 'ifaces'.
       vars:
         _keys: >-
-          {{ (_all_bond_ifaces + _all_br_ports) | difference(ovs.bond) }}
+          {{ (_bond_ifaces + _br_ports) | difference(ovs.bond) }}
         _matched: >-
           {{ _keys | map('extract', ovs.iface)
                    | map('dict2items')

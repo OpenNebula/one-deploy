@@ -52,6 +52,10 @@ Example Playbook
           set:
             - other_config:dpdk-init: 'true'
             - other_config:dpdk-socket-mem: '1024,0'
+          port:
+            ovsbr0: # "internal" port
+              set:
+                - tag: 123
           iface:
             ovsbr0: # "internal" port
               set:

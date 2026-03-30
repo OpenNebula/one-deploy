@@ -35,28 +35,28 @@ ovs-vsctl --no-wait set Open_vSwitch . '{{ v.key }}={{ v.value }}' || die 'Faile
 
 # --- Bridge / Port cleanup
 
-declare -A _ALL_BOND_IFACES=({{ _all_bond_ifaces | map('regex_replace', '^(.*)$', '[\g<1>]=1') | join(' ') }})
+declare -A _BOND_IFACES=({{ _bond_ifaces | map('regex_replace', '^(.*)$', '[\g<1>]=1') | join(' ') }})
 
 ovs-vsctl --no-headings --columns=name find Interface 'external_ids:one-deploy-bond!=""' | while read -r IFACE; do
-    if [[ -n "$IFACE" ]] && [[ ! -v _ALL_BOND_IFACES[$IFACE] ]]; then
+    if [[ -n "$IFACE" ]] && [[ ! -v _BOND_IFACES[$IFACE] ]]; then
         log "Deleting leftover iface $IFACE"
         ovs-vsctl --with-iface del-port "$IFACE" || die "Failed to delete iface $IFACE"
     fi
 done
 
-declare -A _ALL_BR_PORTS=({{ _all_br_ports | map('regex_replace', '^(.*)$', '[\g<1>]=1') | join(' ') }})
+declare -A _BR_PORTS=({{ _br_ports | map('regex_replace', '^(.*)$', '[\g<1>]=1') | join(' ') }})
 
 ovs-vsctl --no-headings --columns=name find Port 'external_ids:one-deploy-bond=""' | while read -r PORT; do
-    if [[ -n "$PORT" ]] && [[ ! -v _ALL_BR_PORTS[$PORT] ]]; then
+    if [[ -n "$PORT" ]] && [[ ! -v _BR_PORTS[$PORT] ]]; then
         log "Deleting leftover port $PORT"
         ovs-vsctl del-port "$PORT" || die "Failed to delete port $PORT"
     fi
 done
 
-declare -A _ALL_BR=({{ ovs.br.keys() | map('regex_replace', '^(.*)$', '[\g<1>]=1') | join(' ') }})
+declare -A _BR=({{ ovs.br.keys() | map('regex_replace', '^(.*)$', '[\g<1>]=1') | join(' ') }})
 
 ovs-vsctl --no-headings --columns=name find Bridge 'external_ids:one-deploy-br!=""' | while read -r BR; do
-    if [[ -n "$BR" ]] && [[ ! -v _ALL_BR[$BR] ]]; then
+    if [[ -n "$BR" ]] && [[ ! -v _BR[$BR] ]]; then
         log "Deleting leftover br $BR"
         ovs-vsctl del-br "$BR" || die "Failed to delete br $BR"
     fi
@@ -133,16 +133,26 @@ ovs-vsctl --if-exists del-port '{{ port }}' -- add-bond '{{ br }}' '{{ port }}' 
 {% endfor %}
 {% endfor %}
 
-# --- Bridge / Interface reconfiguration
+# --- Bridge / Port / Interface reconfiguration
 
 {% for br in ovs.br | dict2items | selectattr('value.set', 'defined') | map(attribute='key') %}
 # {{ br }}
 log 'Reconfiguring OVS bridge {{ br }}'
 ovs-vsctl \
 {% for v in ovs.br[br].set | d([]) | map('dict2items') | flatten %}
-    -- set Bridge '{{ br }}' '{{ v.key }}={{ v.value }}' \
+    -- --if-exists set Bridge '{{ br }}' '{{ v.key }}={{ v.value }}' \
 {% endfor %}
     || die 'Failed to reconfigure {{ br }}'
+{% endfor %}
+
+{% for port in ovs.port | dict2items | selectattr('value.set', 'defined') | map(attribute='key') %}
+# {{ port }}
+log 'Reconfiguring port {{ port }}'
+ovs-vsctl \
+{% for v in ovs.port[port].set | d([]) | map('dict2items') | flatten %}
+    -- --if-exists set Port '{{ port }}' '{{ v.key }}={{ v.value }}' \
+{% endfor %}
+    || die 'Failed to reconfigure {{ port }}'
 {% endfor %}
 
 {% for iface in ovs.iface | dict2items | selectattr('value.set', 'defined') | map(attribute='key') %}

@@ -3,6 +3,7 @@ ovs_defaults:
   iface: {}
   bond: {}
   br: {}
+  port: {}
 
 ovs_packages:
   AlmaLinux:
