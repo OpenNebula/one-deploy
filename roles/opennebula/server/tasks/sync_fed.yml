@@ -13,6 +13,7 @@
         _paths: &_paths
           - /var/lib/one/.one/one_auth
           - /var/lib/one/.one/oneflow_auth
+          - /var/lib/one/.one/oneform_auth
           - /var/lib/one/.one/onegate_auth
           - /var/lib/one/.one/sunstone_auth
         _hosts:
