@@ -9,7 +9,7 @@ ceph_defaults:
   pool: one
   user: libvirt
   host: >-
-    {{ groups[mon_group_name | d('mons')] | map('extract', hostvars, ['ansible_host']) | join(d = ' ')
+    {{ groups[mon_group_name | d('mons')] | map('extract', hostvars, ['ansible_host']) | join(' ')
        if groups[mon_group_name | d('mons')] is defined else
        [] }}
   uuid: null
