@@ -25,6 +25,9 @@
       master_user: >-
         {{ hostvars[_master].ansible_user }}
       master: master # inventory name
+    # Forcefully (re)define ansible_python_interpreter.
+    ansible_python_interpreter: >-
+      {{ ansible_python_interpreter | d('/usr/bin/python3') }}
   vars:
     _master: >-
       {{ groups[_federation_group] | d(groups[_frontend_group]) | first }}
@@ -42,6 +45,7 @@
     name: master
     ansible_host: "{{ federation.master_host }}"
     ansible_user: "{{ federation.master_user }}"
+    ansible_python_interpreter: "{{ ansible_python_interpreter }}"
   changed_when: false
   when:
     - federation.role != 'STANDALONE'

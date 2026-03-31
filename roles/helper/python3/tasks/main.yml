@@ -1,8 +1,6 @@
 ---
-- name: Forcefully (re)define ansible_python_interpreter
-  ansible.builtin.set_fact:
-    ansible_python_interpreter: >-
-      {{ ansible_python_interpreter | d('/usr/bin/python3') }}
+# NOTE: Assignment of ansible_python_interpreter variable has been moved to
+#       opennebula.deploy.common role.
 
 - when: setup is undefined
   block:
