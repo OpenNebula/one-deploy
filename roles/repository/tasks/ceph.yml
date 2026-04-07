@@ -51,6 +51,11 @@
                 mode: u=rw,go=r
                 content: "{{ uri.content }}"
 
+            - name: Import Ceph GPG key
+              ansible.builtin.rpm_key:
+                key: "{{ _repo_key_path[ansible_os_family] | trim }}"
+              when: ansible_pkg_mgr in ['dnf', 'zypper']
+
     - name: Install Ceph package source
       ansible.builtin.copy:
         dest: "{{ _repo_path[ansible_os_family] | trim }}"

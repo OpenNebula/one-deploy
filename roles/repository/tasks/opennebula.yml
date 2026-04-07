@@ -11,11 +11,15 @@
         cmd: "{{ _cmd[ansible_os_family].cmd }}"
         executable: /bin/bash
       changed_when: false
+      register: shell
+      until: shell is success
+      retries: 12
+      delay: 5
       vars:
         _cmd:
           RedHat:
             cmd: |
-              set -o errexit
+              set -x -o errexit
 
               {% if _subscription_manager | count > 0 %}
               subscription-manager repos {{ _subscription_manager | map('regex_replace', '^(.*)$', "--enable '\g<1>'") | join(' ') }}
@@ -34,7 +38,16 @@
               {% endif %}
           Suse:
             cmd: |
-              set -o errexit
+              set -x -o errexit
+
+              {% if _suse_connect | count > 0 %}
+              STATUS=$(SUSEConnect --status)
+              {% for v in _suse_connect %}
+              if echo "$STATUS" | jq -re 'map(select(.identifier == "{{ v.split('/')[0] }}"))[0].status != "Registered"'; then
+                SUSEConnect --product '{{ v }}'
+              fi
+              {% endfor %}
+              {% endif %}
 
               {% if _extra_repos | count > 0 %}
               REFRESH=false
@@ -59,6 +72,11 @@
              | map('replace', "'", '') }}
         _config_manager: >-
           {{ opennebula_repo_pre_enable[ansible_distribution].config_manager[ansible_distribution_major_version]
+             | d([])
+             | map('replace', "'", '') }}
+        # Suse
+        _suse_connect: >-
+          {{ opennebula_repo_pre_enable[ansible_distribution].suse_connect[ansible_distribution_major_version]
              | d([])
              | map('replace', "'", '') }}
         # Common
@@ -122,6 +140,11 @@
                 mode: u=rw,go=r
                 content: "{{ uri.content }}"
 
+            - name: Import OpenNebula GPG key
+              ansible.builtin.rpm_key:
+                key: "{{ _repo_key_path[ansible_os_family] | trim }}"
+              when: ansible_pkg_mgr in ['dnf', 'zypper']
+
     - name: Install OpenNebula package source
       ansible.builtin.copy:
         dest: "{{ _repo_path[ansible_os_family] | trim }}"
@@ -153,6 +176,7 @@
             gpgcheck=1
             gpgkey=file://{{ _repo_key_path.Suse | trim }}
             sslverify=1
+            sslcacert=/etc/ssl/ca-bundle.pem
             {% else %}
             repo_gpgcheck=0
             gpgcheck=0
@@ -174,7 +198,22 @@
             gpgcheck=0
             sslverify=0
             {% endif %}
-          Suse: null
+          Suse: |
+            [opennebula]
+            name=OpenNebula {{ _edition }} Edition
+            baseurl={{ _repo_url.Suse | trim }}/$releasever_major/$basearch
+            enabled=1
+            {% if opennebula_repo_force_trusted | bool is false %}
+            repo_gpgcheck=1
+            gpgcheck=1
+            gpgkey=file://{{ _repo_key_path.Suse | trim }}
+            sslverify=1
+            sslcacert=/etc/ssl/ca-bundle.pem
+            {% else %}
+            repo_gpgcheck=0
+            gpgcheck=0
+            sslverify=0
+            {% endif %}
         _edition: >-
           {{ 'Enterprise' if (one_token is defined and one_token is truthy) else 'Community' }}
       register: opennebula_repo

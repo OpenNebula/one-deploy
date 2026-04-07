@@ -51,6 +51,11 @@
                 mode: u=rw,go=r
                 content: "{{ uri.content }}"
 
+            - name: Import Grafana GPG key
+              ansible.builtin.rpm_key:
+                key: "{{ _repo_key_path[ansible_os_family] | trim }}"
+              when: ansible_pkg_mgr in ['dnf', 'zypper']
+
     - name: Install Grafana package source
       ansible.builtin.copy:
         dest: "{{ _repo_path[ansible_os_family] | trim }}"
@@ -90,6 +95,7 @@
             gpgcheck=1
             gpgkey=file://{{ _repo_key_path.Suse | trim }}
             sslverify=1
+            sslcacert=/etc/ssl/ca-bundle.pem
             {% else %}
             repo_gpgcheck=0
             gpgcheck=0

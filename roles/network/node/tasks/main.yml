@@ -1,13 +1,15 @@
 ---
 - ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/{{ _item.1 }}.yml"
-  loop: "{{ vn_names | product(_managers[ansible_os_family]) }}"
+  loop: "{{ vn_names | product(_managers[_d] | d(_managers[_f])) }}"
   loop_control: { loop_var: _item }
   vars:
+    _d: "{{ ansible_distribution }}"
+    _f: "{{ ansible_os_family }}"
     _managers:
       Debian: [netplan]
       RedHat: [networkmanager]
-      Suse: [networkmanager]
+      openSUSE Leap: [networkmanager]
     _phydev: "{{ vn_dict[_item.0].template.PHYDEV }}"
     _bridge: "{{ vn_dict[_item.0].template.BRIDGE }}"
     # Narrow down VNET types when move_ip is unspecified (but allow users to override it still).

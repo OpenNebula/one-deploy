@@ -80,7 +80,9 @@
     that:
       (form_bind_addr is undefined)
       or
-      (one_version is version('7.1.80', '>='))
+      ((one_version is version('7.1.80', '>='))
+       and
+       (not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15')))
     fail_msg: OneForm is unsupported for this OS / OpenNebula combination, please remove 'form_bind_addr' from inventory.
 
 - name: Check if OneProvision has been requested
@@ -88,3 +90,32 @@
     that: features.provision is undefined
     fail_msg: OneProvision has been removed from one-deploy, please undefine 'features.provision'.
   run_once: true
+
+- name: Check if PCI / SR-IOV management is supported for the current distro
+  ansible.builtin.assert:
+    that:
+      (pci_passthrough_enabled | d(false) | bool is false)
+      or
+      (pci_devices | d([]) | count == 0)
+      or
+      (not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15'))
+    fail_msg: PCI / SR-IOV management is unsupported for this OS / OpenNebula combination, please disable it.
+
+- name: Check if 'move_ip' VNET feature is supported for this OS / OpenNebula combination
+  ansible.builtin.assert:
+    that:
+      (_move_ip is not any)
+      or
+      (not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15'))
+    fail_msg: Moving IP address from PHYDEV to BRIDGE is unsupported for this OS / OpenNebula combination,
+              please set 'move_ip' to false for every relevant VNET explicitly.
+  vars:
+    _move_ip: >-
+      {{ vn | d({})
+            | dict2items
+            | selectattr('value.template.VN_MAD', 'defined')
+            | selectattr('value.template.VN_MAD', 'in', ['bridge', 'dummy', 'fw'])
+            | selectattr('value.template.BRIDGE', 'defined')
+            | selectattr('value.template.PHYDEV', 'defined')
+            | map(attribute='value.move_ip', default=true)
+            | select('boolean') }}

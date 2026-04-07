@@ -8,7 +8,7 @@
       ansible.builtin.package:
         name: "{{ _common + (_specific[_d][_v] | d(_default[_f])) }}"
       vars:
-        _common: [ca-certificates]
+        _common: [ca-certificates, jq]
         _specific:
           Debian:
             '13': [apt-transport-https, dirmngr, gnupg2]

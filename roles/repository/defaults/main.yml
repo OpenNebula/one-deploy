@@ -165,7 +165,12 @@ opennebula_repo_url_defaults:
     {%- else -%}
       https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
     {%- endif -%}
-  Suse: null
+  Suse: >-
+    {%- if one_token is defined and one_token is truthy -%}
+      https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/SLES
+    {%- else -%}
+      https://downloads.opennebula.io/repo/{{ one_version }}/SLES
+    {%- endif -%}
 
 opennebula_repo_pre_enable_defaults:
   AlmaLinux:
@@ -215,3 +220,13 @@ opennebula_repo_pre_enable_defaults:
       '8': [https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm]
       '9': [https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm]
       '10': [https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm]
+  SLES:
+    suse_connect:
+      '15':
+        - sle-module-desktop-applications/15.{{ ansible_distribution_release }}/{{ ansible_architecture }}
+        - sle-module-public-cloud/15.{{ ansible_distribution_release }}/{{ ansible_architecture }}
+        - PackageHub/15.{{ ansible_distribution_release }}/{{ ansible_architecture }}
+    extra_repos:
+      '15': []
+    extra_rpms:
+      '15': []
