@@ -156,8 +156,8 @@
     # NOTE: It also handles nested bridge/bond interfaces..
     _interfaces: >-
       {%- set output = [] -%}
-      {%- for v in _facts[_default].interfaces | d(_facts[_default].slaves) | d([_facts[_default].device | d(omit)]) -%}
-        {{- output.append(_facts[v].slaves | d([_facts[v].device | d(omit)])) -}}
+      {%- for v in _facts[_default].interfaces | d(_facts[_default].slaves) | d([_facts[_default].device | d(none)] | select) -%}
+        {{- output.append(_facts[v].slaves | d([_facts[v].device | d(none)] | select)) -}}
       {%- endfor -%}
       {{- output | flatten -}}
   block:
