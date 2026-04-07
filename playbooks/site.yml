@@ -39,10 +39,6 @@
       tags: [form]
       when: one_version is version('7.1.80', '>=')
 
-    - role: provision
-      tags: [provision]
-      when: features.provision | bool is true
-
     - role: gui
       tags: [gui]
 
