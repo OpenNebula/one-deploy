@@ -15,7 +15,7 @@ type -p dpdk-devbind.py ethtool &>/dev/null
 {% endif %}
 
 {% for iface in _iface %}
-# {{ iface }}
+: '{{ iface }}'
 log 'Asserting {{ iface }} exists and is not used outside OVS'
 ip --json link show dev '{{ iface }}' | jq -re '.[0].master as $m | [null, "ovs-system"] | any(. == $m)' &>/dev/null
 {% endfor %}
@@ -23,7 +23,7 @@ ip --json link show dev '{{ iface }}' | jq -re '.[0].master as $m | [null, "ovs-
 # --- OVS / DPDK initialization
 
 {% for addr in _dpdk_pci_addrs %}
-# {{ addr }}
+: '{{ addr }}'
 log 'Calling dpdk-devbind.py on {{ addr }}'
 dpdk-devbind.py --force --bind=vfio-pci '{{ addr }}' || die 'Failed to bind PCI device {{ addr }}'
 {% endfor %}
@@ -79,7 +79,7 @@ fi
 # --- Bridge creation
 
 {% for br in ovs.br %}
-# {{ br }}
+: '{{ br }}'
 log 'Creating OVS bridge {{ br }}'
 ovs-vsctl --may-exist add-br '{{ br }}' \
     -- set Bridge '{{ br }}' 'external_ids:one-deploy-br={{ br }}' \
@@ -92,7 +92,7 @@ ovs-vsctl --may-exist add-br '{{ br }}' \
 # --- Port creation
 
 {% for br in ovs.br %}
-# {{ br }}
+: '{{ br }}'
 {% for port in ovs.br[br].ports | select('in', ovs.iface) %}
 log 'Adding port {{ port }} to {{ br }}'
 ovs-vsctl --may-exist add-port '{{ br }}' '{{ port }}' \
@@ -110,7 +110,7 @@ ovs-vsctl --may-exist add-port '{{ br }}' '{{ port }}' \
 # --- Bond creation
 
 {% for br in ovs.br %}
-# {{ br }}
+: '{{ br }}'
 {% for port in ovs.br[br].ports | select('in', ovs.bond) %}
 log 'Adding bond {{ port }} to {{ br }}'
 ovs-vsctl --if-exists del-port '{{ port }}' -- add-bond '{{ br }}' '{{ port }}' \
@@ -136,7 +136,7 @@ ovs-vsctl --if-exists del-port '{{ port }}' -- add-bond '{{ br }}' '{{ port }}' 
 # --- Bridge / Port / Interface reconfiguration
 
 {% for br in ovs.br | dict2items | selectattr('value.set', 'defined') | map(attribute='key') %}
-# {{ br }}
+: '{{ br }}'
 log 'Reconfiguring OVS bridge {{ br }}'
 ovs-vsctl \
 {% for v in ovs.br[br].set | d([]) | map('dict2items') | flatten %}
@@ -146,7 +146,7 @@ ovs-vsctl \
 {% endfor %}
 
 {% for port in ovs.port | dict2items | selectattr('value.set', 'defined') | map(attribute='key') %}
-# {{ port }}
+: '{{ port }}'
 log 'Reconfiguring port {{ port }}'
 ovs-vsctl \
 {% for v in ovs.port[port].set | d([]) | map('dict2items') | flatten %}
@@ -156,7 +156,7 @@ ovs-vsctl \
 {% endfor %}
 
 {% for iface in ovs.iface | dict2items | selectattr('value.set', 'defined') | map(attribute='key') %}
-# {{ iface }}
+: '{{ iface }}'
 log 'Reconfiguring interface {{ iface }}'
 ovs-vsctl \
 {% for v in ovs.iface[iface].set | d([]) | map('dict2items') | flatten %}
@@ -175,7 +175,7 @@ ethtool --offload '{{ br }}' tx off rx off || log 'WARNING: Failed to disable ch
 # --- IP configuration
 
 {% for dev, v in (_iface.items() | list + ovs.br.items() | list) %}
-# {{ dev }}
+: '{{ dev }}'
 log 'Flushing {{ dev }}'
 ip addr flush dev '{{ dev }}' || die 'Failed to flush {{ dev }}'
 {% for a in v.addrs | d([]) %}
@@ -199,7 +199,7 @@ ip route replace default via '{{ gw }}' || die 'Failed to replace default route 
 
 if type -p systemctl resolvectl &>/dev/null && systemctl is-active --quiet systemd-resolved; then
 {% for dev, v in (ovs.iface.items() | list + ovs.br.items() | list) %}
-    # {{ dev }}
+    : '{{ dev }}'
 {% if v.dns is defined and v.dns is sequence %}
     log 'Setting nameservers for {{ dev }}'
     resolvectl dns '{{ dev }}' \
@@ -212,7 +212,7 @@ fi
 # --- Networking refresh
 
 {% for br, v in ovs.br.items() %}
-# {{ br }}
+: '{{ br }}'
 {% for a in v.addrs | d([]) %}
 log 'Sending gratuitous ARP for {{ a.cidr }} on {{ br }}'
 arping -c 3 -A -I '{{ br }}' '{{ a.cidr.split('/') | first }}' || log 'WARNING: arping failed'
