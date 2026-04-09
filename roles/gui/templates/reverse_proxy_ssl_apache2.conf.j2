@@ -19,6 +19,11 @@
   ProxyRequests     off
   ProxyPreserveHost on
 
+  # Adjust timeout & file size constraints
+  LimitRequestBody 0
+  Timeout 600
+  ProxyTimeout 600
+
   # no proxy for /error/ (Apache HTTPd errors messages)
   ProxyPass /error/ !
 
