@@ -22,10 +22,10 @@ ip --json link show dev '{{ iface }}' | jq -re '.[0].master as $m | [null, "ovs-
 
 # --- OVS / DPDK initialization
 
-{% for addr in _dpdk_pci_addrs %}
+{% for addr, driver in _dpdk_pci_addrs.items() | rejectattr(1, 'in', ['omit']) %}
 : '{{ addr }}'
 log 'Calling dpdk-devbind.py on {{ addr }}'
-dpdk-devbind.py --force --bind=vfio-pci '{{ addr }}' || die 'Failed to bind PCI device {{ addr }}'
+dpdk-devbind.py --force --bind='{{ driver }}' '{{ addr }}' || die 'Failed to bind PCI device {{ addr }}'
 {% endfor %}
 
 {% for v in ovs.set | d([]) | map('dict2items') | flatten %}

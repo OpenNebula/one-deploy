@@ -29,16 +29,19 @@
       {%- set output = [] -%}
       {%- for k, v in _dpdk_iface.items() -%}
         {%- for u in v.set | selectattr('options:dpdk-devargs', 'defined') -%}
-          {%- if u['options:dpdk-devargs'] | string | regex_search(_pci_addr_regex) -%}
-            {{- output.append(u['options:dpdk-devargs']) -}}
+          {%- set _devargs = u['options:dpdk-devargs'] | string -%}
+          {%- if _devargs | regex_search(_pci_addr_regex) -%}
+            {{- output.append([_devargs, v.driver | d('vfio-pci')]) -}}
           {%- else -%}
-            {{- output.append(None) -}}
+            {{- output.append([]) -}}
           {%- endif -%}
         {%- endfor -%}
       {%- endfor -%}
       {{- output -}}
-    _dpdk_pci_addrs: >-
+    _dpdk_pci_addrs_items: >-
       {{ _dpdk_pci_addrs_raw | select | unique }}
+    _dpdk_pci_addrs: >-
+      {{ dict(_dpdk_pci_addrs_items) }}
     _internal_iface: >-
       {{ ovs.iface | dict2items
                    | selectattr('key', 'in', ovs.br.keys())
@@ -110,14 +113,14 @@
 
     - name: Assert all provided DPDK PCI addresses are valid and unique
       ansible.builtin.assert:
-        that: _dpdk_pci_addrs_raw == _dpdk_pci_addrs # no invalid, no duplicated
+        that: _dpdk_pci_addrs_raw == _dpdk_pci_addrs_items # no invalid, no duplicated
         fail_msg: Please remove invalid / duplicated DPDK PCI addresses from OVS config.
 
     - name: Query lspci if DPDK PCI addresses do exist
       ansible.builtin.shell:
         cmd: |
           set -o errexit
-          {% for v in _dpdk_pci_addrs %}
+          {% for v in _dpdk_pci_addrs.keys() %}
           STDOUT="$(lspci -vmm -nkD -s '{{ v }}')"
           if [[ -n "$STDOUT" ]]; then
             echo "$STDOUT"
@@ -142,7 +145,7 @@
 
     - name: Assert DPDK and non-DPDK devices do not share PCI addresses
       ansible.builtin.assert:
-        that: _dpdk_pci_addrs | intersect(_pci_addrs) | count == 0
+        that: _dpdk_pci_addrs.keys() | intersect(_pci_addrs) | count == 0
         fail_msg: Please remove conflicting (PCI address) DPDK vs non-DPDK device definitions from OVS config.
 
     - name: Assert all bond 'ifaces' are unique subset of ovs.iface devices

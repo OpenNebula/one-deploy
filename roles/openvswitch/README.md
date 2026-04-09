@@ -70,11 +70,13 @@ Example Playbook
                 - type: dpdk
                 - mtu_request: 9000
                 - options:dpdk-devargs: '0000:02:00.0'
+              driver: vfio-pci # this is the default
             dpdk-p2:
               set:
                 - type: dpdk
                 - mtu_request: 9000
                 - options:dpdk-devargs: '0000:03:00.0'
+              driver: omit # skip forcing the driver
             eth3: {} # non-DPDK device
           bond:
             bond0:
