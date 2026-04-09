@@ -65,9 +65,9 @@
         _content:
           Debian: |
             {% if frr_repo_force_trusted | bool is false %}
-            deb {{ _repo_url.Debian | trim }} {{ ansible_distribution_release }} frr-stable
+            deb {{ _repo_url.Debian | trim }} {{ ansible_distribution_release }} frr-10.5
             {% else %}
-            deb [trusted=yes] {{ _repo_url.Debian | trim }} {{ ansible_distribution_release }} frr-stable
+            deb [trusted=yes] {{ _repo_url.Debian | trim }} {{ ansible_distribution_release }} frr-10.5
             {% endif %}
           RedHat: |
             [frr-stable]

@@ -11,11 +11,11 @@
       ansible.builtin.package:
         name: "{{ _common + _specific[ansible_os_family] }}"
       vars:
-        _common: [frr]
+        _common: []
         _specific:
-          Debian: [frr-pythontools]
-          RedHat: [frr-pythontools]
-          Suse: []
+          Debian: [frr, frr-pythontools]
+          RedHat: [frr-10.5.3, frr-pythontools-10.5.3]
+          Suse: [frr]
       register: package
       until: package is success
       retries: 12
