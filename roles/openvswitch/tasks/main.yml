@@ -43,6 +43,18 @@
       {{ ovs.iface | dict2items
                    | selectattr('key', 'in', ovs.br.keys())
                    | items2dict }}
+    _system_iface: >-
+      {%- set output = [] -%}
+      {%- for k, v in ovs.iface.items() | rejectattr(0, 'in', _internal_iface.keys()) -%}
+        {%- if v.set is undefined or v.set | selectattr('type', 'defined')
+                                           | count == 0
+                                  or v.set | selectattr('type', 'defined')
+                                           | selectattr('type', 'in', [none, '', 'system'])
+                                           | count > 0 -%}
+          {{- output.append([k, v]) -}}
+        {%- endif -%}
+      {%- endfor -%}
+      {{- dict(output) -}}
     _iface: >-
       {{ ovs.iface | dict2items
                    | rejectattr('key', 'in', _dpdk_iface.keys())
@@ -124,7 +136,7 @@
       when: _paths | count > 0
       vars:
         _paths: >-
-          {{ _iface.keys() | map('regex_replace', '^(.*)$', "-p '/sys/class/net/\g<1>'") }}
+          {{ _system_iface.keys() | map('regex_replace', '^(.*)$', "-p '/sys/class/net/\g<1>'") }}
       register: command_udevadm_pci_addresses
       changed_when: false
 
