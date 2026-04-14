@@ -8,6 +8,7 @@
       ssh: simple
       ceph: simple
       shared: simple
+      fs_lvm_ssh: simple
       generic: generic
   when:
     - ds.mode is defined
