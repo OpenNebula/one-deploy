@@ -1,0 +1,5 @@
+---
+dpdk_defaults:
+  vhost_socket_dir: /var/lib/one/vhost-sockets
+  selinux_policy_source: "{{ role_path }}/files/one-vhost-dpdk.te"
+  hugepage_dir: '/dev/hugepages'

@@ -1,0 +1,57 @@
+---
+- name: Detect SELinux module
+  when: selinux_policy_module_source | length > 0
+  block:
+
+    - name: Detect selinux module name
+      ansible.builtin.set_fact:
+        selinux_policy_module_name: "{{ selinux_policy_module_source | basename | regex_replace('\\.te$', '') }}"
+
+    - name: Check if SELinux module is already installed
+      ansible.builtin.command:
+        cmd: "semodule -l"
+      register: semodule_list
+      changed_when: false
+
+- name: Apply SELinux module
+  when:
+    - selinux_policy_module_name is defined
+    - selinux_policy_module_name not in semodule_list.stdout
+  block:
+
+    - name: Copy SELinux policy module source to target
+      ansible.builtin.copy:
+        src: "{{ selinux_policy_module_source }}"
+        dest: "/tmp/{{ selinux_policy_module_name }}.te"
+        mode: '0644'
+      register: policy_source_copied
+
+    - name: Compile SELinux policy module
+      ansible.builtin.command:
+        cmd: "checkmodule -M -m -o /tmp/{{ selinux_policy_module_name }}.mod /tmp/{{ selinux_policy_module_name }}.te"
+      when: policy_source_copied is changed
+      register: policy_compiled
+      changed_when: policy_compiled.rc == 0
+
+    - name: Package SELinux policy module
+      ansible.builtin.command:
+        cmd: "semodule_package -o /tmp/{{ selinux_policy_module_name }}.pp -m /tmp/{{ selinux_policy_module_name }}.mod"
+      when: policy_compiled is changed
+      register: policy_packaged
+      changed_when: policy_packaged.rc == 0
+
+    - name: Install SELinux policy module
+      ansible.builtin.command:
+        cmd: "semodule -X {{ selinux_policy_module_priority }} -i /tmp/{{ selinux_policy_module_name }}.pp"
+      when: policy_packaged is changed
+      register: policy_installed
+      changed_when: policy_installed.rc == 0
+
+    - name: Clean up temporary files
+      ansible.builtin.file:
+        path: "/tmp/{{ selinux_policy_module_name }}.{{ item }}"
+        state: absent
+      loop:
+        - te
+        - mod
+        - pp

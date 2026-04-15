@@ -1,0 +1,6 @@
+---
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/module.yml"
+
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/labels.yml"

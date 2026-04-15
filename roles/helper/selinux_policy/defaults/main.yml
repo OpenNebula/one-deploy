@@ -1,0 +1,11 @@
+---
+selinux_policy_module_source: ""  # Path to .te file in ansible controller
+selinux_policy_module_priority: 300 # default selinux priority is 100
+
+selinux_file_contexts: []
+# Example:
+# selinux_file_contexts:
+#   - path: '/mnt/datastore_local_DS(/.*)?'
+#     setype: virt_image_t
+#   - path: '/opt/myapp(/.*)?'
+#     setype: httpd_sys_content_t

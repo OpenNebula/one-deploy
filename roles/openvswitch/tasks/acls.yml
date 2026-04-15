@@ -1,0 +1,39 @@
+---
+- name: Set traversal ACL on oneadmin home
+  ansible.posix.acl:
+    path: /var/lib/one
+    entity: openvswitch
+    etype: user
+    permissions: rx
+    state: present
+
+- name: Set ACL recursively
+  ansible.posix.acl:
+    path: "{{ dpdk.vhost_socket_dir }}"
+    entity: openvswitch
+    etype: user
+    permissions: rwx
+    recursive: true
+    follow: true
+    state: present
+
+# posix module fails to set acl with symlinks+recursion+defaults
+# seems buggy
+# https://github.com/ansible-collections/ansible.posix/pull/638
+# https://github.com/ansible-collections/ansible.posix/issues/592
+
+- name: Set ACL recursively into symlink targets (follow symlinks)
+  ansible.builtin.command:
+    cmd: >
+      setfacl -R -L -m u:openvswitch:rwx
+      {{ dpdk.vhost_socket_dir }}
+  changed_when: true
+  ignore_errors: true
+
+- name: Set default ACL recursively into symlink targets (follow symlinks)
+  ansible.builtin.command:
+    cmd: >
+      setfacl -R -d -L -m u:openvswitch:rwx
+      {{ dpdk.vhost_socket_dir }}
+  changed_when: true
+  ignore_errors: true

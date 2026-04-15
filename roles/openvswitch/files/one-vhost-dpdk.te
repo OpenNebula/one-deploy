@@ -1,0 +1,19 @@
+module one-vhost-dpdk 1.0;
+
+require {
+    type openvswitch_t;
+    type svirt_t;
+    type virt_image_t;
+    type var_lib_t;
+    class lnk_file read;
+    class sock_file { create write unlink };
+    class dir { add_name write search remove_name };
+}
+
+allow openvswitch_t var_lib_t:dir search;
+allow openvswitch_t virt_image_t:lnk_file read;
+allow openvswitch_t virt_image_t:sock_file write;
+allow openvswitch_t virt_image_t:dir search;
+
+allow svirt_t virt_image_t:dir { add_name write remove_name };
+allow svirt_t virt_image_t:sock_file { create unlink };

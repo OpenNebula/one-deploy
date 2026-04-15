@@ -1,0 +1,38 @@
+---
+- when:
+    - ovs is defined
+    - ovs is mapping
+    - ovs | count > 0
+  block:
+    - name: Configure permissions for vhost interfaces
+      when:
+        - ovs.dpdk is defined
+        - ovs.dpdk is mapping
+        - ovs.dpdk | count > 0
+        - ansible_facts['os_family'] == "RedHat"
+        - ansible_facts['distribution_major_version'] >= "9"
+      block:
+        - name: Compute facts (DPDK)
+          ansible.builtin.set_fact:
+            dpdk: "{{ dpdk_defaults | combine(ovs.dpdk) }}"
+
+        - name: Create vhost socket directory
+          ansible.builtin.file:
+            path: "{{ dpdk.vhost_socket_dir }}"
+            state: directory
+            owner: oneadmin
+            group: oneadmin
+            mode: '0755'
+
+        - name: Apply custom selinux configuration
+          ansible.builtin.include_role:
+            name: opennebula.deploy.helper.selinux_policy
+          vars:
+            selinux_policy_module_source: "{{ dpdk.selinux_policy_source }}"
+            selinux_file_contexts:
+              - path: "{{ dpdk.vhost_socket_dir }}"
+                setype: virt_image_t
+
+        - name: Allow openvswitch user to read vhost unix socket
+          ansible.builtin.include_tasks:
+            file: "{{ role_path }}/tasks/acls.yml"

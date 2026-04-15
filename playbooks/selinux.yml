@@ -1,0 +1,24 @@
+---
+- name: Test SELinux Policy Role
+  hosts: node
+  become: true
+
+  vars:
+    test_app_path: /opt/test_app
+
+  pre_tasks:
+    - name: Create test directory
+      ansible.builtin.file:
+        path: "{{ test_app_path }}"
+        state: directory
+        mode: '0755'
+
+  tasks:
+    - name: Apply custom selinux configuration
+      ansible.builtin.include_role:
+        name: opennebula.deploy.helper.selinux_policy
+      vars:
+        selinux_policy_module_source: "/tmp/one-vhost-dpdk.te"
+        selinux_file_contexts:
+          - path: "{{ test_app_path }}"
+            setype: virt_image_t

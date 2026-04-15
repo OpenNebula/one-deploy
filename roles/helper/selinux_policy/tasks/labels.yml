@@ -1,0 +1,42 @@
+- name: Apply SELinux context labels
+  when: selinux_file_contexts | length > 0
+  block:
+
+    - name: Find symlinks in configured paths
+      ansible.builtin.find:
+        paths: "{{ item.path }}"
+        file_type: link
+        recurse: false
+      loop: "{{ selinux_file_contexts }}"
+      register: selinux_path_symlinks
+
+    - name: Stat symlinks to resolve their targets
+      ansible.builtin.stat:
+        path: "{{ item.1.path }}"
+        follow: false
+      loop: "{{ selinux_path_symlinks.results | subelements('files') }}"
+      register: selinux_symlink_stats
+
+    - name: Build expanded file context list including symlink targets
+      ansible.builtin.set_fact:
+        selinux_file_contexts_expanded: >-
+          {{
+            selinux_file_contexts_expanded | default(selinux_file_contexts)
+            + [{'path': item.stat.lnk_source, 'setype': (selinux_file_contexts | selectattr('path', 'equalto', item.item.0.item.path) | map(attribute='setype') | first)}]
+          }}
+      loop: "{{ selinux_symlink_stats.results }}"
+      when: item.stat.exists and item.stat.islnk
+
+    - name: Apply SELinux file contexts
+      community.general.sefcontext:
+        target: "{{ item.path }}(/.*)?"
+        setype: "{{ item.setype }}"
+        state: present
+      loop: "{{ selinux_file_contexts_expanded | default(selinux_file_contexts) }}"
+
+    - name: Relabel filesystem paths
+      ansible.builtin.command:
+        cmd: "restorecon -Rv {{ item.path }}"
+      loop: "{{ selinux_file_contexts_expanded | default(selinux_file_contexts) }}"
+      register: filesystem_relabeled
+      changed_when: "'Relabeled' in filesystem_relabeled.stdout"
