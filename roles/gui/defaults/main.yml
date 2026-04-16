@@ -7,5 +7,14 @@ ssl_defaults:
   certchain: /etc/ssl/certs/opennebula-certchain.pem
 
 sunstone_views: []
+# Example:
+# sunstone_views:
+#   - name: example_view
+#     label: "Custom view"
+#     description: "A custom view for users"
+#     groups:
+#       - oneadmin
+#       - users
+#     source_folder: one-deploy/views/example_view
 sunstone_views_config_file: /etc/one/fireedge/sunstone/views/sunstone-views.yaml
 sunstone_views_base_dir: /etc/one/fireedge/sunstone/views/
