@@ -21,6 +21,11 @@ ovs_packages:
     - iproute
     - iputils
     - openvswitch3.6
+  Suse:
+    - ethtool
+    - iproute2
+    - iputils
+    - openvswitch
 
 ovs_packages_dpdk:
   AlmaLinux:
@@ -40,3 +45,9 @@ ovs_packages_dpdk:
     - iproute
     - iputils
     - openvswitch3.6
+  Suse:
+    - dpdk-tools
+    - ethtool
+    - iproute2
+    - iputils
+    - openvswitch

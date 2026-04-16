@@ -6,7 +6,7 @@ Wants=network-pre.target
 Before=network.target
 Requires=openvswitch-switch.service
 {% endif %}
-{% if ansible_os_family == 'RedHat' %}
+{% if ansible_os_family in ['RedHat', 'Suse'] %}
 After=openvswitch.service network-pre.target
 Wants=network-pre.target
 Before=network.target
