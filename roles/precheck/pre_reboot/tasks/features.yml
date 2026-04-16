@@ -101,6 +101,14 @@
       (not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15'))
     fail_msg: PCI / SR-IOV management is unsupported for this OS / OpenNebula combination, please disable it.
 
+- name: Check if OVS / DPDK management is supported for the current distro
+  ansible.builtin.assert:
+    that:
+      (ovs | d({}) | count == 0)
+      or
+      (not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15'))
+    fail_msg: OVS / DPDK management is unsupported for this OS / OpenNebula combination, please disable it.
+
 - name: Check if 'move_ip' VNET feature is supported for this OS / OpenNebula combination
   ansible.builtin.assert:
     that:
