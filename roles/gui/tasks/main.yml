@@ -52,3 +52,7 @@
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/{{ ssl.web_server }}.yml"
   when: ssl is defined
+
+- name: Deploy Sunstone Views
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/sunstone_views.yml"
