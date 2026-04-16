@@ -222,6 +222,19 @@
         _dpdk_keys: >-
           {{ _dpdk_bond.keys() | list + _dpdk_iface.keys() | list }}
 
+    - name: Assert that at least one IP address has been provided by the user
+      ansible.builtin.assert:
+        that: _ip_addrs | count > 0
+        fail_msg: Please define at least one IP address (otherwise all connectivity would be lost).
+      vars:
+        _ip_addrs: >-
+          {{ (ovs.iface.values() | list + ovs.br.values() | list) | selectattr('addrs', 'defined')
+                                                                  | map(attribute='addrs')
+                                                                  | flatten
+                                                                  | selectattr('cidr', 'defined')
+                                                                  | map(attribute='cidr')
+                                                                  | select }}
+
     - name: Assert addrs/gw/dns are not declared for br 'ports' and bond 'ifaces'
       ansible.builtin.assert:
         that: _matched | count == 0
