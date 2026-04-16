@@ -1,0 +1,54 @@
+- name: Prepare sunstone views list
+  ansible.builtin.set_fact:
+    _sunstone_views: "{{ sunstone_views | default([]) }}"
+
+- name: Build view-group pairs
+  ansible.builtin.set_fact:
+    _view_group_pairs: "{{ _view_group_pairs | default([]) + [[item.0, item.1]] }}"
+  loop: "{{ _sunstone_views | subelements('groups') }}"
+  when: _sunstone_views | length > 0
+
+- name: Copy view folder
+  ansible.builtin.copy:
+    src: "{{ inventory_dir }}/views/{{ item.source_folder }}/"
+    dest: "{{ sunstone_views_base_dir }}{{ item.name }}/"
+    mode: u=rw,g=r,o=r
+  loop: "{{ _sunstone_views }}"
+  when: _sunstone_views | length > 0
+
+- name: Update views definition in sunstone-views.yaml
+  opennebula.deploy.cfgtool:
+    dest: "{{ sunstone_views_config_file }}"
+    parser: Yaml
+    actions:
+      - put:
+          path: [views, "{{ item.name }}"]
+          value:
+            name: "{{ item.label }}"
+            description: "{{ item.description }}"
+  loop: "{{ _sunstone_views }}"
+  when: _sunstone_views | length > 0
+
+- name: Add view to groups in sunstone-views.yaml
+  opennebula.deploy.cfgtool:
+    dest: "{{ sunstone_views_config_file }}"
+    parser: Yaml
+    actions:
+      - get:
+          path: [groups, "{{ item[1] }}"]
+  register: _groups_cfg
+  loop: "{{ _view_group_pairs | default([]) }}"
+  changed_when: false
+  when: _sunstone_views | length > 0
+
+- name: Update group views list
+  opennebula.deploy.cfgtool:
+    dest: "{{ sunstone_views_config_file }}"
+    parser: Yaml
+    actions:
+      - put:
+          path: [groups, "{{ item.item[1] }}", 0]
+          value: "{{ item.item[0].name }}"
+  loop: "{{ _groups_cfg.results | default([]) }}"
+  # item.values[0] is the list of views for the group
+  when: item.item[0].name not in item['values'][0] and _sunstone_views | length > 0
