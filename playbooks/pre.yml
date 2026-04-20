@@ -9,6 +9,8 @@
       become: false
       tags: [bastion]
 
+# Cluster integrity / consistency.
+
 - hosts:
     - "{{ router_group | d('router') }}"
     - "{{ frontend_group | d('frontend') }}"
@@ -21,10 +23,13 @@
   collections:
     - opennebula.deploy
   roles:
-    - role: helper/python3
+    - role: helper/python3 # for python intepreter
+
     - role: helper/facts
+
     - role: helper/cache
-    - role: helper/python3
+
+    - role: helper/python3 # for extra OS/PyPI packages
 
 - hosts:
     - "{{ frontend_group | d('frontend') }}"
@@ -46,6 +51,7 @@
   roles:
     - role: helper/facts
       tags: [always]
+
     - role: precheck/pre_reboot
 
 - hosts:
@@ -70,3 +76,27 @@
       tags: [kernel]
 
     - role: precheck/post_reboot
+
+# Early PCI/SR-IOV + OVS/DPDK management.
+
+- hosts:
+    - "{{ node_group | d('node') }}"
+  collections:
+    - opennebula.deploy
+  roles:
+    # NOTE: PCI/SR-IOV management is limited to HV nodes exclusively.
+    - role: helper/pci
+      tags: [pci, pci_passthrough]
+
+- hosts:
+    - "{{ frontend_group | d('frontend') }}"
+    - "{{ node_group | d('node') }}"
+  collections:
+    - opennebula.deploy
+  roles:
+    # NOTE: This is required here since OVS/DPDK may require custom package sources.
+    - role: repository
+      tags: [openvswitch]
+
+    - role: openvswitch
+      tags: [openvswitch]

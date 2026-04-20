@@ -160,19 +160,31 @@
         {{- output.append(_facts[v].slaves | d([_facts[v].device | d(none)] | select)) -}}
       {%- endfor -%}
       {{- output | flatten -}}
+    # Do also a quick crosscheck with OVS/DPDK config (when available).
+    _dpdk_pci_addrs: >-
+      {{ (ovs.iface | d({})).values() | map(attribute='set', default=[])
+                                      | map('selectattr', 'options:dpdk-devargs', 'defined')
+                                      | select
+                                      | flatten
+                                      | map(attribute='options:dpdk-devargs') }}
+    _dpdk_interfaces: >-
+      {{ (ovs.iface | d({})).keys() | intersect(_facts.interfaces) }}
   block:
     - name: Query udev for device info
       ansible.builtin.command:
         cmd: "udevadm info --query=property --property=ID_PATH --value {{ _paths | join(' ') }}"
       vars:
         _paths: >-
-          {{ _interfaces | map('regex_replace', '^(.*)$', "-p '/sys/class/net/\g<1>'") }}
+          {{ (_interfaces + _dpdk_interfaces) | unique
+                                              | map('regex_replace', '^(.*)$', "-p '/sys/class/net/\g<1>'") }}
       register: command_udevadm_info
       changed_when: false
 
     - name: Gather forbidden PCI addresses
       ansible.builtin.set_fact:
-        pci_forbidden_addresses: >-
+        pci_forbidden_addresses: "{{ (_pci_addrs + _dpdk_pci_addrs) | unique }}"
+      vars:
+        _pci_addrs: >-
           {{ command_udevadm_info.stdout_lines | select
                                                | map('regex_replace', '^pci-', '') }}
 
@@ -186,6 +198,7 @@
     fail_msg: >-
       Forbidden PCI addresses {{ _detected }} detected, aborting!
       Please adjust 'pci_devices' to exclude forbidden PCI addresses.
+      You might also want to look for conflicts with OVS/DPDK config.
   vars:
     _detected: >-
       {{ lspci_devices | map(attribute='Slot') | intersect(pci_forbidden_addresses) }}

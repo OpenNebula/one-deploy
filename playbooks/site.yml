@@ -10,11 +10,6 @@
     # Make sure all facts are usable on the playbook level.
     - role: common
 
-    # The repository role can be safely executed on the whole inventory, it will auto-detect
-    # which types of repositories it should install on which hosts.
-    - role: repository
-      tags: [preinstall, prometheus]
-
 - hosts: "{{ frontend_group | d('frontend') }}"
   tags: [frontend, stage1]
   collections:
