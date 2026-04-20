@@ -1,0 +1,334 @@
+---
+- name: Compute facts (OVS)
+  ansible.builtin.set_fact:
+    ovs: "{{ ovs_defaults | combine(ovs | d({}), recursive=true) }}"
+
+- when: ((ovs.iface | count) + (ovs.bond | count) + (ovs.br | count)) > 0
+  vars:
+    # helpers
+    _pci_addr_regex: >-
+      ^[0-9a-fA-F]{4}[:][0-9a-fA-F]{2}[:][0-9a-fA-F]{2}[.][0-9a-fA-F]{1,2}$
+    # general
+    _dpdk_enabled: >-
+      {{ ovs.set | d([])
+                 | selectattr('other_config:dpdk-init', 'defined')
+                 | selectattr('other_config:dpdk-init', 'in', ['true'])
+                 | count > 0 }}
+    # iface
+    _dpdk_iface: >-
+      {%- set output = [] -%}
+      {%- for k, v in ovs.iface.items() -%}
+        {%- for u in v.set | d([]) | selectattr('type', 'defined') -%}
+          {%- if u.type.startswith('dpdk') -%}
+            {{- output.append([k, v]) -}}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{- dict(output) -}}
+    _dpdk_pci_addrs_raw: >-
+      {%- set output = [] -%}
+      {%- for k, v in _dpdk_iface.items() -%}
+        {%- for u in v.set | selectattr('options:dpdk-devargs', 'defined') -%}
+          {%- set _devargs = u['options:dpdk-devargs'] | string -%}
+          {%- if _devargs | regex_search(_pci_addr_regex) -%}
+            {{- output.append([_devargs, v.driver | d('vfio-pci')]) -}}
+          {%- else -%}
+            {{- output.append([]) -}}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{- output -}}
+    _dpdk_pci_addrs_items: >-
+      {{ _dpdk_pci_addrs_raw | select | unique }}
+    _dpdk_pci_addrs: >-
+      {{ dict(_dpdk_pci_addrs_items) }}
+    _internal_iface: >-
+      {{ ovs.iface | dict2items
+                   | selectattr('key', 'in', ovs.br.keys())
+                   | items2dict }}
+    _system_iface: >-
+      {%- set output = [] -%}
+      {%- for k, v in ovs.iface.items() | rejectattr(0, 'in', _internal_iface.keys()) -%}
+        {%- if v.set is undefined or v.set | selectattr('type', 'defined')
+                                           | count == 0
+                                  or v.set | selectattr('type', 'defined')
+                                           | selectattr('type', 'in', [none, '', 'system'])
+                                           | count > 0 -%}
+          {{- output.append([k, v]) -}}
+        {%- endif -%}
+      {%- endfor -%}
+      {{- dict(output) -}}
+    _iface: >-
+      {{ ovs.iface | dict2items
+                   | rejectattr('key', 'in', _dpdk_iface.keys())
+                   | rejectattr('key', 'in', _internal_iface.keys())
+                   | items2dict }}
+    _pci_addrs: >-
+      {{ command_udevadm_pci_addresses.stdout_lines | d([])
+                                                    | select
+                                                    | map('regex_replace', '^pci-', '') }}
+    # bond
+    _dpdk_bond: >-
+      {{ ovs.bond | dict2items
+                  | selectattr('value.ifaces', 'defined')
+                  | selectattr('value.ifaces', 'subset', _dpdk_iface.keys())
+                  | items2dict }}
+    _bond: >-
+      {{ ovs.bond | dict2items
+                  | selectattr('value.ifaces', 'defined')
+                  | selectattr('value.ifaces', 'subset', _iface.keys())
+                  | items2dict }}
+    _bond_ifaces: >-
+      {{ ovs.bond | dict2items
+                  | selectattr('value.ifaces', 'defined')
+                  | map(attribute='value.ifaces')
+                  | flatten }}
+    # br
+    _dpdk_br: >-
+      {%- set output = [] -%}
+      {%- for k, v in ovs.br.items() -%}
+        {%- for u in v.set | d([]) | selectattr('datapath_type', 'defined') -%}
+          {%- if u.datapath_type in ['netdev'] -%}
+            {{- output.append([k, v]) -}}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{- dict(output) -}}
+    _br: >-
+      {{ ovs.br | dict2items
+                | rejectattr('key', 'in', _dpdk_br.keys())
+                | items2dict }}
+    _br_ports: >-
+      {{ ovs.br | dict2items
+                | selectattr('value.ports', 'defined')
+                | map(attribute='value.ports')
+                | flatten }}
+  block:
+    - name: Assert DPDK is enabled when DPDK resources are defined
+      ansible.builtin.assert:
+        that: (_dpdk_iface | count == 0)
+              or
+              (_dpdk_enabled is true)
+        fail_msg: Please enable DPDK (define other_config:dpdk-init) or remove DPDK resources from OVS config.
+
+    - name: Assert all provided DPDK PCI addresses are valid and unique
+      ansible.builtin.assert:
+        that: _dpdk_pci_addrs_raw == _dpdk_pci_addrs_items # no invalid, no duplicated
+        fail_msg: Please remove invalid / duplicated DPDK PCI addresses from OVS config.
+
+    - name: Assert DPDK PCI devices are not already claimed by PCI/SR-IOV management
+      ansible.builtin.assert:
+        that: _intersection | count == 0
+        fail_msg: DPDK vs PCI/SR-IOV conflict detected. Please ensure {{ _intersection }} are not being claimed by both implementations.
+      vars:
+        _intersection: >-
+          {{ _dpdk_pci_addrs.keys() | intersect(_slots) }}
+        _slots: >-
+          {{ lspci_devices | selectattr('Slot', 'defined')
+                           | map(attribute='Slot') }}
+      when:
+        # NOTE: The 'lspci_devices' fact is produced by the helper/pci role.
+        - lspci_devices is defined
+        - lspci_devices is sequence
+        - lspci_devices | count > 0
+
+    - name: Query lspci if DPDK PCI addresses do exist
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit
+          {% for v in _dpdk_pci_addrs.keys() %}
+          STDOUT="$(lspci -vmm -nkD -s '{{ v }}')"
+          if [[ -n "$STDOUT" ]]; then
+            echo "$STDOUT"
+            echo
+          else
+            echo "Could not find '{{ v }}'" >&2
+            exit 1
+          fi
+          {% endfor %}
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Query udev for PCI addresses
+      ansible.builtin.command:
+        cmd: "udevadm info --query=property --property=ID_PATH --value {{ _paths | join(' ') }}"
+      when: _paths | count > 0
+      vars:
+        _paths: >-
+          {{ _system_iface.keys() | map('regex_replace', '^(.*)$', "-p '/sys/class/net/\g<1>'") }}
+      register: command_udevadm_pci_addresses
+      changed_when: false
+
+    - name: Assert DPDK and non-DPDK devices do not share PCI addresses
+      ansible.builtin.assert:
+        that: _dpdk_pci_addrs.keys() | intersect(_pci_addrs) | count == 0
+        fail_msg: Please remove conflicting (PCI address) DPDK vs non-DPDK device definitions from OVS config.
+
+    - name: Assert all bond 'ifaces' are unique subset of ovs.iface devices
+      ansible.builtin.assert:
+        that:
+          - _bond_ifaces == _bond_ifaces | unique # no duplicated
+          - _bond_ifaces is subset(ovs.iface.keys())
+        fail_msg: Please ensure bond 'ifaces' are declared in ovs.iface and uniquely distributed among bond resources.
+
+    - name: Assert each bond resource contains at least 2 'ifaces'
+      ansible.builtin.assert:
+        that:
+          - 0 not in _ifaces_counts
+          - 1 not in _ifaces_counts
+        fail_msg: Please ensure each bond resource contains at least 2 'ifaces'.
+      vars:
+        _ifaces_counts: >-
+          {{ ovs.bond | dict2items
+                      | selectattr('value.ifaces', 'defined')
+                      | map(attribute='value.ifaces')
+                      | map('count')
+                      | unique }}
+
+    - name: Assert each bond 'ifaces' are not of mixed DPDK / non-DPDK types
+      ansible.builtin.assert:
+        that:
+          - _bond_keys == _bond_keys | unique # there are no mixed 'ifaces'
+          - _bond_keys == _all_bond_keys      # every bond resource has some valid-ish 'ifaces'
+        fail_msg: Please ensure each declared bond resource has 'ifaces' of either DPDK or non-DPDK types (never both).
+      vars:
+        _bond_keys: >-
+          {{ _dpdk_bond.keys() | list + _bond.keys() | list }}
+        _all_bond_keys: >-
+          {{ ovs.bond.keys() }}
+
+    - name: Assert ovs.port is a subset of available ports (including internal)
+      ansible.builtin.assert:
+        that:
+          - ovs.port.keys() is subset(ovs.br.keys() | list + _br_ports)
+        fail_msg: Please ensure ovs.port is a subset of available ports.
+
+    - name: Assert br 'ports' are unique subset of ovs.bond + ovs.iface resources
+      ansible.builtin.assert:
+        that:
+          - _br_ports == _br_ports | unique # no duplicated
+          - _br_ports is subset(ovs.bond.keys() | list + ovs.iface.keys() | list)
+        fail_msg: Please ensure br 'ports' are declared in ovs.bond and ovs.iface and uniquely distributed among br resources.
+
+    - name: Assert each non-DPDK br 'ports' do not contain DPDK resources
+      ansible.builtin.assert:
+        that: _keys | intersect(_dpdk_keys) | count == 0
+        fail_msg: Please ensure no DPDK resource is inserted into non-DPDK br resources.
+      vars:
+        _keys: >-
+          {{ _br | dict2items
+                 | map(attribute='value.ports')
+                 | flatten }}
+        _dpdk_keys: >-
+          {{ _dpdk_bond.keys() | list + _dpdk_iface.keys() | list }}
+
+    - name: Assert that at least one IP address has been provided by the user
+      ansible.builtin.assert:
+        that: _ip_addrs | count > 0
+        fail_msg: Please define at least one IP address (otherwise all connectivity would be lost).
+      vars:
+        _ip_addrs: >-
+          {{ (ovs.iface.values() | list + ovs.br.values() | list) | selectattr('addrs', 'defined')
+                                                                  | map(attribute='addrs')
+                                                                  | flatten
+                                                                  | selectattr('cidr', 'defined')
+                                                                  | map(attribute='cidr')
+                                                                  | select }}
+
+    - name: Assert addrs/gw/dns are not declared for br 'ports' and bond 'ifaces'
+      ansible.builtin.assert:
+        that: _matched | count == 0
+        fail_msg: Please remove addrs/gw/dns attributes from br 'ports' and bond 'ifaces'.
+      vars:
+        _keys: >-
+          {{ (_bond_ifaces + _br_ports) | difference(ovs.bond) }}
+        _matched: >-
+          {{ _keys | map('extract', ovs.iface)
+                   | map('dict2items')
+                   | flatten
+                   | selectattr('key', 'in', ['addrs', 'gw', 'dns']) }}
+
+    - name: Ensure udev rules for vfio
+      ansible.builtin.copy:
+        dest: /etc/udev/rules.d/99-vfio.rules
+        owner: 0
+        group: 0
+        mode: u=rw,go=r
+        content: |
+          SUBSYSTEM=="vfio", GROUP="kvm", MODE="0666"
+      register: copy_udev_vfio
+
+    - name: Refresh udev rules
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit
+          udevadm control --reload-rules && udevadm trigger
+        executable: /bin/bash
+      changed_when: true
+      when: copy_udev_vfio is changed
+
+    - name: Install OVS packages
+      ansible.builtin.package:
+        name: "{{ _specific[ansible_distribution] | d(_specific[ansible_os_family]) }}"
+      vars:
+        _specific: "{{ _dpdk_enabled | ternary(ovs_packages_dpdk, ovs_packages) }}"
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+    - when:
+        - ansible_os_family in ['Debian']
+        - _dpdk_enabled is true
+      block:
+        - name: Use DPDK version of ovs-vswitchd
+          community.general.alternatives:
+            name: ovs-vswitchd
+            path: /usr/lib/openvswitch-switch-dpdk/ovs-vswitchd-dpdk
+          register: alternatives_ovs_vswitchd
+
+    - name: Enable / (Re)Start OVS (NOW)
+      ansible.builtin.systemd_service:
+        name: "{{ _specific[ansible_os_family] }}"
+        state: >-
+          {{ 'restarted' if _changed else 'started' }}
+        enabled: true
+      vars:
+        _specific:
+          Debian: openvswitch-switch.service
+          RedHat: openvswitch.service
+          Suse: openvswitch.service
+        _changed: >-
+          {{ (alternatives_ovs_vswitchd is defined)
+             and
+             (alternatives_ovs_vswitchd is changed) }}
+
+    - name: Install OVS-related scripts
+      ansible.builtin.template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode }}"
+        owner: 0
+        group: 0
+      loop:
+        - src: opennebula-ovs.sh.jinja
+          dest: /usr/local/sbin/opennebula-ovs.sh
+          mode: u=rwx,go=rx
+        - src: opennebula-ovs.service.jinja
+          dest: /etc/systemd/system/opennebula-ovs.service
+          mode: u=rw,go=r
+      register: template
+
+    - name: Switch to OVS networking
+      ansible.builtin.systemd_service:
+        daemon_reload: "{{ item.daemon_reload | d(omit) }}"
+        name: "{{ item.name | d(omit) }}"
+        state: "{{ item.state | d(omit) }}"
+        enabled: "{{ item.enabled | d(omit) }}"
+      loop:
+        - daemon_reload: "{{ _changed }}"
+        - name: opennebula-ovs.service
+          state: "{{ 'restarted' if _changed else 'started' }}"
+          enabled: true
+      vars:
+        _changed: "{{ template is changed }}"
