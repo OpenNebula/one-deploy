@@ -34,7 +34,7 @@
     - name: Create context.sh files
       ansible.builtin.template:
         dest: "{{ tempfile.results[item].path }}/context.sh"
-        src: context.sh.j2
+        src: context.sh.jinja
         mode: ug=rw,o=
       vars:
         frontend: "{{ tempfile.results[item].frontend }}"
@@ -100,7 +100,7 @@
 - name: Define Front-end VMs
   community.libvirt.virt:
     command: define
-    xml: "{{ lookup('template', 'frontend.xml.j2') }}"
+    xml: "{{ lookup('template', 'frontend.xml.jinja') }}"
     autostart: true
   vars:
     context: "{{ hostvars[frontend].context }}"
