@@ -6,7 +6,7 @@ A role that pre-deploys Front-end VMs directly in Libvirt.
 Requirements
 ------------
 
-Pre-installed Libvirt software. Use `infra_install_opennebula_node_kvm` if Libvirt is not pre-installed and you want to use `opennebula-node-kvm` to install it.
+Pre-installed Libvirt software (in the case of `infra` and `node` groups share hosts, then `opennebula-node-kvm` is pre-installed automatically).
 
 Role Variables
 --------------
@@ -17,7 +17,7 @@ Role Variables
 | `infra_group`                        | `str`  | `infra`            |                     | Custom name of the Infra group in the inventory.                  |
 |                                      |        |                    |                     |                                                                   |
 | `runtime_dir`                        | `str`  | `/var/one-deploy/` |                     | Directory used to store QCOW2 and ISO images.                     |
-| `os_image_url`                       | `str`  | (check below)      |                     | HTTP(S) link to Debian/RedHat-like image running `one-contextd`.  |
+| `os_image_url`                       | `str`  |                    |                     | HTTP(S) link to Debian/RedHat-like image running `one-contextd`.  |
 | `os_image_size`                      | `str`  | `20G`              |                     | The size to which one-deploy will **try** to adjust the OS image. |
 | `memory_KiB`                         | `str`  | `2097152`          |                     | Memory amount to be set in XML in Libvirt.                        |
 | `vcpu_static`                        | `str`  | `1`                |                     | VCPU amount to be set in XML in Libvirt.                          |
@@ -29,7 +29,6 @@ Role Variables
 | `infra_dpdk_socket_path`             | `str`  |                    |                     | Path for existing socket when using OVS with DPDK.                |
 | `infra_vlan_id`                      | `str`  |                    |                     | Optionally set the VLAN ID for the bridge.                        |
 | `infra_hostname`                     | `str`  |                    | `n1a1`              | Defines on which HV machine the Front-end VM should be deployed.  |
-| `infra_install_opennebula_node_kvm`  | `bool` | `false`            |                     | Installs opennebula-node-kvm package in HV before deploying VMs.  |
 | `context.ETH0_DNS`                   | `str`  |                    | `1.1.1.1`           | DNS server.                                                       |
 | `context.ETH0_SEARCH_DOMAIN`         | `str`  |                    | `1.1.1.1`           | DNS search domain.                                                |
 | `context.ETH0_GATEWAY`               | `str`  |                    | `10.2.50.1`         | Gateway.                                                          |

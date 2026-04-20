@@ -4,11 +4,45 @@
   collections:
     - opennebula.deploy
   roles:
+    # This installs the interpreter only.
+    # Extra OS/PyPI packages should not required by this playbook.
     - role: helper/python3
 
     - role: helper/facts
       tags: [always]
 
-    - role: helper/cache
+- hosts: "{{ (infra_group | d('infra')) ~ ':&' ~ (node_group | d('node')) }}" # intersection
+  tags: [infra]
+  collections:
+    - opennebula.deploy
+  roles:
+    - role: helper/kernel # NOTE: it may reboot the machine!
 
+    # The helper/pci role does not require OpenNebula cluster to be established
+    # as it operates strictly on the device layer of the underlying OS.
+    - role: helper/pci
+
+    - role: repository
+
+    # The openvswitch role does not require OpenNebula cluster to be established
+    # as it operates strictly on the device / networking layers of the underlying OS.
+    - role: openvswitch
+  tasks:
+    - name: Install OpenNebula KVM package
+      ansible.builtin.package:
+        name: [opennebula-node-kvm]
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+    - ansible.builtin.include_role:
+        name: kvm
+        tasks_from: libvirt
+
+- hosts: "{{ infra_group | d('infra') }}"
+  tags: [infra]
+  collections:
+    - opennebula.deploy
+  roles:
     - role: infra

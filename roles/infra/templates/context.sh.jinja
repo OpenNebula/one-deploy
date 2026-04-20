@@ -13,3 +13,6 @@ PASSWORD='{{ context.PASSWORD | d("opennebula") }}'
 SET_HOSTNAME='{{ context.SET_HOSTNAME | d(frontend) }}'
 SSH_PUBLIC_KEY='{{ context.SSH_PUBLIC_KEY | d("") }}'
 TARGET='hda'
+{% if context.START_SCRIPT_BASE64 is defined %}
+START_SCRIPT_BASE64='{{ context.START_SCRIPT_BASE64 | b64encode }}'
+{% endif %}
