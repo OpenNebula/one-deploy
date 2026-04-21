@@ -4,6 +4,7 @@ __pycache__/
 /ansible_collections/*
 !/ansible_collections/opennebula/deploy
 /inventory/.one-deploy/
+/inventory/*/
 /inventory/*.yml
 !/inventory/example.yml
 !/inventory/local.yml

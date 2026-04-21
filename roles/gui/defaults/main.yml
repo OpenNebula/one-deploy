@@ -16,5 +16,5 @@ sunstone_views: []
 #       - oneadmin
 #       - users
 #     source_folder: one-deploy/views/example_view
-sunstone_views_config_file: /etc/one/fireedge/sunstone/views/sunstone-views.yaml
 sunstone_views_base_dir: /etc/one/fireedge/sunstone/views/
+sunstone_views_config_file: "{{ sunstone_views_base_dir }}/sunstone-views.yaml"
