@@ -287,11 +287,57 @@
             path: /usr/lib/openvswitch-switch-dpdk/ovs-vswitchd-dpdk
           register: alternatives_ovs_vswitchd
 
+    - name: Configure logrotate for OVS
+      ansible.builtin.include_role:
+        name: helper/logs/logrotate
+      vars:
+        logrotate_defaults: {}
+        logrotate:
+          openvswitch:
+            paths:
+              - /var/log/openvswitch/*.log
+            config:
+              - su root root
+              - daily
+              - rotate 30
+              - missingok
+              - notifempty
+              - compress
+              - delaycompress
+              - dateext
+              - sharedscripts
+              - postrotate: |-
+                  if [ -d /run/openvswitch ]; then
+                    for ctl in /run/openvswitch/*.ctl; do
+                      ovs-appctl -t "$ctl" vlog/reopen 2>/dev/null ||:
+                    done
+                  fi
+
+    - name: Create systemd drop-in for ovs-vswitchd.service (mkdir)
+      ansible.builtin.file:
+        path: /etc/systemd/system/ovs-vswitchd.service.d
+        state: directory
+        owner: 0
+        group: 0
+        mode: u=rwx,go=rx
+
+    - name: Create systemd drop-in for ovs-vswitchd.service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/ovs-vswitchd.service.d/override.conf
+        owner: 0
+        group: 0
+        mode: u=rw,go=r
+        content: |
+          [Service]
+          ExecStartPost=/bin/sleep 2
+          ExecStartPost=/usr/bin/ovs-appctl -t ovs-vswitchd vlog/set syslog:info
+      register: copy_override_conf
+
     - name: Enable / (Re)Start OVS (NOW)
       ansible.builtin.systemd_service:
+        daemon_reload: "{{ _changed }}"
         name: "{{ _specific[ansible_os_family] }}"
-        state: >-
-          {{ 'restarted' if _changed else 'started' }}
+        state: "{{ 'restarted' if _changed else 'started' }}"
         enabled: true
       vars:
         _specific:
@@ -299,9 +345,11 @@
           RedHat: openvswitch.service
           Suse: openvswitch.service
         _changed: >-
-          {{ (alternatives_ovs_vswitchd is defined)
-             and
-             (alternatives_ovs_vswitchd is changed) }}
+          {{ (copy_override_conf is changed)
+             or
+             ((alternatives_ovs_vswitchd is defined)
+              and
+              (alternatives_ovs_vswitchd is changed)) }}
 
     - name: Install OVS-related scripts
       ansible.builtin.template:

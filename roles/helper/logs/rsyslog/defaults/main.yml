@@ -1,0 +1,46 @@
+---
+# EXAMPLE:
+#  rsyslog_collector:
+#    target: 10.11.12.13 # mandatory
+#    protocol: tcp       # optional
+#    port: 514           # optional
+rsyslog_collector: {}
+
+rsyslog: {}
+
+rsyslog_defaults:
+  90-kernel:
+    # managed: true
+    config: |
+      module(load="imklog")
+      kern.info /var/log/kern.log
+  # NOTE: By default "everything" is forwarded.
+  #       You can redefine the whole rsyslog dictionary to get custom behavior.
+  98-forward:
+    managed: "{{ rsyslog_collector.target is defined and rsyslog_collector.target is truthy }}"
+    config: |
+      action(
+        # output module for forwarding messages
+        type="omfwd"
+
+        # 1gb space limit (use as much as possible)
+        queue.maxdiskspace="1g"
+
+        # save messages to disk on shutdown
+        queue.saveonshutdown="on"
+
+        # run asynchronously
+        queue.type="LinkedList"
+
+        # infinite retries if host is down
+        action.resumeRetryCount="-1"
+
+        # destination server
+        target="{{ rsyslog_collector.target | d() }}"
+
+        # transport protocol
+        protocol="{{ rsyslog_collector.protocol | d('tcp') }}"
+
+        # port on the remote syslog server
+        port="{{ rsyslog_collector.port | d('514') }}"
+      )

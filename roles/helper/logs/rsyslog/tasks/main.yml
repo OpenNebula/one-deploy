@@ -1,0 +1,53 @@
+---
+- name: Merge rsyslog dict with defaults
+  ansible.builtin.set_fact:
+    rsyslog: >-
+      {{ rsyslog_defaults | combine(rsyslog, recursive=true) }}
+
+- when: _managed
+  vars:
+    _managed: >-
+      {{ (rsyslog.values() | selectattr('managed', 'undefined')
+                           | count > 0)
+         or
+         (rsyslog.values() | selectattr('managed', 'defined')
+                           | map(attribute='managed')
+                           | map('bool')
+                           | select
+                           | count > 0) }}
+  block:
+    - name: Stat /etc/rsyslog.d/
+      ansible.builtin.stat:
+        path: /etc/rsyslog.d/
+        get_attributes: false
+        get_checksum: false
+        get_mime: false
+      register: stat_rsyslog_d
+
+    - when:
+        - stat_rsyslog_d.stat.exists
+        - stat_rsyslog_d.stat.isdir
+      block:
+        - name: Render rsyslog configs
+          ansible.builtin.copy:
+            dest: "/etc/rsyslog.d/{{ item }}.conf"
+            owner: 0
+            group: 0
+            mode: u=rw,go=r
+            content: "{{ _content }}"
+          vars:
+            _content: |
+              # managed by one-deploy
+              {{ rsyslog[item].config }}
+          when:
+            - rsyslog[item].managed | d(true) | bool
+          loop: "{{ rsyslog.keys() }}"
+          register: copy_rsyslog_configs
+
+        - name: Restart rsyslog (NOW)
+          ansible.builtin.service:
+            name: rsyslog.service
+            state: restarted
+          when:
+            - copy_rsyslog_configs is defined
+            - copy_rsyslog_configs is changed
