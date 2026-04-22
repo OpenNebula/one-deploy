@@ -5,3 +5,16 @@ ssl_defaults:
   web_server: apache # could be nginx
   key: /etc/ssl/private/opennebula-key.pem
   certchain: /etc/ssl/certs/opennebula-certchain.pem
+
+sunstone_views: []
+# Example:
+# sunstone_views:
+#   - name: example_view
+#     label: "Custom view"
+#     description: "A custom view for users"
+#     groups:
+#       - oneadmin
+#       - users
+#     source_folder: one-deploy/views/example_view
+sunstone_views_base_dir: /etc/one/fireedge/sunstone/views/
+sunstone_views_config_file: "{{ sunstone_views_base_dir }}/sunstone-views.yaml"
