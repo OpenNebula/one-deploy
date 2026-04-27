@@ -1,7 +1,21 @@
 ---
+- name: Ensure user renames / removes obsolete variables
+  ansible.builtin.assert:
+    that:
+      - pci_passthrough_enabled is undefined
+      - pci_passthrough_default_filter is undefined
+    fail_msg: |
+      Detected obsolete pci_passthrough_* variables.
+      Please remove 'pci_passthrough_enabled' as it no longer has any effect.
+      Please rename 'pci_passthrough_default_filter' to 'pci_default_filter'.
+
 - name: Run PCI passthrough pre-flight checks
-  when: pci_passthrough_enabled | d(false) | bool
+  when:
+    - _pci_devices is sequence
+    - _pci_devices | count > 0
   vars:
+    _pci_devices: >-
+      {{ pci_devices | d([]) }}
     _virtualization_flag: >-
       {{ 'vmx' if 'GenuineIntel' in ansible_facts.processor else
          'svm' if 'AuthenticAMD' in ansible_facts.processor else '' }}

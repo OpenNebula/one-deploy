@@ -11,15 +11,14 @@ N/A
 Role Variables
 --------------
 
-| Name                             | Type   | Default | Example | Description                              |
-|----------------------------------|--------|---------|---------|------------------------------------------|
-| `pci_passthrough_enabled`        | `bool` | `false` |         | Enable/Disable PCI passthrough.          |
-| `pci_passthrough_default_filter` | `bool` | `*:*`   |         | Default (global) PCI passthrough filter. |
+| Name                 | Type   | Default | Example | Description                              |
+|----------------------|--------|---------|---------|------------------------------------------|
+| `pci_default_filter` | `bool` | `*:*`   |         | Default (global) PCI passthrough filter. |
 
 Dependencies
 ------------
 
-- opennebula.deploy.opennebula.leader
+N/A
 
 Example Playbook
 ----------------
