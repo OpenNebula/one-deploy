@@ -25,11 +25,7 @@
               v.device | d('*'),
               v.class | d('*'),
             ) | lower,
-            "key_regex": "^{}:{}:{}$".format(
-              (v.vendor | d('*') == '*') | ternary('[^:]*', v.vendor),
-              (v.device | d('*') == '*') | ternary('[^:]*', v.device),
-              (v.class | d('*') == '*') | ternary('[^:]*', v.class),
-            ) | lower,
+            "key_type": "vdc",
           }))
         -}}
       {%- endfor -%}
@@ -37,12 +33,22 @@
     pci_devices_by_address: >-
       {%- set output = [] -%}
       {%- for v in pci_devices | selectattr('address', 'defined') -%}
-        {{-
-          output.append(v | combine({
-            "key": v.address | lower,
-            "key_regex": "^{}$".format(v.address) | lower,
-          }))
-        -}}
+        {%- if v.address is opennebula.deploy.match_address('*:*:*.*', sep='[:.]') -%}
+          {{-
+            output.append(v | combine({
+              "key": v.address | lower,
+              "key_type": "pci",
+            }))
+          -}}
+        {%- endif -%}
+        {%- if v.address is opennebula.deploy.match_address('*:*:*:*:*:*', sep='[:]') -%}
+          {{-
+            output.append(v | combine({
+              "key": v.address | lower,
+              "key_type": "mac",
+            }))
+          -}}
+        {%- endif -%}
       {%- endfor -%}
       {{- output -}}
 
@@ -52,25 +58,6 @@
 
 - when: lspci_devices | count > 0
   block:
-    - name: Ensure udev rules for vfio
-      ansible.builtin.copy:
-        dest: /etc/udev/rules.d/99-vfio.rules
-        owner: 0
-        group: 0
-        mode: u=rw,go=r
-        content: |
-          SUBSYSTEM=="vfio", GROUP="kvm", MODE="0666"
-      register: copy_udev_vfio
-
-    - name: Refresh udev rules
-      ansible.builtin.shell:
-        cmd: |
-          set -o errexit
-          udevadm control --reload-rules && udevadm trigger
-        executable: /bin/bash
-      changed_when: true
-      when: copy_udev_vfio is changed
-
     - name: Render sriov-enable service unit
       ansible.builtin.copy:
         dest: "{{ item.dest }}"
@@ -140,7 +127,7 @@
         _to_revert: >-
           {%- set output = [] -%}
           {%- for v in lspci_devices -%}
-            {%- if (v.ECAP_SRIOV | bool is true) and (v.set_numvfs == 'max' or v.set_numvfs | int > 0) -%}
+            {%- if (v.Ecap_sriov == 'yes') and (v.Set_numvfs == 'max' or v.Set_numvfs | int > 0) -%}
               {{- output.append(v) -}}
             {%- endif -%}
           {%- endfor -%}
@@ -162,10 +149,10 @@
           set -x -o errexit -o pipefail
           CHANGED=false
           {% for v in _to_enable %}
-          {% if v.set_numvfs == 'max' %}
+          {% if v.Set_numvfs == 'max' %}
             SRIOV_NUMVFS="$(head -n1 '/sys/bus/pci/devices/{{ v.Slot }}/sriov_totalvfs')"
-          {% elif v.set_numvfs | int > 0 %}
-            SRIOV_NUMVFS='{{ v.set_numvfs }}'
+          {% elif v.Set_numvfs | int > 0 %}
+            SRIOV_NUMVFS='{{ v.Set_numvfs }}'
           {% else %}
             unset SRIOV_NUMVFS
           {% endif %}
@@ -203,7 +190,7 @@
         _to_enable: >-
           {%- set output = [] -%}
           {%- for v in lspci_devices -%}
-            {%- if (v.ECAP_SRIOV | bool is true) and (v.set_numvfs == 'max' or v.set_numvfs | int > 0) -%}
+            {%- if (v.Ecap_sriov == 'yes') and (v.Set_numvfs == 'max' or v.Set_numvfs | int > 0) -%}
               {{- output.append(v) -}}
             {%- endif -%}
           {%- endfor -%}
@@ -225,14 +212,14 @@
           set -x -o errexit -o pipefail
           BEFORE="$(driverctl list-overrides | sort)" ||:
           {% for v in _to_override %}
-          if ! grep -E -m1 '^{{ v.Slot }}\s+{{ v.set_driver }}$' <<< "$BEFORE"; then
-          {% if (v.ECAP_SRIOV | bool is true) %}
+          if ! grep -E -m1 '^{{ v.Slot }}\s+{{ v.Set_driver }}$' <<< "$BEFORE"; then
+          {% if v.Ecap_sriov == 'yes' %}
             TO_DISABLE="$(systemctl show --all -P Id 'sriov-enable@{{ v.Slot }}-*.service' | grep -E -v '^\s*$')" ||:
             if [[ -n "$TO_DISABLE" ]] && systemctl is-active --quiet $TO_DISABLE; then
               systemctl disable --now $TO_DISABLE # cleanup spurious sriov-enable@ services
             fi
           {% endif %}
-            driverctl set-override '{{ v.Slot }}' '{{ v.set_driver }}' # force the new driver (vfio-pci by default)
+            driverctl set-override '{{ v.Slot }}' '{{ v.Set_driver }}' # force the new driver (vfio-pci by default)
           fi
           {% endfor %}
           AFTER="$(driverctl list-overrides | sort)" ||:
@@ -247,7 +234,7 @@
         _to_override: >-
           {%- set output = [] -%}
           {%- for v in lspci_devices -%}
-            {%- if (v.set_driver != 'omit') and ((v.ECAP_SRIOV | bool is false) or (v.set_numvfs != 'max' and v.set_numvfs | int == 0)) -%}
+            {%- if (v.Set_driver != 'omit') and ((v.Ecap_sriov == 'no') or (v.Set_numvfs != 'max' and v.Set_numvfs | int == 0)) -%}
               {{- output.append(v) -}}
             {%- endif -%}
           {%- endfor -%}

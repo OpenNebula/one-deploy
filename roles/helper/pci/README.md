@@ -11,10 +11,9 @@ N/A
 Role Variables
 --------------
 
-| Name                      | Type   | Default | Example       | Description                     |
-|---------------------------|--------|---------|---------------|---------------------------------|
-| `pci_passthrough_enabled` | `bool` | `false` |               | Enable/Disable PCI passthrough. |
-| `pci_devices`             | `list` | `[]`    | (check below) | PCI devices configuration.      |
+| Name          | Type   | Default | Example       | Description                     |
+|---------------|--------|---------|---------------|---------------------------------|
+| `pci_devices` | `list` | `[]`    | (check below) | PCI devices configuration.      |
 
 Dependencies
 ------------
@@ -26,10 +25,12 @@ Example Playbook
 
     - hosts: node
       vars:
-        pci_passthrough_enabled: true
         pci_devices:
           - address: "0000:02:00.0"
             excluded: true
+          - address: "0000:03:00.*"
+            unlisted: true
+            set_name: "asd{0[3]}"
           - vendor: "1af4"
             device: "*"
             class: "0200"
