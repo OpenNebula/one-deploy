@@ -28,6 +28,9 @@ Role Variables
 | `admin_pubkey`      | `str`  | loaded       | (check below) | SSH pubkey loaded from `/var/lib/one/.ssh/id_rsa.pub`, provided by the user (as string) or ignored when `null`. |
 | `sched_rank`        | `dict` | undefined    | (check below) | Rank scheduler configuration.                                                                                   |
 | `sched_drs`         | `dict` | undefined    | (check below) | OpenNebula Distributed Resource Scheduler configuration.                                                        |
+| `auth.default`      | `str`  | `null`       |               | Pick default auth mechanism (currently only `ldap` is supported in one-deploy).                                 |
+| `auth.ldap.config`  | `dict` | `{}`         | (check below) | LDAP authentication config (/etc/one/auth/ldap_auth.conf).                                                      |
+| `auth.ldap.mapping` | `dict` | `{}`         | (check below) | LDAP authentication group mapping (manually defined).                                                           |
 
 Dependencies
 ------------
@@ -41,6 +44,25 @@ Example Playbook
       vars:
         gate_endpoint: "http://10.11.12.13:5030"
         admin_pubkey: null  # ignore it
+
+      # LDAP authentication with manually defined group mappings.
+      auth:
+        default: ldap
+        ldap:
+          config:
+            :order: [dirsrv]
+            dirsrv:
+              :user: cn=admin,dc=sk4zuzu,dc=eu
+              :password: asd123
+              :host: 10.3.10.1
+              :base: dc=sk4zuzu,dc=eu
+              :rfc2307bis: true
+              :group_field: memberOf
+              :mapping_generate: false
+              :mapping_filename: dirsrv.yaml
+          mapping:
+            dirsrv:
+              cn=users,ou=groups,dc=sk4zuzu,dc=eu: 1
 
         sched_rank:
           DIFFERENT_VNETS: false
