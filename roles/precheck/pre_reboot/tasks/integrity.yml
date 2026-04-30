@@ -105,3 +105,17 @@
         msg: |
           Please make sure each cluster member can resolve all Front-end hostnames
           (you could try enabling both ensure_hostname and ensure_hosts as a workaround).
+
+- name: Assert that :order and :match_user_regex are not used together
+  ansible.builtin.assert:
+    that: (auth.ldap.config is undefined)
+          or
+          ((_has_order and _has_match_user_regex) is false)
+    fail_msg: Options :order and :match_user_regex are mutually exclusive (LDAP).
+  vars:
+    _ldap_config: >-
+      {{ auth.ldap.config | d({}) }}
+    _has_order: >-
+      {{ _ldap_config is contains(':order') }}
+    _has_match_user_regex: >-
+      {{ _ldap_config is contains(':match_user_regex') }}

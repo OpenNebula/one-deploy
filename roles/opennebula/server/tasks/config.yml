@@ -51,6 +51,139 @@
   notify:
     - Restart OpenNebula
 
+- when:
+    - auth.ldap.config is defined
+    - auth.ldap.config is mapping
+    - _servers | count > 0
+  vars:
+    _servers: >-
+      {{ auth.ldap.config.keys() | reject('in', [':order', ':match_user_regex']) }}
+    _has_order: >-
+      {{ auth.ldap.config is contains(':order') }}
+    _has_match_user_regex: >-
+      {{ auth.ldap.config is contains(':match_user_regex') }}
+  block:
+    - name: Configure LDAP authentication
+      opennebula.deploy.cfgtool:
+        dest: /etc/one/auth/ldap_auth.conf
+        parser: Yaml
+        actions: "{{ item.actions }}"
+      register: cfgtool_ldap_auth_conf
+      failed_when:
+        - item.ignore_errors | ternary(false, cfgtool_ldap_auth_conf.errors | count > 0)
+      loop:
+        - ignore_errors: false
+          actions: >-
+            {%- set output = [] -%}
+            {%- for k in _servers -%}
+              {{-
+                output.append({
+                  "put": { "path": [k], "value": {} },
+                })
+              -}}
+              {%- for x, y in auth.ldap.config[k].items() -%}
+                {{-
+                  output.append({
+                    "put": { "path": [k, x], "value": y },
+                  })
+                -}}
+              {%- endfor -%}
+            {%- endfor -%}
+            {{- output -}}
+
+        - ignore_errors: true # TODO: Internal 'failed_when' for cfgtool.
+          actions:
+            - when: "{{ _has_order or _has_match_user_regex }}"
+              drop:
+                path: [':order']
+
+            - when: "{{ _has_order or _has_match_user_regex }}"
+              drop:
+                path: [':match_user_regex']
+
+        - ignore_errors: false
+          actions:
+            - when: "{{ _has_order }}"
+              put:
+                path: [':order']
+                value: "{{ auth.ldap.config[':order'] | d() }}"
+
+            - when: "{{ _has_match_user_regex }}"
+              put:
+                path: [':match_user_regex']
+                value: "{{ auth.ldap.config[':match_user_regex'] | d() }}"
+      notify:
+        - Restart OpenNebula
+
+    - when:
+        - auth.ldap.mapping is defined
+        - auth.ldap.mapping is mapping
+        - _mappings | count > 0
+      vars:
+        _mappings: >-
+          {%- set output = [] -%}
+          {%- for k in auth.ldap.mapping.keys() | select('in', _servers) -%}
+            {%- if auth.ldap.config[k][':mapping_filename'] is defined -%}
+              {{- output.append(k) -}}
+            {%- endif -%}
+          {%- endfor -%}
+          {{- output -}}
+      block:
+        - name: Render LDAP group mapping (manual)
+          ansible.builtin.copy:
+            dest: "/var/lib/one/{{ auth.ldap.config[item][':mapping_filename'] }}"
+            content: |
+              # managed by one-deploy
+              {{ auth.ldap.mapping[item] | to_nice_yaml }}
+            owner: 9869
+            group: 9869
+            mode: u=rw,g=r,o=
+          loop: "{{ _mappings }}"
+          notify:
+            - Restart OpenNebula
+
+    - when:
+        - auth.default is defined
+        - auth.default == 'ldap'
+      block:
+        - name: Read AUTH_MAD/AUTHN
+          opennebula.deploy.cfgtool:
+            dest: /etc/one/oned.conf
+            parser: One
+            actions:
+              - get:
+                  path: [AUTH_MAD, AUTHN]
+          register: cfgtool_oned_conf_get
+
+        - name: Make LDAP authentication default (AUTH_MAD/AUTHN)
+          opennebula.deploy.cfgtool:
+            dest: /etc/one/oned.conf
+            parser: One
+            actions:
+              - put:
+                  path: [AUTH_MAD, AUTHN]
+                  value: '"{{ _updated }}"'
+          vars:
+            _unquoted: >-
+              {{ cfgtool_oned_conf_get['values'].0.0[1:-1] }}
+            _cleaned: >-
+              {{ _unquoted | split(',') | reject('in', ['default']) }}
+            _updated: >-
+              {{ (['default'] + _cleaned) | join(',') }}
+          notify:
+            - Restart OpenNebula
+
+        - name: Make LDAP authentication default (symlink)
+          ansible.builtin.file:
+            dest: /var/lib/one/remotes/auth/default
+            src: /var/lib/one/remotes/auth/ldap
+            state: link
+            owner: 9869
+            group: 9869
+            follow: false
+          notify:
+            - Restart OpenNebula
+
 - name: Workaround potential Libvirt's NFS detection issues
   opennebula.deploy.cfgtool:
     dest: /var/lib/one/remotes/etc/vmm/kvm/kvmrc
