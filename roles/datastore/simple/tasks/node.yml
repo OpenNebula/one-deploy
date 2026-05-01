@@ -2,6 +2,44 @@
 - ansible.builtin.import_tasks:
     file: "{{ role_path }}/tasks/common.yml"
 
+- name: Ensure LVM PV and VG exist (fs_lvm_ssh system)
+  ansible.builtin.shell: &lvm_shell
+    cmd: |
+      set -o errexit
+
+      if ! [[ -b '{{ _device }}' ]]; then
+        echo "Device '{{ _device }}' does not exist or is not a block device." >&2
+        exit 1
+      fi
+
+      if ! pvdisplay '{{ _device }}' &>/dev/null; then
+        if ! pvcreate '{{ _device }}'; then
+          echo "Failed to create PV '{{ _device }}'" >&2
+          exit 1
+        fi
+      fi
+
+      if ! vgdisplay "vg-one-{{ _ds_id }}" &>/dev/null; then
+        if ! vgcreate "vg-one-{{ _ds_id }}" '{{ _device }}'; then
+          echo "Failed to create VG 'vg-one-{{ _ds_id }}'" >&2
+          exit 1
+        fi
+      fi
+
+      exit 78
+    executable: /bin/bash
+  loop: "{{ ds_items.system | default([]) }}"
+  loop_control:
+    loop_var: item
+  vars:
+    _ds_id: "{{ item.1.ID }}"
+    _device: "{{ ds.config.SYSTEM_DS.device | default(ds_defaults[ds.mode].SYSTEM_DS.device) }}"
+  when: ds.mode == "fs_lvm_ssh"
+  register: lvm_shell
+  changed_when: lvm_shell.rc == 78
+  failed_when: lvm_shell.rc != 0 and lvm_shell.rc != 78
+  run_once: true
+
 - when: ds.mode != 'ssh'
   block:
     - name: Setup datastore symlinks (image)
