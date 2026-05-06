@@ -86,7 +86,7 @@
           cmd: |
             [Unit]
             Description=Enable SR-IOV VFs on %I
-            After=network.target
+            After=network-pre.target
 
             [Service]
             Type=oneshot
