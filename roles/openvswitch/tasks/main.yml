@@ -116,15 +116,18 @@
         that: _dpdk_pci_addrs_raw == _dpdk_pci_addrs_items # no invalid, no duplicated
         fail_msg: Please remove invalid / duplicated DPDK PCI addresses from OVS config.
 
-    - name: Assert DPDK PCI devices are not already claimed by PCI/SR-IOV management
+    - name: Assert DPDK PCI device drivers are not already claimed by PCI/SR-IOV management
       ansible.builtin.assert:
         that: _intersection | count == 0
-        fail_msg: DPDK vs PCI/SR-IOV conflict detected. Please ensure {{ _intersection }} are not being claimed by both implementations.
+        fail_msg: >-
+          DPDK vs PCI/SR-IOV conflict detected.
+          Please ensure drivers of {{ _intersection }} are not managed by helper/pci role already.
       vars:
         _intersection: >-
           {{ _dpdk_pci_addrs.keys() | intersect(_slots) }}
         _slots: >-
           {{ lspci_devices | selectattr('Slot', 'defined')
+                           | rejectattr('Set_driver', 'in', ['omit'])
                            | map(attribute='Slot') }}
       when:
         # NOTE: The 'lspci_devices' fact is produced by the helper/pci role.
