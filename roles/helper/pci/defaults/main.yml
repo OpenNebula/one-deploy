@@ -1,3 +1,2 @@
 ---
-pci_passthrough_enabled: false
 pci_devices: []

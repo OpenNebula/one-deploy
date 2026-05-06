@@ -3,7 +3,8 @@
   ansible.builtin.shell:
     cmd: |
       set -o errexit -o pipefail
-      {% for v in pci_devices_by_vendor_device_class %}
+      {% for v in pci_devices %}
+      {% if v.key_type == 'vdc' %}
       STDOUT="$(lspci -vmm -nkD -d '{{ v.key }}')"
       if [[ -n "$STDOUT" ]]; then
         echo "$STDOUT"
@@ -15,15 +16,18 @@
       setpci -v -d '{{ v.key }}' STATUS | while IFS=' ' read -r SLOT _; do
         echo -e "Slot:\t$SLOT"
         if setpci -s "$SLOT" ECAP_SRIOV.B 1>/dev/null; then
-          echo -e "ECAP_SRIOV:\tyes"
-          echo
+          echo -e "Ecap_sriov:\tyes"
         else
-          echo -e "ECAP_SRIOV:\tno"
-          echo
+          echo -e "Ecap_sriov:\tno"
         fi
+        echo -e 'Set_driver:\t{{ v.set_driver | d('omit') }}'
+        echo -e 'Set_name:\t{{ v.set_name | d('omit') }}'
+        echo -e 'Set_numvfs:\t{{ v.set_numvfs | d(0) }}'
+        echo -e 'Unlisted:\t{{ v.unlisted | d(false) | bool | ternary('yes', 'no') }}'
+        echo -e 'Excluded:\t{{ v.excluded | d(false) | bool | ternary('yes', 'no') }}'
+        echo
       done
-      {% endfor %}
-      {% for v in pci_devices_by_address %}
+      {% elif v.key_type == 'pci' %}
       STDOUT="$(lspci -vmm -nkD -s '{{ v.key }}')"
       if [[ -n "$STDOUT" ]]; then
         echo "$STDOUT"
@@ -32,14 +36,51 @@
         echo "Could not find '{{ v.key }}'" >&2
         exit 1
       fi
-      echo -e "Slot:\t{{ v.key }}"
-      if setpci -s '{{ v.key }}' ECAP_SRIOV.B 1>/dev/null; then
-        echo -e "ECAP_SRIOV:\tyes"
+      setpci -v -s '{{ v.key }}' STATUS | while IFS=' ' read -r SLOT _; do
+        echo -e "Slot:\t$SLOT"
+        if setpci -s "$SLOT" ECAP_SRIOV.B 1>/dev/null; then
+          echo -e "Ecap_sriov:\tyes"
+        else
+          echo -e "Ecap_sriov:\tno"
+        fi
+        echo -e 'Set_driver:\t{{ v.set_driver | d('omit') }}'
+        echo -e 'Set_name:\t{{ v.set_name | d('omit') }}'
+        echo -e 'Set_numvfs:\t{{ v.set_numvfs | d(0) }}'
+        echo -e 'Unlisted:\t{{ v.unlisted | d(false) | bool | ternary('yes', 'no') }}'
+        echo -e 'Excluded:\t{{ v.excluded | d(false) | bool | ternary('yes', 'no') }}'
         echo
-      else
-        echo -e "ECAP_SRIOV:\tno"
+      done
+      {% elif v.key_type == 'mac' %}
+      udevadm trigger -nv -s net -a 'address={{ v.key }}' | while read -r DEVPATH; do
+        IFS='/' read -r _ SYS DEVICES ROOT _ SLOT _ <<< "$DEVPATH"
+        if [[ "$SYS" != sys || "$DEVICES" != devices || "$ROOT" != pci* ]]; then
+          continue
+        fi
+        STDOUT="$(lspci -vmm -nkD -s "$SLOT")"
+        if [[ -n "$STDOUT" ]]; then
+          echo "$STDOUT"
+          echo
+        else
+          echo "Could not find '$SLOT'" >&2
+          exit 1
+        fi
+        echo -e "Slot:\t$SLOT"
+        if setpci -s "$SLOT" ECAP_SRIOV.B 1>/dev/null; then
+          echo -e "Ecap_sriov:\tyes"
+        else
+          echo -e "Ecap_sriov:\tno"
+        fi
+        if [[ -e "$DEVPATH/address" ]]; then
+          echo -e "Address:\t$(cat $DEVPATH/address)"
+        fi
+        echo -e 'Set_driver:\t{{ v.set_driver | d('omit') }}'
+        echo -e 'Set_name:\t{{ v.set_name | d('omit') }}'
+        echo -e 'Set_numvfs:\t{{ v.set_numvfs | d(0) }}'
+        echo -e 'Unlisted:\t{{ v.unlisted | d(false) | bool | ternary('yes', 'no') }}'
+        echo -e 'Excluded:\t{{ v.excluded | d(false) | bool | ternary('yes', 'no') }}'
         echo
-      fi
+      done
+      {% endif %}
       {% endfor %}
     executable: /bin/bash
   register: shell_lspci
@@ -48,7 +89,7 @@
 - name: Parse lspci's output
   ansible.builtin.set_fact:
     lspci_devices: >-
-      {{ _lspci_devices_filtered_and_extended }}
+      {{ _lspci_devices | rejectattr('Excluded', '==', 'yes') }}
   vars:
     _lspci_devices: >-
       {%- set output = {} -%}
@@ -56,7 +97,6 @@
         {{- output.update(output | combine({v.Slot: v}, recursive=true)) -}}
       {%- endfor -%}
       {{- output.values() | list -}}
-
     _lspci_devices_raw: >-
       {{ shell_lspci.stdout | split(_sep1)
                             | select('truthy')
@@ -66,83 +106,6 @@
     _sep1: "\n\n"
     _sep2: "\n"
     _sep3: ":\t" # noqa no-tabs
-
-    _by_vendor_device_class_excluded: >-
-        {%- set output = [] -%}
-        {%- for v in pci_devices_by_vendor_device_class -%}
-          {%- if v.excluded | d(false) | bool is true -%}
-            {{- output.append(v) -}}
-          {%- endif -%}
-        {%- endfor -%}
-        {{- output -}}
-
-    _by_address_excluded: >-
-        {%- set output = [] -%}
-        {%- for v in pci_devices_by_address -%}
-          {%- if v.excluded | d(false) | bool is true -%}
-            {{- output.append(v) -}}
-          {%- endif -%}
-        {%- endfor -%}
-        {{- output -}}
-
-    _to_exclude: >-
-      {%- set output = [] -%}
-      {%- for v in _lspci_devices -%}
-        {%- set k = "{}:{}:{}".format(v.Vendor, v.Device, v.Class) -%}
-        {%- for x in _by_vendor_device_class_excluded -%}
-          {%- if k | regex_search(x.key_regex) -%}
-            {{- output.append(v.Slot) -}}
-          {%- endif -%}
-        {%- endfor -%}
-        {%- set k = v.Slot -%}
-        {%- for x in _by_address_excluded -%}
-          {%- if k | regex_search(x.key_regex) -%}
-            {{- output.append(v.Slot) -}}
-          {%- endif -%}
-        {%- endfor -%}
-      {%- endfor -%}
-      {{- output | unique -}}
-
-    _lspci_devices_filtered: >-
-      {%- set output = [] -%}
-      {%- for v in _lspci_devices -%}
-        {%- if _to_exclude is not contains(v.Slot) -%}
-          {{- output.append(v) -}}
-        {%- endif -%}
-      {%- endfor -%}
-      {{- output -}}
-
-    _lspci_devices_filtered_and_extended: >-
-      {%- set output = [] -%}
-      {%- for v in _lspci_devices_filtered -%}
-        {%- set to_append = [] %}
-        {%- for x in pci_devices_by_vendor_device_class -%}
-          {%- set k = "{}:{}:{}".format(v.Vendor, v.Device, v.Class) -%}
-          {%- if k | regex_search(x.key_regex) -%}
-            {{-
-              to_append.append(v | combine({
-                "set_driver": x.set_driver | d('vfio-pci'),
-                "set_numvfs": x.set_numvfs | d(0),
-              }))
-            -}}
-          {%- endif -%}
-        {%- endfor -%}
-        {%- for x in pci_devices_by_address -%}
-          {%- set k = v.Slot -%}
-          {%- if k | regex_search(x.key_regex) -%}
-            {{-
-              to_append.append(v | combine({
-                "set_driver": x.set_driver | d('vfio-pci'),
-                "set_numvfs": x.set_numvfs | d(0),
-              }))
-            -}}
-          {%- endif -%}
-        {%- endfor -%}
-        {%- if to_append | count > 0 -%}
-          {{- output.append(to_append | last) -}}
-        {%- endif -%}
-      {%- endfor -%}
-      {{- output -}}
 
 - when:
     - pci_forbidden_addresses is undefined
@@ -160,29 +123,33 @@
         {{- output.append(_facts[v].slaves | d([_facts[v].device | d(none)] | select)) -}}
       {%- endfor -%}
       {{- output | flatten -}}
-    # Do also a quick crosscheck with OVS/DPDK config (when available).
+    # Extract info from OVS/DPDK config (when available).
+    _ovs_interfaces: >-
+      {{ (ovs.iface | d({})).keys() | intersect(_facts.interfaces) }}
     _dpdk_pci_addrs: >-
       {{ (ovs.iface | d({})).values() | map(attribute='set', default=[])
                                       | map('selectattr', 'options:dpdk-devargs', 'defined')
                                       | select
                                       | flatten
                                       | map(attribute='options:dpdk-devargs') }}
-    _dpdk_interfaces: >-
-      {{ (ovs.iface | d({})).keys() | intersect(_facts.interfaces) }}
   block:
     - name: Query udev for device info
       ansible.builtin.command:
         cmd: "udevadm info --query=property --property=ID_PATH --value {{ _paths | join(' ') }}"
       vars:
+        # NOTE: OVS interfaces are excluded here, as openvswitch role is allowed to handle primary NICs.
+        #       Please make sure to use 'set_driver: omit' so openvswitch role entirely decides what driver should be used.
         _paths: >-
-          {{ (_interfaces + _dpdk_interfaces) | unique
-                                              | map('regex_replace', '^(.*)$', "-p '/sys/class/net/\g<1>'") }}
+          {{ _interfaces | difference(_ovs_interfaces)
+                         | map('regex_replace', '^(.*)$', "-p '/sys/class/net/\g<1>'") }}
       register: command_udevadm_info
       changed_when: false
 
     - name: Gather forbidden PCI addresses
       ansible.builtin.set_fact:
-        pci_forbidden_addresses: "{{ (_pci_addrs + _dpdk_pci_addrs) | unique }}"
+        # NOTE: DPDK PCI addresses are excluded here, as openvswitch role is allowed to handle primary NICs.
+        #       Please make sure to use 'set_driver: omit' so openvswitch role entirely decides what driver should be used.
+        pci_forbidden_addresses: "{{ _pci_addrs | difference(_dpdk_pci_addrs) }}"
       vars:
         _pci_addrs: >-
           {{ command_udevadm_info.stdout_lines | select
@@ -198,7 +165,6 @@
     fail_msg: >-
       Forbidden PCI addresses {{ _detected }} detected, aborting!
       Please adjust 'pci_devices' to exclude forbidden PCI addresses.
-      You might also want to look for conflicts with OVS/DPDK config.
   vars:
     _detected: >-
       {{ lspci_devices | map(attribute='Slot') | intersect(pci_forbidden_addresses) }}

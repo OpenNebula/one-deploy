@@ -1,0 +1,60 @@
+---
+- when: lspci_devices | count > 0
+  vars:
+    _all: >-
+      {{ lspci_devices | selectattr('Set_name', 'defined')
+                       | rejectattr('Set_name', '==', 'omit')
+                       | selectattr('Class', 'defined')
+                       | selectattr('Driver', 'defined')
+                       | selectattr('Slot', 'defined') }}
+    _net: >-
+      {{ _all | selectattr('Class', 'in', ['0200'])
+              | rejectattr('Driver', 'in', ['vfio-pci']) }}
+    _pci: >-
+      {{ _all | rejectattr('Class', 'in', ['0200'])
+              | rejectattr('Driver', 'in', ['vfio-pci']) }}
+    _vfio: >-
+      {{ _all | selectattr('Driver', 'in', ['vfio-pci'])
+              | selectattr('IOMMUGroup', 'defined') }}
+  block:
+    - name: Render extra udev rules (/etc/udev/rules.d)
+      ansible.builtin.copy:
+        dest: "{{ item.dest }}"
+        content: "{{ item.content }}"
+        owner: 0
+        group: 0
+        mode: u=rw,go=r
+      loop_control: { label: "{{ item.dest }}" }
+      loop:
+        - dest: /etc/udev/rules.d/99-rename.rules
+          content: |
+            # managed by one-deploy
+            # --- NET
+            {% for v in _net %}
+            {% set name = v.Set_name.format(v.Slot | regex_findall('[0-9a-fA-F]+')) %}
+            # {{ v.Slot }} <- {{ name }}
+            SUBSYSTEM=="net", ACTION=="add", ENV{ID_PATH}=="pci-{{ v.Slot }}", NAME="{{ name }}"
+            {% endfor %}
+            # --- PCI
+            {% for v in _pci %}
+            {% set name = v.Set_name.format(v.Slot | regex_findall('[0-9a-fA-F]+')) %}
+            # {{ v.Slot }} <- {{ name }}
+            SUBSYSTEM=="pci", ACTION=="add", ENV{ID_PATH}=="pci-{{ v.Slot }}", SYMLINK+="pci/by-tag/{{ name }}"
+            {% endfor %}
+            # --- VFIO
+            {% for v in _vfio %}
+            {% set name = v.Set_name.format(v.Slot | regex_findall('[0-9a-fA-F]+')) %}
+            # {{ v.Slot }} <- {{ name }}
+            SUBSYSTEM=="vfio", ACTION=="add", KERNEL=="{{ v.IOMMUGroup }}", SYMLINK+="vfio/by-tag/{{ name }}"
+            {% endfor %}
+        - dest: /etc/udev/rules.d/99-mode.rules
+          content: |
+            # managed by one-deploy
+            SUBSYSTEM=="vfio", ACTION=="add", GROUP="kvm", MODE="0666"
+      register: copy_udev_rules
+
+    - name: Refresh udev rules
+      ansible.builtin.shell:
+        cmd: udevadm control --reload-rules && udevadm trigger --action=add
+      changed_when: true
+      when: copy_udev_rules is changed
