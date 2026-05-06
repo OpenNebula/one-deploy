@@ -13,41 +13,39 @@
   retries: 12
   delay: 5
 
-- name: Parse and split pci_devices
+- name: Parse pci_devices (user input)
   ansible.builtin.set_fact:
-    pci_devices_by_vendor_device_class: >-
+    pci_devices: >-
       {%- set output = [] -%}
-      {%- for v in pci_devices | selectattr('address', 'undefined') -%}
-        {{-
-          output.append(v | combine({
-            "key": "{}:{}:{}".format(
-              v.vendor | d('*'),
-              v.device | d('*'),
-              v.class | d('*'),
-            ) | lower,
-            "key_type": "vdc",
-          }))
-        -}}
-      {%- endfor -%}
-      {{- output -}}
-    pci_devices_by_address: >-
-      {%- set output = [] -%}
-      {%- for v in pci_devices | selectattr('address', 'defined') -%}
-        {%- if v.address is opennebula.deploy.match_address('*:*:*.*', sep='[:.]') -%}
+      {%- for v in pci_devices -%}
+        {%- if v.address is undefined -%}
           {{-
             output.append(v | combine({
-              "key": v.address | lower,
-              "key_type": "pci",
+              "key": "{}:{}:{}".format(
+                v.vendor | d('*'),
+                v.device | d('*'),
+                v.class | d('*'),
+              ) | lower,
+              "key_type": "vdc",
             }))
           -}}
-        {%- endif -%}
-        {%- if v.address is opennebula.deploy.match_address('*:*:*:*:*:*', sep='[:]') -%}
-          {{-
-            output.append(v | combine({
-              "key": v.address | lower,
-              "key_type": "mac",
-            }))
-          -}}
+        {%- else -%}
+          {%- if v.address is opennebula.deploy.match_address('*:*:*.*', sep='[:.]') -%}
+            {{-
+              output.append(v | combine({
+                "key": v.address | lower,
+                "key_type": "pci",
+              }))
+            -}}
+          {%- endif -%}
+          {%- if v.address is opennebula.deploy.match_address('*:*:*:*:*:*', sep='[:]') -%}
+            {{-
+              output.append(v | combine({
+                "key": v.address | lower,
+                "key_type": "mac",
+              }))
+            -}}
+          {%- endif -%}
         {%- endif -%}
       {%- endfor -%}
       {{- output -}}

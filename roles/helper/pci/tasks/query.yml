@@ -3,7 +3,8 @@
   ansible.builtin.shell:
     cmd: |
       set -o errexit -o pipefail
-      {% for v in pci_devices_by_vendor_device_class | selectattr('key_type', '==', 'vdc') %}
+      {% for v in pci_devices %}
+      {% if v.key_type == 'vdc' %}
       STDOUT="$(lspci -vmm -nkD -d '{{ v.key }}')"
       if [[ -n "$STDOUT" ]]; then
         echo "$STDOUT"
@@ -26,8 +27,7 @@
         echo -e 'Excluded:\t{{ v.excluded | d(false) | bool | ternary('yes', 'no') }}'
         echo
       done
-      {% endfor %}
-      {% for v in pci_devices_by_address | selectattr('key_type', '==', 'pci') %}
+      {% elif v.key_type == 'pci' %}
       STDOUT="$(lspci -vmm -nkD -s '{{ v.key }}')"
       if [[ -n "$STDOUT" ]]; then
         echo "$STDOUT"
@@ -50,8 +50,7 @@
         echo -e 'Excluded:\t{{ v.excluded | d(false) | bool | ternary('yes', 'no') }}'
         echo
       done
-      {% endfor %}
-      {% for v in pci_devices_by_address | selectattr('key_type', '==', 'mac') %}
+      {% elif v.key_type == 'mac' %}
       udevadm trigger -nv -s net -a 'address={{ v.key }}' | while read -r DEVPATH; do
         IFS='/' read -r _ SYS DEVICES ROOT _ SLOT _ <<< "$DEVPATH"
         if [[ "$SYS" != sys || "$DEVICES" != devices || "$ROOT" != pci* ]]; then
@@ -81,6 +80,7 @@
         echo -e 'Excluded:\t{{ v.excluded | d(false) | bool | ternary('yes', 'no') }}'
         echo
       done
+      {% endif %}
       {% endfor %}
     executable: /bin/bash
   register: shell_lspci
