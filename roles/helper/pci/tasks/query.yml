@@ -20,7 +20,7 @@
         else
           echo -e "Ecap_sriov:\tno"
         fi
-        echo -e 'Set_driver:\t{{ v.set_driver | d('vfio-pci') }}'
+        echo -e 'Set_driver:\t{{ v.set_driver | d('omit') }}'
         echo -e 'Set_name:\t{{ v.set_name | d('omit') }}'
         echo -e 'Set_numvfs:\t{{ v.set_numvfs | d(0) }}'
         echo -e 'Unlisted:\t{{ v.unlisted | d(false) | bool | ternary('yes', 'no') }}'
@@ -43,7 +43,7 @@
         else
           echo -e "Ecap_sriov:\tno"
         fi
-        echo -e 'Set_driver:\t{{ v.set_driver | d('vfio-pci') }}'
+        echo -e 'Set_driver:\t{{ v.set_driver | d('omit') }}'
         echo -e 'Set_name:\t{{ v.set_name | d('omit') }}'
         echo -e 'Set_numvfs:\t{{ v.set_numvfs | d(0) }}'
         echo -e 'Unlisted:\t{{ v.unlisted | d(false) | bool | ternary('yes', 'no') }}'
@@ -73,7 +73,7 @@
         if [[ -e "$DEVPATH/address" ]]; then
           echo -e "Address:\t$(cat $DEVPATH/address)"
         fi
-        echo -e 'Set_driver:\t{{ v.set_driver | d('vfio-pci') }}'
+        echo -e 'Set_driver:\t{{ v.set_driver | d('omit') }}'
         echo -e 'Set_name:\t{{ v.set_name | d('omit') }}'
         echo -e 'Set_numvfs:\t{{ v.set_numvfs | d(0) }}'
         echo -e 'Unlisted:\t{{ v.unlisted | d(false) | bool | ternary('yes', 'no') }}'
