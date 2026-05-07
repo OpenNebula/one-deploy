@@ -83,4 +83,4 @@ packaging-lock:
 	cd $(SELF)/packaging/ && uv lock --upgrade
 
 packaging-sync:
-	cd $(SELF)/packaging/ && uv sync --no-install-project
+	cd $(SELF)/packaging/ && uv sync --no-install-project --frozen
