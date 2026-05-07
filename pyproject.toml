@@ -7,24 +7,33 @@ license = "Apache-2.0"
 readme = "README.md"
 requires-python = ">=3.9"
 
+[dependency-groups]
+packaging = [
+  "ansible-core<2.17",
+  "netaddr",
+]
+
+dev = [
+  { include-group = "packaging" },
+  "ansible-lint",
+  "molecule",
+  "pyone",
+]
+
+ceph = [
+  "ansible-core<2.17",
+  "netaddr",
+  "molecule",
+  "pyone",
+  "setuptools",
+]
+
 [tool.hatch.envs.default]
 skip-install = true
 installer = "uv"
-dependencies = [
-  "ansible-core<2.17",
-  "ansible-lint",
-  "molecule",
-  "netaddr",
-  "pyone",
-]
+dependency-groups = [ "dev" ]
 
 [tool.hatch.envs.ceph]
 skip-install = true
 installer = "uv"
-dependencies = [
-  "ansible-core<2.17",
-  "molecule",
-  "netaddr",
-  "pyone",
-  "setuptools",
-]
+dependency-groups = [ "ceph" ]
