@@ -76,3 +76,11 @@ clean-requirements:
 
 lint-ansible: $(ENV_DEFAULT)
 	cd $(SELF)/ && $(call ENV_RUN,default) ansible-lint roles/ playbooks/
+
+.PHONY: packaging-lock packaging-sync
+
+packaging-lock:
+	cd $(SELF)/packaging/ && uv lock --upgrade
+
+packaging-sync:
+	cd $(SELF)/packaging/ && uv sync --no-install-project --frozen
