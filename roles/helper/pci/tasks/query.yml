@@ -110,7 +110,7 @@
 - when:
     - pci_forbidden_addresses is undefined
     - _default is defined
-    - _interfaces | count > 0
+    - _paths | count > 0
   vars:
     _facts: >-
       {{ ansible_facts }}
@@ -132,16 +132,15 @@
                                       | select
                                       | flatten
                                       | map(attribute='options:dpdk-devargs') }}
+    # NOTE: OVS interfaces are excluded here, as openvswitch role is allowed to handle primary NICs.
+    #       Please make sure to use 'set_driver: omit' so openvswitch role entirely decides what driver should be used.
+    _paths: >-
+      {{ _interfaces | difference(_ovs_interfaces)
+                     | map('regex_replace', '^(.*)$', "-p '/sys/class/net/\g<1>'") }}
   block:
     - name: Query udev for device info
       ansible.builtin.command:
         cmd: "udevadm info --query=property --property=ID_PATH --value {{ _paths | join(' ') }}"
-      vars:
-        # NOTE: OVS interfaces are excluded here, as openvswitch role is allowed to handle primary NICs.
-        #       Please make sure to use 'set_driver: omit' so openvswitch role entirely decides what driver should be used.
-        _paths: >-
-          {{ _interfaces | difference(_ovs_interfaces)
-                         | map('regex_replace', '^(.*)$', "-p '/sys/class/net/\g<1>'") }}
       register: command_udevadm_info
       changed_when: false
 
