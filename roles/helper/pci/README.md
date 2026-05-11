@@ -11,18 +11,19 @@ N/A
 Role Variables
 --------------
 
-| Name                        | Type  | Default   | Example       | Description                                                                  |
-|-----------------------------|-------|-----------|---------------|------------------------------------------------------------------------------|
-| `pci_devices`               | `list`| `[]`      | (check below) | PCI devices configuration.                                                   |
-| `pci_devices[*].excluded`   | `bool`| `false`   | (check below) | Do not process matching PCI devices.                                         |
-| `pci_devices[*].unlisted`   | `bool`| `false`   | (check below) | Do not pass matching PCI devices to OpenNebula.                              |
-| `pci_devices[*].address`    | `str` | undefined | (check below) | Glob PCI devices by PCI or MAC address.                                      |
-| `pci_devices[*].vendor`     | `str` | `*`       | (check below) | Glob PCI devices by PCI Vendor (if address is undefined).                    |
-| `pci_devices[*].device`     | `str` | `*`       | (check below) | Glob PCI devices by PCI Device (if address is undefined).                    |
-| `pci_devices[*].class`      | `str` | `*`       | (check below) | Glob PCI devices by PCI Class (if address is undefined).                     |
-| `pci_devices[*].set_driver` | `str` | `omit`    | (check below) | Use driverctl to override driver (unless "omit").                            |
-| `pci_devices[*].set_name`   | `str` | `omit`    | (check below) | Rename device in udev (unless "omit").                                       |
-| `pci_devices[*].set_numvfs` | `str` | `0`       | (check below) | Enable Virtual Functions for SR-IOV capable devices (integer >= 0 or "max"). |
+| Name                        | Type  | Default   | Example       | Description                                                                         |
+|-----------------------------|-------|-----------|---------------|-------------------------------------------------------------------------------------|
+| `pci_devices`               | `list`| `[]`      | (check below) | PCI devices configuration.                                                          |
+| `pci_devices[*].excluded`   | `bool`| `false`   | (check below) | Do not process matching PCI devices.                                                |
+| `pci_devices[*].unguarded`  | `bool`| `false`   | (check below) | Do not protect matching PCI devices (this may cause primary NIC connectivity loss). |
+| `pci_devices[*].unlisted`   | `bool`| `false`   | (check below) | Do not pass matching PCI devices to OpenNebula.                                     |
+| `pci_devices[*].address`    | `str` | undefined | (check below) | Glob PCI devices by PCI or MAC address.                                             |
+| `pci_devices[*].vendor`     | `str` | `*`       | (check below) | Glob PCI devices by PCI Vendor (if address is undefined).                           |
+| `pci_devices[*].device`     | `str` | `*`       | (check below) | Glob PCI devices by PCI Device (if address is undefined).                           |
+| `pci_devices[*].class`      | `str` | `*`       | (check below) | Glob PCI devices by PCI Class (if address is undefined).                            |
+| `pci_devices[*].set_driver` | `str` | `omit`    | (check below) | Use driverctl to override driver (unless "omit").                                   |
+| `pci_devices[*].set_name`   | `str` | `omit`    | (check below) | Rename device in udev (unless "omit").                                              |
+| `pci_devices[*].set_numvfs` | `str` | `0`       | (check below) | Enable Virtual Functions for SR-IOV capable devices (integer >= 0 or "max").        |
 
 Dependencies
 ------------
@@ -74,6 +75,18 @@ Example Playbook
             set_name: "asd4v{0[3]}"
           - address: "0000:04:00.0"
             set_numvfs: 2
+      roles:
+        - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.helper.pci
+
+    - hosts: node
+      vars:
+        pci_devices:
+          # Process primary NIC by disabling its protection (NOTE: in general, this may cause connectivity loss!).
+          - address: "0000:02:00.0"
+            unguarded: true
+            unlisted: true
+            set_name: asd0
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.helper.pci
