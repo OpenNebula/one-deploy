@@ -166,4 +166,4 @@
       Please adjust 'pci_devices' to exclude forbidden PCI addresses.
   vars:
     _detected: >-
-      {{ lspci_devices | map(attribute='Slot') | intersect(pci_forbidden_addresses | d([])) }}
+      {{ lspci_devices | map(attribute='Slot') | intersect(pci_forbidden_addresses) }}
