@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# managed by one-deploy
+set -o errexit
+
+{% if not _dpdk_enabled %}
+echo 'DPDK has been disabled' >&2
+exit
+{% endif %}
+
+WANT='{{ ovs.set | d([]) | selectattr("other_config:dpdk-socket-mem", "defined") | map(attribute="other_config:dpdk-socket-mem") | first | d("") }}'
+HAVE="$(/usr/local/sbin/dpdk-socket-mem-scan.sh)"
+
+echo "'$HAVE' -> '$WANT'" >&2
+
+if [[ "$HAVE" == "$WANT" ]]; then
+    echo 'Nothing to do' >&2
+    exit
+fi
+
+IFS=',' read -ra _WANT <<< "$WANT"
+IFS=',' read -ra _HAVE <<< "$HAVE"
+
+for NODE in "${!_WANT[@]}"; do
+    HELD="$(head -1 "/sys/devices/system/node/node$NODE/hugepages/hugepages-1048576kB/nr_hugepages")"
+    FREE="$(head -1 "/sys/devices/system/node/node$NODE/hugepages/hugepages-1048576kB/free_hugepages")"
+
+    (( NEED = (_WANT[$NODE] - _HAVE[$NODE]) / 1024, 1 ))
+
+    if (( NEED > FREE )); then
+        echo "$(( HELD + NEED - FREE ))" > "/sys/devices/system/node/node$NODE/hugepages/hugepages-1048576kB/nr_hugepages"
+    fi
+done
+
+ovs-vsctl --no-wait set Open_vSwitch . "other_config:dpdk-socket-mem=$WANT"
+ovs-vsctl --no-wait set Open_vSwitch . 'other_config:dpdk-init=true'
+
+echo 'Done' >&2
+exit

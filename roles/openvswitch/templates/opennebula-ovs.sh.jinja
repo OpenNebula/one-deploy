@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# managed by one-deploy
 set -o errexit -o pipefail
 
 # --- Helper functions
@@ -9,7 +10,7 @@ die() { log "ERROR: $*"; exit 1; }
 # --- Basic assertions
 
 log 'Asserting required binaries and scripts are available'
-type -p arping find ip jq ovs-vsctl &>/dev/null
+type -p arping find ip jq ovs-vsctl systemctl &>/dev/null
 {% if _dpdk_enabled %}
 type -p dpdk-devbind.py ethtool &>/dev/null
 {% endif %}
@@ -64,7 +65,7 @@ done
 
 # --- Networking cleanup
 
-if type -p systemctl &>/dev/null && systemctl is-active --quiet NetworkManager; then
+if systemctl is-active --quiet NetworkManager; then
     log 'Stopping and disabling NetworkManager'
     systemctl disable NetworkManager || log 'WARNING: Failed to disable NetworkManager'
     systemctl stop NetworkManager || log 'WARNING: Failed to stop NetworkManager'

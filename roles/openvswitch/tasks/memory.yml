@@ -1,0 +1,158 @@
+---
+- vars:
+    _pci_addr_regex: >-
+      ^[0-9a-fA-F]{4}[:][0-9a-fA-F]{2}[:][0-9a-fA-F]{2}[.][0-9a-fA-F]{1,2}$
+
+    _per_port_memory: >-
+      {{ ovs.set | d([])
+                 | selectattr('other_config:per-port-memory', 'defined')
+                 | map(attribute='other_config:per-port-memory')
+                 | map('bool')
+                 | first
+                 | d(false) }}
+
+    _dpdk_socket_mem: >-
+      {{ ovs.set | d([])
+                 | selectattr('other_config:dpdk-socket-mem', 'defined')
+                 | map(attribute='other_config:dpdk-socket-mem')
+                 | first
+                 | d('') }}
+
+    _dpdk_iface: >-
+      {%- set output = [] -%}
+      {%- for k, v in ovs.iface.items() -%}
+        {%- for u in v.set | d([]) | selectattr('type', 'defined') -%}
+          {%- if u.type in ['dpdk'] -%}
+            {{- output.append([k, v]) -}}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{- dict(output) -}}
+
+    _dpdk_mtu_per_iface: >-
+      {%- set output = [] -%}
+      {%- for iface, v in _dpdk_iface.items() -%}
+        {{- output.append([iface, 1500]) -}}
+        {%- for o in v.set | d([]) | selectattr('mtu_request', 'defined') -%}
+          {{- output.append([iface, o.mtu_request]) -}}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{- dict(output) -}}
+
+    _dpdk_pci_addr_per_iface: >-
+      {%- set output = [] -%}
+      {%- for iface, v in _dpdk_iface.items() -%}
+        {%- for u in v.set | selectattr('options:dpdk-devargs', 'defined') -%}
+          {%- set _devargs = u['options:dpdk-devargs'] | string -%}
+          {%- if _devargs | regex_search(_pci_addr_regex) -%}
+            {{- output.append([iface, _devargs]) -}}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{- dict(output) -}}
+
+    _dpdk_numa_node_per_iface: >-
+      {%- set output = [] -%}
+      {%- for iface, numa_node in shell_pci_addr_per_iface.stdout_lines | map('split', ';') -%}
+        {{- output.append([iface, numa_node | int]) -}}
+      {%- endfor -%}
+      {{- dict(output) -}}
+
+    _dpdk_ifaces_per_numa_node: >-
+      {%- set output = {} -%}
+      {%- for iface, numa_node in _dpdk_numa_node_per_iface.items() -%}
+        {{-
+          output.update(output | combine(
+            { numa_node: output.get(numa_node, []) + [iface] }
+          ))
+        -}}
+      {%- endfor -%}
+      {{- output -}}
+
+    # NOTE:
+    #  896 = 704 + 128 + 64 <- metadata overhead (constant for all MTUs)
+    #  704 <- dp_packet & rte_mbuf
+    #  128 <- RTE_PKTMBUF_HEADROOM
+    #  64 <- alignment
+    #  262_144 <- MAX_NB_MBUF
+    _dpdk_base_pool_sizes: >-
+      {%- set output = [] -%}
+      {%- for mtu in _dpdk_mtu_per_iface.values() -%}
+        {{-
+          output.append([
+            mtu,
+            ((((((mtu / 1024) | round(0, 'ceil') * 1024) | int + 896) / 64) | round(0, 'ceil') * 64) | int + 64) * 262_144,
+          ])
+        -}}
+      {%- endfor -%}
+      {{- dict(output) -}}
+
+    # NOTE:
+    #  536_870_912 <- overhead buffer (512M)
+    _dpdk_socket_mem_shared_model: >-
+      {%- set output = {} -%}
+      {%- for numa_node, ifaces in _dpdk_ifaces_per_numa_node.items() -%}
+        {%- for mtu in _dpdk_mtu_per_iface.items() | selectattr(0, 'in', ifaces) | map(attribute=1) | unique -%}
+          {{-
+            output.update(
+              { numa_node: (output.get(numa_node, 536_870_912) + _dpdk_base_pool_sizes.get(mtu)) }
+            )
+          -}}
+        {%- endfor -%}
+        {{-
+          output.update(
+            { numa_node: ((output.get(numa_node) / 1024**3) | round(0, 'ceil') * 1024) | int }
+          )
+        -}}
+      {%- endfor -%}
+      {{- output -}}
+
+    # NOTE:
+    #  536_870_912 <- overhead buffer (512M)
+    _dpdk_socket_mem_per_port_model: >-
+      {%- set output = {} -%}
+      {%- for numa_node, ifaces in _dpdk_ifaces_per_numa_node.items() -%}
+        {%- for iface in ifaces -%}
+          {{-
+            output.update(
+              { numa_node: output.get(numa_node, 536_870_912) + _dpdk_base_pool_sizes.get(_dpdk_mtu_per_iface.get(iface)) }
+            )
+          -}}
+        {%- endfor -%}
+        {{-
+          output.update(
+            { numa_node: ((output.get(numa_node) / 1024**3) | round(0, 'ceil') * 1024) | int }
+          )
+        -}}
+      {%- endfor -%}
+      {{- output -}}
+  block:
+    - name: Get NUMA info for DPDK devices
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit
+          {% for k, v in _dpdk_pci_addr_per_iface.items() %}
+          echo -e "{{ k }};$(head -1 '/sys/bus/pci/devices/{{ v }}/numa_node' || echo '-1')"
+          {% endfor %}
+        executable: /bin/bash
+      changed_when: false
+      register: shell_pci_addr_per_iface
+
+    - name: Decide what to do with 'other_config:dpdk-socket-mem' (update in-place)
+      ansible.builtin.set_fact:
+        ovs: >-
+          {{ ovs | combine({
+              "set": ovs.set | d([])
+                             | rejectattr('other_config:dpdk-socket-mem', 'defined')
+                             | union(_update),
+             }, recursive=true) }}
+      vars:
+        _update:
+          - "other_config:dpdk-socket-mem": >-
+              {{ _estimated
+                 if (_dpdk_socket_mem == 'auto') else
+                 _dpdk_socket_mem }}
+        _estimated: >-
+          {{ (_dpdk_socket_mem_per_port_model | dictsort | map(attribute=1) | join(','))
+             if _per_port_memory else
+             (_dpdk_socket_mem_shared_model | dictsort | map(attribute=1) | join(',')) }}

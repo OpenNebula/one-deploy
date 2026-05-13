@@ -1,6 +1,7 @@
+# managed by one-deploy
 [Unit]
-Description=OVS Bridge Interface Network configuration
-{% if ansible_os_family == 'Debian' %}
+Description=OVS Network Configuration
+{% if ansible_os_family in ['Debian'] %}
 After=openvswitch-switch.service network-pre.target
 Wants=network-pre.target
 Before=network.target

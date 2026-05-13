@@ -6,15 +6,25 @@
 - when: ((ovs.iface | count) + (ovs.bond | count) + (ovs.br | count)) > 0
   vars:
     # helpers
+
     _pci_addr_regex: >-
       ^[0-9a-fA-F]{4}[:][0-9a-fA-F]{2}[:][0-9a-fA-F]{2}[.][0-9a-fA-F]{1,2}$
+
     # general
+
     _dpdk_enabled: >-
       {{ ovs.set | d([])
                  | selectattr('other_config:dpdk-init', 'defined')
                  | selectattr('other_config:dpdk-init', 'in', ['true'])
                  | count > 0 }}
+
+    _dpdk_socket_mem_defined: >-
+      {{ ovs.set | d([])
+                 | selectattr('other_config:dpdk-socket-mem', 'defined')
+                 | count > 0 }}
+
     # iface
+
     _dpdk_iface: >-
       {%- set output = [] -%}
       {%- for k, v in ovs.iface.items() -%}
@@ -25,6 +35,7 @@
         {%- endfor -%}
       {%- endfor -%}
       {{- dict(output) -}}
+
     _dpdk_pci_addrs_raw: >-
       {%- set output = [] -%}
       {%- for k, v in _dpdk_iface.items() -%}
@@ -38,14 +49,18 @@
         {%- endfor -%}
       {%- endfor -%}
       {{- output -}}
+
     _dpdk_pci_addrs_items: >-
       {{ _dpdk_pci_addrs_raw | select | unique }}
+
     _dpdk_pci_addrs: >-
       {{ dict(_dpdk_pci_addrs_items) }}
+
     _internal_iface: >-
       {{ ovs.iface | dict2items
                    | selectattr('key', 'in', ovs.br.keys())
                    | items2dict }}
+
     _system_iface: >-
       {%- set output = [] -%}
       {%- for k, v in ovs.iface.items() | rejectattr(0, 'in', _internal_iface.keys()) -%}
@@ -58,32 +73,39 @@
         {%- endif -%}
       {%- endfor -%}
       {{- dict(output) -}}
+
     _iface: >-
       {{ ovs.iface | dict2items
                    | rejectattr('key', 'in', _dpdk_iface.keys())
                    | rejectattr('key', 'in', _internal_iface.keys())
                    | items2dict }}
+
     _pci_addrs: >-
       {{ command_udevadm_pci_addresses.stdout_lines | d([])
                                                     | select
                                                     | map('regex_replace', '^pci-', '') }}
     # bond
+
     _dpdk_bond: >-
       {{ ovs.bond | dict2items
                   | selectattr('value.ifaces', 'defined')
                   | selectattr('value.ifaces', 'subset', _dpdk_iface.keys())
                   | items2dict }}
+
     _bond: >-
       {{ ovs.bond | dict2items
                   | selectattr('value.ifaces', 'defined')
                   | selectattr('value.ifaces', 'subset', _iface.keys())
                   | items2dict }}
+
     _bond_ifaces: >-
       {{ ovs.bond | dict2items
                   | selectattr('value.ifaces', 'defined')
                   | map(attribute='value.ifaces')
                   | flatten }}
+
     # br
+
     _dpdk_br: >-
       {%- set output = [] -%}
       {%- for k, v in ovs.br.items() -%}
@@ -94,10 +116,12 @@
         {%- endfor -%}
       {%- endfor -%}
       {{- dict(output) -}}
+
     _br: >-
       {{ ovs.br | dict2items
                 | rejectattr('key', 'in', _dpdk_br.keys())
                 | items2dict }}
+
     _br_ports: >-
       {{ ovs.br | dict2items
                 | selectattr('value.ports', 'defined')
@@ -283,9 +307,7 @@
       retries: 12
       delay: 5
 
-    - when:
-        - ansible_os_family in ['Debian']
-        - _dpdk_enabled is true
+    - when: ansible_os_family in ['Debian'] and _dpdk_enabled
       block:
         - name: Use DPDK version of ovs-vswitchd
           community.general.alternatives:
@@ -357,32 +379,75 @@
               and
               (alternatives_ovs_vswitchd is changed)) }}
 
-    - name: Install OVS-related scripts
-      ansible.builtin.template:
-        src: "{{ item.src }}"
-        dest: "{{ item.dest }}"
-        mode: "{{ item.mode }}"
-        owner: 0
-        group: 0
-      loop:
-        - src: opennebula-ovs.sh.jinja
-          dest: /usr/local/sbin/opennebula-ovs.sh
-          mode: u=rwx,go=rx
-        - src: opennebula-ovs.service.jinja
-          dest: /etc/systemd/system/opennebula-ovs.service
-          mode: u=rw,go=r
-      register: template
+    - when: _dpdk_enabled and _dpdk_socket_mem_defined
+      block:
+        - ansible.builtin.include_tasks:
+            file: "{{ role_path }}/tasks/memory.yml"
 
-    - name: Switch to OVS networking
-      ansible.builtin.systemd_service:
-        daemon_reload: "{{ item.daemon_reload | d(omit) }}"
-        name: "{{ item.name | d(omit) }}"
-        state: "{{ item.state | d(omit) }}"
-        enabled: "{{ item.enabled | d(omit) }}"
-      loop:
-        - daemon_reload: "{{ _changed }}"
-        - name: opennebula-ovs.service
-          state: "{{ 'restarted' if _changed else 'started' }}"
-          enabled: true
-      vars:
-        _changed: "{{ template is changed }}"
+        - name: Create /etc/systemd/system/ovs-vswitchd.service.d/
+          ansible.builtin.file:
+            path: /etc/systemd/system/ovs-vswitchd.service.d/
+            state: directory
+            owner: 0
+            group: 0
+            mode: u=rwx,go=rx
+
+    - block:
+        - name: Install OVS-related scripts
+          ansible.builtin.template:
+            src: "{{ item.src }}"
+            dest: "{{ item.dest }}"
+            mode: "{{ item.mode }}"
+            owner: 0
+            group: 0
+          when: item.when | d(true)
+          loop:
+            - when: "{{ _dpdk_enabled and _dpdk_socket_mem_defined }}"
+              src: dpdk-socket-mem-scan.sh.jinja
+              dest: /usr/local/sbin/dpdk-socket-mem-scan.sh
+              mode: u=rwx,go=rx
+
+            - when: "{{ _dpdk_enabled and _dpdk_socket_mem_defined }}"
+              src: dpdk-socket-mem.sh.jinja
+              dest: /usr/local/sbin/dpdk-socket-mem.sh
+              mode: u=rwx,go=rx
+
+            - when: "{{ _dpdk_enabled and _dpdk_socket_mem_defined }}"
+              src: dpdk-socket-mem.service.jinja
+              dest: /etc/systemd/system/dpdk-socket-mem.service
+              mode: u=rw,go=r
+
+            - when: "{{ _dpdk_enabled and _dpdk_socket_mem_defined }}"
+              src: ovs-vswitchd.service.jinja
+              dest: /etc/systemd/system/ovs-vswitchd.service.d/override.conf
+              mode: u=rw,go=r
+
+            - src: opennebula-ovs.sh.jinja
+              dest: /usr/local/sbin/opennebula-ovs.sh
+              mode: u=rwx,go=rx
+
+            - src: opennebula-ovs.service.jinja
+              dest: /etc/systemd/system/opennebula-ovs.service
+              mode: u=rw,go=r
+          register: template
+
+        - name: Switch to OVS networking
+          ansible.builtin.systemd_service:
+            daemon_reload: "{{ item.daemon_reload | d(omit) }}"
+            name: "{{ item.name | d(omit) }}"
+            state: "{{ item.state | d(omit) }}"
+            enabled: "{{ item.enabled | d(omit) }}"
+          when: item.when | d(true)
+          loop:
+            - daemon_reload: "{{ _changed }}"
+
+            - when: "{{ _dpdk_enabled and _dpdk_socket_mem_defined }}"
+              name: dpdk-socket-mem.service
+              state: "{{ 'restarted' if _changed else 'started' }}"
+              enabled: true
+
+            - name: opennebula-ovs.service
+              state: "{{ 'restarted' if _changed else 'started' }}"
+              enabled: true
+          vars:
+            _changed: "{{ template is changed }}"
