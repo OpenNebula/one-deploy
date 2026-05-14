@@ -9,4 +9,5 @@ requires-python = ">=3.9"
 dependencies = [
   "ansible-core<2.17",
   "netaddr",
+  "requests",
 ]
