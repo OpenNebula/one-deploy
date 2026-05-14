@@ -19,8 +19,13 @@ match($0, /\<huge\>/) && match($0, /\<N([0-9]+)=([0-9]+)\>/, N) && match($0, /\<
 
 END {
     for (node in seen) {
-        joined = (joined == "" ? "" : joined ",") seen[node]
+        max_node = (node > max_node) ? node : max_node
     }
+
+    for (node = 0; node <= max_node; node++) {
+        joined = (joined == "" ? "" : joined ",") ((node in seen) ? seen[node] : 0)
+    }
+
     print joined
 }
 AWK

@@ -105,7 +105,9 @@
           )
         -}}
       {%- endfor -%}
-      {{- output -}}
+      {{- range(output | max + 1) | zip((output | max + 1) * [0])
+                                  | items2dict(key_name=0, value_name=1)
+                                  | combine(output) -}}
 
     # NOTE:
     #  536_870_912 <- overhead buffer (512M)
@@ -125,7 +127,9 @@
           )
         -}}
       {%- endfor -%}
-      {{- output -}}
+      {{- range(output | max + 1) | zip((output | max + 1) * [0])
+                                  | items2dict(key_name=0, value_name=1)
+                                  | combine(output) -}}
   block:
     - name: Get NUMA info for DPDK devices
       ansible.builtin.shell:
