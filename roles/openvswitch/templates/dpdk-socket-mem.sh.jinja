@@ -28,11 +28,17 @@ for NODE in "${!_WANT[@]}"; do
 
     if (( NEED > FREE )); then
         echo "$(( HELD + NEED - FREE ))" > "/sys/devices/system/node/node$NODE/hugepages/hugepages-1048576kB/nr_hugepages"
+        CHANGED=1
     fi
 done
 
-ovs-vsctl --no-wait set Open_vSwitch . "other_config:dpdk-socket-mem=$WANT"
-ovs-vsctl --no-wait set Open_vSwitch . 'other_config:dpdk-init=true'
+{% for v in ovs.set | d([]) | map('dict2items') | flatten %}
+ovs-vsctl --no-wait set Open_vSwitch . '{{ v.key }}={{ v.value }}'
+{% endfor %}
+
+if (( CHANGED > 0 )); then
+    systemctl restart --no-block ovs-vswitchd.service
+fi
 
 echo 'Done' >&2
 exit
