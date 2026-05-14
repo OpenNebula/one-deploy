@@ -136,7 +136,8 @@
         cmd: |
           set -o errexit
           {% for k, v in _dpdk_pci_addr_per_iface.items() %}
-          echo -e "{{ k }};$(head -1 '/sys/bus/pci/devices/{{ v }}/numa_node' || echo '-1')"
+          NODE="$(head -1 '/sys/bus/pci/devices/{{ v }}/numa_node' || echo '0')"
+          echo -e "{{ k }};$(( NODE < 0 ? 0 : NODE ))"
           {% endfor %}
         executable: /bin/bash
       changed_when: false
