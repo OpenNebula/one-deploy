@@ -17,6 +17,7 @@ Role Variables
 | `pci_devices[*].excluded`   | `bool`| `false`   | (check below) | Do not process matching PCI devices.                                                |
 | `pci_devices[*].unguarded`  | `bool`| `false`   | (check below) | Do not protect matching PCI devices (this may cause primary NIC connectivity loss). |
 | `pci_devices[*].unlisted`   | `bool`| `false`   | (check below) | Do not pass matching PCI devices to OpenNebula.                                     |
+| `pci_devices[*].virtual`    | `bool`| `false`   | (check below) | Do not fail query on missing virtual devices (SR-IOV).                              |
 | `pci_devices[*].address`    | `str` | undefined | (check below) | Glob PCI devices by PCI or MAC address.                                             |
 | `pci_devices[*].vendor`     | `str` | `*`       | (check below) | Glob PCI devices by PCI Vendor (if address is undefined).                           |
 | `pci_devices[*].device`     | `str` | `*`       | (check below) | Glob PCI devices by PCI Device (if address is undefined).                           |
@@ -99,12 +100,6 @@ Example Playbook
     - hosts: node
       vars:
         pci_devices:
-          # Rename all existing Mellanox VFs.
-          - vendor: "15b3"
-            device: "*"
-            class: "0200"
-            set_name: "pf{1[1]}{1[2]}{1[3]}vf{2}"
-
           # Enable all available VFs for all existing Mellanox PFs + rename PFs.
           - vendor: "15b3"
             device: "1015"
@@ -112,6 +107,12 @@ Example Playbook
             set_numvfs: max
             set_name: "pf{0[1]}{0[2]}{0[3]}"
 
+          # Rename all existing Mellanox VFs.
+          - vendor: "15b3"
+            device: "1016"
+            class: "0200"
+            virtual: true
+            set_name: "pf{1[1]}{1[2]}{1[3]}vf{2}"
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.helper.pci

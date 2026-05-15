@@ -9,49 +9,55 @@
       if [[ -n "$STDOUT" ]]; then
         echo "$STDOUT"
         echo
+        setpci -v -d '{{ v.key }}' STATUS | while IFS=' ' read -r SLOT _; do
+          echo -e "Slot:\t$SLOT"
+          if setpci -s "$SLOT" ECAP_SRIOV.B 1>/dev/null; then
+            echo -e "Ecap_sriov:\tyes"
+          else
+            echo -e "Ecap_sriov:\tno"
+          fi
+          echo -e 'Set_driver:\t{{ v.set_driver | d('omit') }}'
+          echo -e 'Set_name:\t{{ v.set_name | d('omit') }}'
+          echo -e 'Set_numvfs:\t{{ v.set_numvfs | d(0) }}'
+          echo -e 'Virtual:\t{{ v.virtual | d(false) | bool | ternary('yes', 'no') }}'
+          echo -e 'Unlisted:\t{{ v.unlisted | d(false) | bool | ternary('yes', 'no') }}'
+          echo -e 'Unguarded:\t{{ v.unguarded | d(false) | bool | ternary('yes', 'no') }}'
+          echo -e 'Excluded:\t{{ v.excluded | d(false) | bool | ternary('yes', 'no') }}'
+          echo
+        done
       else
         echo "Could not find '{{ v.key }}'" >&2
+      {% if v.virtual | d(false) | bool is false %}
         exit 1
+      {% endif %}
       fi
-      setpci -v -d '{{ v.key }}' STATUS | while IFS=' ' read -r SLOT _; do
-        echo -e "Slot:\t$SLOT"
-        if setpci -s "$SLOT" ECAP_SRIOV.B 1>/dev/null; then
-          echo -e "Ecap_sriov:\tyes"
-        else
-          echo -e "Ecap_sriov:\tno"
-        fi
-        echo -e 'Set_driver:\t{{ v.set_driver | d('omit') }}'
-        echo -e 'Set_name:\t{{ v.set_name | d('omit') }}'
-        echo -e 'Set_numvfs:\t{{ v.set_numvfs | d(0) }}'
-        echo -e 'Unlisted:\t{{ v.unlisted | d(false) | bool | ternary('yes', 'no') }}'
-        echo -e 'Unguarded:\t{{ v.unguarded | d(false) | bool | ternary('yes', 'no') }}'
-        echo -e 'Excluded:\t{{ v.excluded | d(false) | bool | ternary('yes', 'no') }}'
-        echo
-      done
       {% elif v.key_type == 'pci' %}
       STDOUT="$(lspci -vmm -nkD -s '{{ v.key }}')"
       if [[ -n "$STDOUT" ]]; then
         echo "$STDOUT"
         echo
+        setpci -v -s '{{ v.key }}' STATUS | while IFS=' ' read -r SLOT _; do
+          echo -e "Slot:\t$SLOT"
+          if setpci -s "$SLOT" ECAP_SRIOV.B 1>/dev/null; then
+            echo -e "Ecap_sriov:\tyes"
+          else
+            echo -e "Ecap_sriov:\tno"
+          fi
+          echo -e 'Set_driver:\t{{ v.set_driver | d('omit') }}'
+          echo -e 'Set_name:\t{{ v.set_name | d('omit') }}'
+          echo -e 'Set_numvfs:\t{{ v.set_numvfs | d(0) }}'
+          echo -e 'Virtual:\t{{ v.virtual | d(false) | bool | ternary('yes', 'no') }}'
+          echo -e 'Unlisted:\t{{ v.unlisted | d(false) | bool | ternary('yes', 'no') }}'
+          echo -e 'Unguarded:\t{{ v.unguarded | d(false) | bool | ternary('yes', 'no') }}'
+          echo -e 'Excluded:\t{{ v.excluded | d(false) | bool | ternary('yes', 'no') }}'
+          echo
+        done
       else
         echo "Could not find '{{ v.key }}'" >&2
+      {% if v.virtual | d(false) | bool is false %}
         exit 1
+      {% endif %}
       fi
-      setpci -v -s '{{ v.key }}' STATUS | while IFS=' ' read -r SLOT _; do
-        echo -e "Slot:\t$SLOT"
-        if setpci -s "$SLOT" ECAP_SRIOV.B 1>/dev/null; then
-          echo -e "Ecap_sriov:\tyes"
-        else
-          echo -e "Ecap_sriov:\tno"
-        fi
-        echo -e 'Set_driver:\t{{ v.set_driver | d('omit') }}'
-        echo -e 'Set_name:\t{{ v.set_name | d('omit') }}'
-        echo -e 'Set_numvfs:\t{{ v.set_numvfs | d(0) }}'
-        echo -e 'Unlisted:\t{{ v.unlisted | d(false) | bool | ternary('yes', 'no') }}'
-        echo -e 'Unguarded:\t{{ v.unguarded | d(false) | bool | ternary('yes', 'no') }}'
-        echo -e 'Excluded:\t{{ v.excluded | d(false) | bool | ternary('yes', 'no') }}'
-        echo
-      done
       {% elif v.key_type == 'mac' %}
       udevadm trigger -nv -s net -a 'address={{ v.key }}' | while read -r DEVPATH; do
         IFS='/' read -r _ SYS DEVICES ROOT _ SLOT _ <<< "$DEVPATH"
@@ -62,26 +68,29 @@
         if [[ -n "$STDOUT" ]]; then
           echo "$STDOUT"
           echo
+          echo -e "Slot:\t$SLOT"
+          if setpci -s "$SLOT" ECAP_SRIOV.B 1>/dev/null; then
+            echo -e "Ecap_sriov:\tyes"
+          else
+            echo -e "Ecap_sriov:\tno"
+          fi
+          if [[ -e "$DEVPATH/address" ]]; then
+            echo -e "Address:\t$(cat $DEVPATH/address)"
+          fi
+          echo -e 'Set_driver:\t{{ v.set_driver | d('omit') }}'
+          echo -e 'Set_name:\t{{ v.set_name | d('omit') }}'
+          echo -e 'Set_numvfs:\t{{ v.set_numvfs | d(0) }}'
+          echo -e 'Virtual:\t{{ v.virtual | d(false) | bool | ternary('yes', 'no') }}'
+          echo -e 'Unlisted:\t{{ v.unlisted | d(false) | bool | ternary('yes', 'no') }}'
+          echo -e 'Unguarded:\t{{ v.unguarded | d(false) | bool | ternary('yes', 'no') }}'
+          echo -e 'Excluded:\t{{ v.excluded | d(false) | bool | ternary('yes', 'no') }}'
+          echo
         else
           echo "Could not find '$SLOT'" >&2
+      {% if v.virtual | d(false) | bool is false %}
           exit 1
+      {% endif %}
         fi
-        echo -e "Slot:\t$SLOT"
-        if setpci -s "$SLOT" ECAP_SRIOV.B 1>/dev/null; then
-          echo -e "Ecap_sriov:\tyes"
-        else
-          echo -e "Ecap_sriov:\tno"
-        fi
-        if [[ -e "$DEVPATH/address" ]]; then
-          echo -e "Address:\t$(cat $DEVPATH/address)"
-        fi
-        echo -e 'Set_driver:\t{{ v.set_driver | d('omit') }}'
-        echo -e 'Set_name:\t{{ v.set_name | d('omit') }}'
-        echo -e 'Set_numvfs:\t{{ v.set_numvfs | d(0) }}'
-        echo -e 'Unlisted:\t{{ v.unlisted | d(false) | bool | ternary('yes', 'no') }}'
-        echo -e 'Unguarded:\t{{ v.unguarded | d(false) | bool | ternary('yes', 'no') }}'
-        echo -e 'Excluded:\t{{ v.excluded | d(false) | bool | ternary('yes', 'no') }}'
-        echo
       done
       {% endif %}
       {% endfor %}
