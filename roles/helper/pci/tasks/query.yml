@@ -20,7 +20,7 @@
           echo -e 'Set_name:\t{{ v.set_name | d('omit') }}'
           echo -e 'Set_numvfs:\t{{ v.set_numvfs | d(0) }}'
           echo -e 'Virtual:\t{{ v.virtual | d(false) | bool | ternary('yes', 'no') }}'
-          echo -e 'Unlisted:\t{{ v.unlisted | d(false) | bool | ternary('yes', 'no') }}'
+          echo -e 'Unlisted:\t{{ v.unlisted | d(true) | bool | ternary('yes', 'no') }}'
           echo -e 'Unguarded:\t{{ v.unguarded | d(false) | bool | ternary('yes', 'no') }}'
           echo -e 'Excluded:\t{{ v.excluded | d(false) | bool | ternary('yes', 'no') }}'
           echo
@@ -47,7 +47,7 @@
           echo -e 'Set_name:\t{{ v.set_name | d('omit') }}'
           echo -e 'Set_numvfs:\t{{ v.set_numvfs | d(0) }}'
           echo -e 'Virtual:\t{{ v.virtual | d(false) | bool | ternary('yes', 'no') }}'
-          echo -e 'Unlisted:\t{{ v.unlisted | d(false) | bool | ternary('yes', 'no') }}'
+          echo -e 'Unlisted:\t{{ v.unlisted | d(true) | bool | ternary('yes', 'no') }}'
           echo -e 'Unguarded:\t{{ v.unguarded | d(false) | bool | ternary('yes', 'no') }}'
           echo -e 'Excluded:\t{{ v.excluded | d(false) | bool | ternary('yes', 'no') }}'
           echo
@@ -81,7 +81,7 @@
           echo -e 'Set_name:\t{{ v.set_name | d('omit') }}'
           echo -e 'Set_numvfs:\t{{ v.set_numvfs | d(0) }}'
           echo -e 'Virtual:\t{{ v.virtual | d(false) | bool | ternary('yes', 'no') }}'
-          echo -e 'Unlisted:\t{{ v.unlisted | d(false) | bool | ternary('yes', 'no') }}'
+          echo -e 'Unlisted:\t{{ v.unlisted | d(true) | bool | ternary('yes', 'no') }}'
           echo -e 'Unguarded:\t{{ v.unguarded | d(false) | bool | ternary('yes', 'no') }}'
           echo -e 'Excluded:\t{{ v.excluded | d(false) | bool | ternary('yes', 'no') }}'
           echo

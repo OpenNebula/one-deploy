@@ -29,11 +29,11 @@ Example Playbook
           - address: "0000:02:00.0"
             excluded: true
           - address: "0000:03:00.*"
-            unlisted: true
             set_name: "asd{0[3]}"
           - vendor: "1af4"
             device: "*"
             class: "0200"
+            unlisted: false
             set_driver: omit # NOTE: 'vfio-pci' is the default, 'omit' skips override altogether
             set_numvfs: max
       roles:

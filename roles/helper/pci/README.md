@@ -16,7 +16,7 @@ Role Variables
 | `pci_devices`               | `list`| `[]`      | (check below) | PCI devices configuration.                                                          |
 | `pci_devices[*].excluded`   | `bool`| `false`   | (check below) | Do not process matching PCI devices.                                                |
 | `pci_devices[*].unguarded`  | `bool`| `false`   | (check below) | Do not protect matching PCI devices (this may cause primary NIC connectivity loss). |
-| `pci_devices[*].unlisted`   | `bool`| `false`   | (check below) | Do not pass matching PCI devices to OpenNebula.                                     |
+| `pci_devices[*].unlisted`   | `bool`| `true`    | (check below) | Do not pass matching PCI devices to OpenNebula.                                     |
 | `pci_devices[*].virtual`    | `bool`| `false`   | (check below) | Do not fail query on missing virtual devices (SR-IOV).                              |
 | `pci_devices[*].address`    | `str` | undefined | (check below) | Glob PCI devices by PCI or MAC address.                                             |
 | `pci_devices[*].vendor`     | `str` | `*`       | (check below) | Glob PCI devices by PCI Vendor (if address is undefined).                           |
@@ -71,12 +71,12 @@ Example Playbook
           # Enable 2 VFs and rename them to asd3v0, asd3v1 + Make sure OpenNebula doesn't use them (unlisted <- true).
           - address: "0000:03:00.*"
             set_name: "asd3vf{2}"
-            unlisted: true
           - address: "0000:03:00.0"
             set_numvfs: 2
 
           # Enable 2 VFs and rename them to asd4v0, asd4v1 + Make sure OpenNebula does use them (unlisted <- false).
           - address: "0000:04:00.*"
+            unlisted: false
             set_driver: vfio-pci # usual requirement for OpenNebula VMs
             set_name: "asd4vf{2}"
           - address: "0000:04:00.0"
@@ -91,7 +91,6 @@ Example Playbook
           # Process primary NIC by disabling its protection (NOTE: in general, this may cause connectivity loss!).
           - address: "0000:02:00.0"
             unguarded: true
-            unlisted: true
             set_name: asd0
       roles:
         - role: opennebula.deploy.helper.facts
@@ -123,7 +122,6 @@ Example Playbook
           # Rename and unlist all NICs matching MAC address wildcard.
           - address: "52:54:00:12:3*:*"
             set_name: "unlist{0[1]}{0{2}}{0[3]}"
-            unlisted: true
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.helper.pci
