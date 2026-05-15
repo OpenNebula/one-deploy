@@ -103,14 +103,14 @@ Example Playbook
           - vendor: "15b3"
             device: "*"
             class: "0200"
-            set_name: "pf{1[1]}{1[2]}vf{2}"
+            set_name: "pf{1[1]}{1[2]}{1[3]}vf{2}"
 
           # Enable all available VFs for all existing Mellanox PFs + rename PFs.
           - vendor: "15b3"
             device: "1015"
             class: "0200"
             set_numvfs: max
-            set_name: "pf{0[1]}{0[2]}"
+            set_name: "pf{0[1]}{0[2]}{0[3]}"
 
       roles:
         - role: opennebula.deploy.helper.facts
