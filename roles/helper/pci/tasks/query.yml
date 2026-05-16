@@ -7,6 +7,9 @@
       {% if v.key_type == 'vdc' %}
       STDOUT="$(lspci -vmm -nkD -d '{{ v.key }}')"
       if [[ -n "$STDOUT" ]]; then
+      {% if v.set_counter is defined %}
+        echo -e 'Set_counter:\t{{ v.set_counter }}'
+      {% endif %}
         echo "$STDOUT"
         echo
         setpci -v -d '{{ v.key }}' STATUS | while IFS=' ' read -r SLOT _; do
@@ -34,6 +37,9 @@
       {% elif v.key_type == 'pci' %}
       STDOUT="$(lspci -vmm -nkD -s '{{ v.key }}')"
       if [[ -n "$STDOUT" ]]; then
+      {% if v.set_counter is defined %}
+        echo -e 'Set_counter:\t{{ v.set_counter }}'
+      {% endif %}
         echo "$STDOUT"
         echo
         setpci -v -s '{{ v.key }}' STATUS | while IFS=' ' read -r SLOT _; do
@@ -66,6 +72,9 @@
         fi
         STDOUT="$(lspci -vmm -nkD -s "$SLOT")"
         if [[ -n "$STDOUT" ]]; then
+      {% if v.set_counter is defined %}
+          echo -e 'Set_counter:\t{{ v.set_counter }}'
+      {% endif %}
           echo "$STDOUT"
           echo
           echo -e "Slot:\t$SLOT"

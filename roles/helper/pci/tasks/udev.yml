@@ -1,12 +1,24 @@
 ---
 - when: lspci_devices | count > 0
   vars:
+    # NOTE: This marks items with indices that can be later used to rename devices.
+    _lspci_devices: >-
+      {%- set ns = namespace(output=[], i=0) -%}
+      {%- for v in lspci_devices -%}
+        {%- if v.Set_counter is defined -%}
+          {%- set ns.i = v.Set_counter | int -%}
+        {%- endif -%}
+        {%- set ns.output = ns.output + [v | combine({ "Index": ns.i })] -%}
+        {%- set ns.i = ns.i + 1 -%}
+      {%- endfor -%}
+      {{- ns.output -}}
+
     _all: >-
-      {{ lspci_devices | selectattr('Set_name', 'defined')
-                       | rejectattr('Set_name', '==', 'omit')
-                       | selectattr('Class', 'defined')
-                       | selectattr('Driver', 'defined')
-                       | selectattr('Slot', 'defined') }}
+      {{ _lspci_devices | selectattr('Set_name', 'defined')
+                        | rejectattr('Set_name', '==', 'omit')
+                        | selectattr('Class', 'defined')
+                        | selectattr('Driver', 'defined')
+                        | selectattr('Slot', 'defined') }}
 
     _net: >-
       {{ _all | selectattr('Class', 'in', ['0200'])
@@ -32,9 +44,9 @@
       ansible.builtin.shell:
         cmd: |
           set -o errexit -o pipefail
-          {% for v in lspci_devices | selectattr('Ecap_sriov', '==', 'yes') %}
+          {% for v in _lspci_devices | selectattr('Ecap_sriov', '==', 'yes') %}
           find -P "/sys/bus/pci/devices/{{ v.Slot }}/" -maxdepth 1 -type l -name 'virtfn*' -printf '%l/%P\n' | while IFS='/' read -r _ VF FN; do
-              echo "$VF;{{ v.Slot }};${FN#virtfn}"
+            echo "$VF;{{ v.Slot }};${FN#virtfn}"
           done
           {% endfor %}
         executable: /bin/bash
@@ -57,7 +69,8 @@
             {% for v in _net %}
             {% set name = v.Set_name.format(v.Slot | regex_findall('[0-9a-fA-F]+'),
                                             _vf_to_pf.get(v.Slot, '') | regex_findall('[0-9a-fA-F]+'),
-                                            _vf_to_fn.get(v.Slot, '')) %}
+                                            _vf_to_fn.get(v.Slot, ''),
+                                            v.Index | d(0)) %}
             # {{ v.Slot }} <- {{ name }}
             SUBSYSTEM=="net", ACTION=="add", ENV{ID_PATH}=="pci-{{ v.Slot }}", NAME="{{ name }}"
             {% endfor %}
@@ -65,7 +78,8 @@
             {% for v in _pci %}
             {% set name = v.Set_name.format(v.Slot | regex_findall('[0-9a-fA-F]+'),
                                             _vf_to_pf.get(v.Slot, '') | regex_findall('[0-9a-fA-F]+'),
-                                            _vf_to_fn.get(v.Slot, '')) %}
+                                            _vf_to_fn.get(v.Slot, ''),
+                                            v.Index | d(0)) %}
             # {{ v.Slot }} <- {{ name }}
             SUBSYSTEM=="pci", ACTION=="add", ENV{ID_PATH}=="pci-{{ v.Slot }}", SYMLINK+="pci/by-tag/{{ name }}"
             {% endfor %}
@@ -73,7 +87,8 @@
             {% for v in _vfio %}
             {% set name = v.Set_name.format(v.Slot | regex_findall('[0-9a-fA-F]+'),
                                             _vf_to_pf.get(v.Slot, '') | regex_findall('[0-9a-fA-F]+'),
-                                            _vf_to_fn.get(v.Slot, '')) %}
+                                            _vf_to_fn.get(v.Slot, ''),
+                                            v.Index | d(0)) %}
             # {{ v.Slot }} <- {{ name }}
             SUBSYSTEM=="vfio", ACTION=="add", KERNEL=="{{ v.IOMMUGroup }}", SYMLINK+="vfio/by-tag/{{ name }}"
             {% endfor %}
