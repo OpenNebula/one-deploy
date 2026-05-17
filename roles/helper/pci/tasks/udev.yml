@@ -8,7 +8,7 @@
         {%- if v.Set_counter is defined -%}
           {%- set ns.i = v.Set_counter | int -%}
         {%- endif -%}
-        {%- set ns.output = ns.output + [v | combine({ "Index": ns.i })] -%}
+        {%- set ns.output = ns.output + [v | combine({"Index": ns.i})] -%}
         {%- set ns.i = ns.i + 1 -%}
       {%- endfor -%}
       {{- ns.output -}}
@@ -24,13 +24,8 @@
       {{ _all | selectattr('Class', 'in', ['0200'])
               | rejectattr('Driver', 'in', ['vfio-pci']) }}
 
-    _pci: >-
-      {{ _all | rejectattr('Class', 'in', ['0200'])
-              | rejectattr('Driver', 'in', ['vfio-pci']) }}
-
     _vfio: >-
-      {{ _all | selectattr('Driver', 'in', ['vfio-pci'])
-              | selectattr('IOMMUGroup', 'defined') }}
+      {{ _all | selectattr('IOMMUGroup', 'defined') }}
 
     _vf_to_pf: >-
       {{ shell_vf_to_pf_fn.stdout_lines | d([])
@@ -80,15 +75,6 @@
             # {{ v.Slot }} <- {{ name }}
             SUBSYSTEM=="net", ACTION=="add", ENV{ID_PATH}=="pci-{{ v.Slot }}", NAME="{{ name }}"
             {% endfor %}
-            # --- PCI
-            {% for v in _pci %}
-            {% set name = v.Set_name.format(v.Slot | regex_findall('[0-9a-fA-F]+'),
-                                            _vf_to_pf.get(v.Slot, '') | regex_findall('[0-9a-fA-F]+'),
-                                            _vf_to_fn.get(v.Slot, ''),
-                                            v.Index | d(0)) %}
-            # {{ v.Slot }} <- {{ name }}
-            SUBSYSTEM=="pci", ACTION=="add", ENV{ID_PATH}=="pci-{{ v.Slot }}", SYMLINK+="pci/by-tag/{{ name }}"
-            {% endfor %}
             # --- VFIO
             {% for v in _vfio %}
             {% set name = v.Set_name.format(v.Slot | regex_findall('[0-9a-fA-F]+'),
@@ -96,7 +82,8 @@
                                             _vf_to_fn.get(v.Slot, ''),
                                             v.Index | d(0)) %}
             # {{ v.Slot }} <- {{ name }}
-            SUBSYSTEM=="vfio", ACTION=="add", KERNEL=="{{ v.IOMMUGroup }}", SYMLINK+="vfio/by-tag/{{ name }}"
+            SUBSYSTEM=="vfio", ACTION=="add", SYMLINK+="vfio/by-tag/{{ name }}", \
+            PROGRAM="/usr/bin/test /sys/bus/pci/devices/{{ v.Slot }}/iommu_group -ef /sys/kernel/iommu_groups/%k"
             {% endfor %}
         - dest: /etc/udev/rules.d/99-mode.rules
           content: |
