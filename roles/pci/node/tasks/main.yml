@@ -1,14 +1,20 @@
 ---
-- when: pci_passthrough_enabled | bool is true
+- when: _enabled is true
+  vars:
+    _enabled: >-
+      {{ _hosts | map('extract', hostvars)
+                | map(attribute='pci_devices', default=[])
+                | select
+                | count > 0 }}
+    _hosts: >-
+      {{ groups[node_group | d('node')] }}
   block:
     - ansible.builtin.include_role:
         name: opennebula.deploy.helper.pci
-      when:
-        - lspci_devices is undefined
+      when: lspci_devices is undefined
 
     - ansible.builtin.import_tasks:
         file: "{{ role_path }}/tasks/filters.yml"
       when:
         - lspci_devices is defined
-        - lspci_devices is sequence
         - lspci_devices | count > 0

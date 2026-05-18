@@ -1,9 +1,10 @@
 ---
-- when: pci_passthrough_enabled | bool is true
+- when:
+    - pci_devices is sequence
+    - pci_devices | count > 0
   block:
-    - ansible.builtin.import_tasks:
+    - ansible.builtin.include_tasks:
         file: "{{ role_path }}/tasks/devices.yml"
-      when:
-        - pci_devices is defined
-        - pci_devices is sequence
-        - pci_devices | count > 0
+
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/udev.yml"

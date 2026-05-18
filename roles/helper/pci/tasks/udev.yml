@@ -1,0 +1,98 @@
+---
+- when: lspci_devices | count > 0
+  vars:
+    # NOTE: This marks items with indices that can be later used to rename devices.
+    _lspci_devices: >-
+      {%- set ns = namespace(output=[], i=0) -%}
+      {%- for v in lspci_devices -%}
+        {%- if v.Set_counter is defined -%}
+          {%- set ns.i = v.Set_counter | int -%}
+        {%- endif -%}
+        {%- set ns.output = ns.output + [v | combine({"Index": ns.i})] -%}
+        {%- set ns.i = ns.i + 1 -%}
+      {%- endfor -%}
+      {{- ns.output -}}
+
+    _sriov_devices: >-
+      {{ _lspci_devices | selectattr('Ecap_sriov', '==', 'yes') }}
+
+    _all: >-
+      {{ _lspci_devices | selectattr('Set_name', 'defined')
+                        | rejectattr('Set_name', '==', 'omit')
+                        | selectattr('Class', 'defined')
+                        | selectattr('Driver', 'defined')
+                        | selectattr('Slot', 'defined') }}
+
+    _net: >-
+      {{ _all | selectattr('Class', 'in', ['0200'])
+              | rejectattr('Driver', 'in', ['vfio-pci']) }}
+
+    _vfio: >-
+      {{ _all | selectattr('IOMMUGroup', 'defined') }}
+
+    _vf_to_pf: >-
+      {{ shell_vf_to_pf_fn.stdout_lines | d([])
+                                        | map('split', ';')
+                                        | items2dict(key_name=0, value_name=1) }}
+
+    _vf_to_fn: >-
+      {{ shell_vf_to_pf_fn.stdout_lines | d([])
+                                        | map('split', ';')
+                                        | items2dict(key_name=0, value_name=2) }}
+  block:
+    - name: Scan /sys/bus/pci/devices/*/virtfn* (SR-IOV)
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit -o pipefail
+          {% for v in _sriov_devices %}
+          find -P "/sys/bus/pci/devices/{{ v.Slot }}/" -maxdepth 1 -type l -name 'virtfn*' -printf '%l/%P\n' | while IFS='/' read -r _ VF FN; do
+            echo "$VF;{{ v.Slot }};${FN#virtfn}"
+          done
+          {% endfor %}
+        executable: /bin/bash
+      register: shell_vf_to_pf_fn
+      changed_when: false
+      when: _sriov_devices | count > 0
+
+    - name: Render extra udev rules (/etc/udev/rules.d)
+      ansible.builtin.copy:
+        dest: "{{ item.dest }}"
+        content: "{{ item.content }}"
+        owner: 0
+        group: 0
+        mode: u=rw,go=r
+      loop_control: { label: "{{ item.dest }}" }
+      loop:
+        - dest: /etc/udev/rules.d/99-rename.rules
+          content: |
+            # managed by one-deploy
+            # --- NET
+            {% for v in _net %}
+            {% set name = v.Set_name.format(v.Slot | regex_findall('[0-9a-fA-F]+'),
+                                            _vf_to_pf.get(v.Slot, '') | regex_findall('[0-9a-fA-F]+'),
+                                            _vf_to_fn.get(v.Slot, ''),
+                                            v.Index | d(0)) %}
+            # {{ v.Slot }} <- {{ name }}
+            SUBSYSTEM=="net", ACTION=="add", ENV{ID_PATH}=="pci-{{ v.Slot }}", NAME="{{ name }}"
+            {% endfor %}
+            # --- VFIO
+            {% for v in _vfio %}
+            {% set name = v.Set_name.format(v.Slot | regex_findall('[0-9a-fA-F]+'),
+                                            _vf_to_pf.get(v.Slot, '') | regex_findall('[0-9a-fA-F]+'),
+                                            _vf_to_fn.get(v.Slot, ''),
+                                            v.Index | d(0)) %}
+            # {{ v.Slot }} <- {{ name }}
+            SUBSYSTEM=="vfio", ACTION=="add", SYMLINK+="vfio/by-tag/{{ name }}", \
+            PROGRAM="/usr/bin/test /sys/bus/pci/devices/{{ v.Slot }}/iommu_group -ef /sys/kernel/iommu_groups/%k"
+            {% endfor %}
+        - dest: /etc/udev/rules.d/99-mode.rules
+          content: |
+            # managed by one-deploy
+            SUBSYSTEM=="vfio", ACTION=="add", GROUP="kvm", MODE="0666"
+      register: copy_udev_rules
+
+    - name: Refresh udev rules
+      ansible.builtin.shell:
+        cmd: udevadm control --reload-rules && udevadm trigger --action=add
+      changed_when: true
+      when: copy_udev_rules is changed

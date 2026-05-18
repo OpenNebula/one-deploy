@@ -44,8 +44,8 @@
         _after:
           PCI_SHORT_ADDRESS: >-
             {%- set output = [] -%}
-            {%- for v in lspci_devices -%}
-              {%- if (v.ECAP_SRIOV | bool is false) or (v.set_numvfs != 'max' and v.set_numvfs | int == 0) -%}
+            {%- for v in lspci_devices | rejectattr('Unlisted', '==', 'yes') -%}
+              {%- if (v.Ecap_sriov == 'no') or (v.Set_numvfs != 'max' and v.Set_numvfs | int == 0) -%}
                 {{- output.append(v.Slot | regex_replace('^[^:]{4}:(.+)$', '\g<1>')) -}}
               {%- endif -%}
             {%- endfor -%}

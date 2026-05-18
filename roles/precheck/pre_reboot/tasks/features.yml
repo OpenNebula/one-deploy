@@ -94,8 +94,6 @@
 - name: Check if PCI / SR-IOV management is supported for the current distro
   ansible.builtin.assert:
     that:
-      (pci_passthrough_enabled | d(false) | bool is false)
-      or
       (pci_devices | d([]) | count == 0)
       or
       (not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15'))

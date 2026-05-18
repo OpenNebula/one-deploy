@@ -48,6 +48,13 @@ Example Playbook
                 - codeready-builder-for-rhel-9-x86_64-rpms
                 - rhel-9-for-x86_64-highavailability-rpms
                 - fast-datapath-for-rhel-9-x86_64-rpms
+        pci_devices:
+          - address: '0000:04:00.0'
+            set_name: asd123
+            unlisted: true
+          - address: '52:54:00:12:34:56'
+            set_name: asd321
+            unlisted: true
         ovs:
           set:
             - other_config:dpdk-init: 'true'
@@ -77,7 +84,9 @@ Example Playbook
                 - mtu_request: 9000
                 - options:dpdk-devargs: '0000:03:00.0'
               driver: omit # skip forcing the driver
-            eth3: {} # non-DPDK device
+            asd123: {} # non-DPDK device (renamed)
+            asd321: {} # non-DPDK device (renamed)
+            eth4: {} # non-DPDK device
           bond:
             bond0:
               ifaces: [dpdk-p1, dpdk-p2]
@@ -94,10 +103,11 @@ Example Playbook
               gw: "{{ ansible_default_ipv4.gateway }}"
               dns: ["{{ ansible_default_ipv4.gateway }}"]
             ovsbr1: # non-DPDK bridge
-              ports: [eth3]
+              ports: [asd123, asd321, eth4]
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.helper.kernel
+        - role: opennebula.deploy.helper.pci
         - role: opennebula.deploy.repository
         - role: opennebula.deploy.openvswitch
 
