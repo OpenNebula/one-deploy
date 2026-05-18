@@ -11,16 +11,23 @@ N/A
 Role Variables
 --------------
 
-| Name                        | Type   | Default                                   | Example             | Description                                                                    |
-|-----------------------------|--------|-------------------------------------------|---------------------|--------------------------------------------------------------------------------|
-| `private_fireedge_endpoint` | `str`  | `http://localhost:2616`                   |                     | FireEdge URL used internally in Sunstone / reverse proxies.                    |
-| `one_token`                 | `str`  | undefined                                 | `asd123as:123asd12` | OpenNebula Enterprise Edition subscription token.                              |
-| `one_fqdn`                  | `str`  | undefined                                 | `nebula.example.io` | Fully qualified domain name of the OpenNebula instance.                        |
-| `one_vip`                   | `str`  | undefined                                 | `10.11.12.13`       | When OpenNebula is in HA mode it points to the Leader.                         |
-| `ssl.web_server`            | `enum` | `apache`                                  | (check below)       | Enable reverse proxy with SSL termination with Apache2 or nginx over HTTPS/443.|
-| `ssl.key`                   | `str`  | `/etc/ssl/private/opennebula-key.pem`     |                     | Private key path on the target Front-end (the file must be readable).          |
-| `ssl.certchain`             | `str`  | `/etc/ssl/certs/opennebula-certchain.pem` |                     | Certificate chain path on the target Front-end (the file must be readable).    |
-| `ssl.generate_cert`         | `bool` | `false`                                   | `true`              | Generate a CA and a certificate signed by that CA for the reverse proxy.       |
+| Name                           | Type   | Default                                                | Example             | Description                                                                      |
+|--------------------------------|--------|--------------------------------------------------------|---------------------|----------------------------------------------------------------------------------|
+| `private_fireedge_endpoint`    | `str`  | `http://localhost:2616`                                |                     | FireEdge URL used internally in Sunstone / reverse proxies.                      |
+| `one_token`                    | `str`  | undefined                                              | `asd123as:123asd12` | OpenNebula Enterprise Edition subscription token.                                |
+| `one_fqdn`                     | `str`  | undefined                                              | `nebula.example.io` | Fully qualified domain name of the OpenNebula instance.                          |
+| `one_vip`                      | `str`  | undefined                                              | `10.11.12.13`       | When OpenNebula is in HA mode it points to the Leader.                           |
+| `ssl.web_server`               | `enum` | `apache`                                               | (check below)       | Enable reverse proxy with SSL termination with Apache2 or nginx over HTTPS/443.  |
+| `ssl.key`                      | `str`  | `/etc/ssl/private/opennebula-key.pem`                  |                     | Private key path on the target Front-end (the file must be readable).            |
+| `ssl.certchain`                | `str`  | `/etc/ssl/certs/opennebula-certchain.pem`              |                     | Certificate chain path on the target Front-end (the file must be readable).      |
+| `ssl.generate_cert`            | `bool` | `false`                                                | `true`              | Generate a CA and a certificate signed by that CA for the reverse proxy.         |
+| `sunstone_views_base_dir`      | `str`  | `/etc/one/fireedge/sunstone/views/`                    |                     | Default destination for view definitions on OpenNebula Front-ends.               |
+| `sunstone_views_config_file`   | `str`  | `/etc/one/fireedge/sunstone/views/sunstone-views.yaml` |                     | Default sunstone-views.yaml file path on OpenNebula Front-ends.                  |
+| `sunstone_views[].name`        | `str`  | undefined                                              | `customview`        | A name of the view (a key inside sunstone_views.yml).                            |
+| `sunstone_views[].label`       | `str`  | undefined                                              | `Custom View`       | A label of the view (visible in Sunstone UI).                                    |
+| `sunstone_views[].description` | `str`  | undefined                                              | `A custom view`     | A description of the view.                                                       |
+| `sunstone_views[].groups`      | `list` | undefined                                              | `[users]`           | Members of these groups can use the view in Sunstone UI.                         |
+| `sunstone_views[].source_dir`  | `str`  | undefined                                              | `customview`        | A directory relative to "{{ inventory_dir }}/views/" containing view definition. |
 
 Dependencies
 ------------
@@ -39,6 +46,12 @@ Example Playbook
           web_server: nginx
           key: /etc/ssl/private/ssl-cert-snakeoil.key
           certchain: /etc/ssl/certs/ssl-cert-snakeoil.pem
+        sunstone_views:
+          - name: customview
+            label: Custom View
+            description: A custom view
+            groups: [oneadmin, users]
+            source_dir: customview/ # "{{ inventory_dir }}/views/customview/" -> "{{ sunstone_views_base_dir }}/customview/"
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.gui
