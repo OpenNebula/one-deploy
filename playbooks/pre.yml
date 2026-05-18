@@ -66,6 +66,9 @@
     - role: helper/ntp
       tags: [ntp]
 
+    - role: helper/logs
+      tags: [logs]
+
     - role: helper/mkfs
       tags: [mkfs]
 

@@ -1,0 +1,58 @@
+---
+- name: Merge logrotate dict with defaults
+  ansible.builtin.set_fact:
+    logrotate: >-
+      {{ logrotate_defaults | combine(logrotate, recursive=true) }}
+
+- when: _managed
+  vars:
+    _managed: >-
+      {{ (logrotate.values() | selectattr('managed', 'undefined')
+                             | count > 0)
+         or
+         (logrotate.values() | selectattr('managed', 'defined')
+                             | map(attribute='managed')
+                             | map('bool')
+                             | select
+                             | count > 0) }}
+  block:
+    - name: Stat /etc/logrotate.d/
+      ansible.builtin.stat:
+        path: /etc/logrotate.d/
+        get_attributes: false
+        get_checksum: false
+        get_mime: false
+      register: stat_logrotate_d
+
+    - when:
+        - stat_logrotate_d.stat.exists
+        - stat_logrotate_d.stat.isdir
+      block:
+        - name: Render logrotate configs
+          ansible.builtin.copy:
+            dest: "/etc/logrotate.d/{{ item }}"
+            owner: 0
+            group: 0
+            mode: u=rw,go=r
+            content: "{{ _content }}"
+          vars:
+            _content: |
+              # managed by one-deploy
+              {{ logrotate[item].paths | join(' ') }} {
+              {% for d in logrotate[item].config %}
+              {% if d is mapping %}
+              {% for k, v in d.items() %}
+                {{ k }}
+              {% filter indent(width=4, first=true) %}
+              {{ v }}
+              {% endfilter %}
+                endscript
+              {% endfor %}
+              {% else %}
+                {{ d }}
+              {% endif %}
+              {% endfor %}
+              }
+          when:
+            - logrotate[item].managed | d(true) | bool
+          loop: "{{ logrotate.keys() }}"

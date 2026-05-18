@@ -1,0 +1,6 @@
+---
+- ansible.builtin.include_role:
+    name: helper/logs/logrotate
+
+- ansible.builtin.include_role:
+    name: helper/logs/rsyslog

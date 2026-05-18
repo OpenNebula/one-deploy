@@ -1,0 +1,24 @@
+---
+logrotate: {}
+
+logrotate_defaults:
+  rsyslog:
+    # managed: true
+    paths:
+      - /var/log/cron
+      - /var/log/maillog
+      - /var/log/messages
+      - /var/log/secure
+      - /var/log/spooler
+      - /var/log/kern.log
+    config:
+      - daily
+      - rotate 30
+      - missingok
+      - notifempty
+      - compress
+      - delaycompress
+      - dateext
+      - sharedscripts
+      - postrotate: |-
+          /usr/bin/systemctl kill -s HUP rsyslog.service >/dev/null 2>&1 ||:

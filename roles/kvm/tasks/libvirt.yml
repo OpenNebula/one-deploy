@@ -1,9 +1,16 @@
 ---
-- name: Ensure each libvirtd uses distinct UUID
+- name: Configure libvirtd (UUID + logging)
   ansible.builtin.lineinfile:
     path: /etc/libvirt/libvirtd.conf
-    regexp: '^[#\s]*host_uuid\s*=.*$'
-    line: 'host_uuid = "{{ inventory_hostname | to_uuid }}"'
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - regexp: '^[#\s]*host_uuid\s*=.*$'
+      line: 'host_uuid = "{{ inventory_hostname | to_uuid }}"'
+    - regexp: '^[#\s]*log_filters\s*=.*$'
+      line: 'log_filters = "3:libvirt 3:qemu"'
+    - regexp: '^[#\s]*log_outputs\s*=.*$'
+      line: 'log_outputs = "2:syslog:libvirtd"'
   register: lineinfile
 
 - name: Restart libvirtd (NOW)
