@@ -13,6 +13,9 @@
       {%- endfor -%}
       {{- ns.output -}}
 
+    _sriov_devices: >-
+      {{ _lspci_devices | selectattr('Ecap_sriov', '==', 'yes') }}
+
     _all: >-
       {{ _lspci_devices | selectattr('Set_name', 'defined')
                         | rejectattr('Set_name', '==', 'omit')
@@ -47,12 +50,9 @@
           done
           {% endfor %}
         executable: /bin/bash
-      when: _sriov_devices | count > 0
-      vars:
-        _sriov_devices: >-
-          {{ _lspci_devices | selectattr('Ecap_sriov', '==', 'yes') }}
       register: shell_vf_to_pf_fn
       changed_when: false
+      when: _sriov_devices | count > 0
 
     - name: Render extra udev rules (/etc/udev/rules.d)
       ansible.builtin.copy:
