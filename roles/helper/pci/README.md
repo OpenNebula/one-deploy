@@ -11,21 +11,22 @@ N/A
 Role Variables
 --------------
 
-| Name                        | Type   | Default   | Description                                                                         |
-|-----------------------------|--------|-----------|-------------------------------------------------------------------------------------|
-| `pci_devices`               | `list` | `[]`      | PCI devices configuration.                                                          |
-| `pci_devices[].excluded`    | `bool` | `false`   | Do not process matching PCI devices.                                                |
-| `pci_devices[].unguarded`   | `bool` | `false`   | Do not protect matching PCI devices (this may cause primary NIC connectivity loss). |
-| `pci_devices[].unlisted`    | `bool` | `true`    | Do not pass matching PCI devices to OpenNebula.                                     |
-| `pci_devices[].virtual`     | `bool` | `false`   | Do not fail query on missing virtual devices (SR-IOV).                              |
-| `pci_devices[].address`     | `str`  | undefined | Glob PCI devices by PCI or MAC address.                                             |
-| `pci_devices[].vendor`      | `str`  | `*`       | Glob PCI devices by PCI Vendor (if address is undefined).                           |
-| `pci_devices[].device`      | `str`  | `*`       | Glob PCI devices by PCI Device (if address is undefined).                           |
-| `pci_devices[].class`       | `str`  | `*`       | Glob PCI devices by PCI Class (if address is undefined).                            |
-| `pci_devices[].set_counter` | `str`  | undefined | Reset the "set_counter" internal counter that can be used with set_name ("{3}").    |
-| `pci_devices[].set_driver`  | `str`  | `omit`    | Use driverctl to override driver (unless "omit").                                   |
-| `pci_devices[].set_name`    | `str`  | `omit`    | Rename device in udev (unless "omit").                                              |
-| `pci_devices[].set_numvfs`  | `str`  | `0`       | Enable Virtual Functions for SR-IOV capable devices (integer >= 0 or "max").        |
+| Name                          | Type   | Default   | Description                                                                         |
+|-------------------------------|--------|-----------|-------------------------------------------------------------------------------------|
+| `pci_devices`                 | `list` | `[]`      | PCI devices configuration.                                                          |
+| `pci_devices[].excluded`      | `bool` | `false`   | Do not process matching PCI devices.                                                |
+| `pci_devices[].unguarded`     | `bool` | `false`   | Do not protect matching PCI devices (this may cause primary NIC connectivity loss). |
+| `pci_devices[].unlisted`      | `bool` | `true`    | Do not pass matching PCI devices to OpenNebula.                                     |
+| `pci_devices[].virtual`       | `bool` | `false`   | Do not fail query on missing virtual devices (SR-IOV).                              |
+| `pci_devices[].address`       | `str`  | undefined | Glob PCI devices by PCI or MAC address.                                             |
+| `pci_devices[].vendor`        | `str`  | `*`       | Glob PCI devices by PCI Vendor (if address is undefined).                           |
+| `pci_devices[].device`        | `str`  | `*`       | Glob PCI devices by PCI Device (if address is undefined).                           |
+| `pci_devices[].class`         | `str`  | `*`       | Glob PCI devices by PCI Class (if address is undefined).                            |
+| `pci_devices[].set_counter`   | `str`  | undefined | Reset the "set_counter" internal counter that can be used with set_name ("{3}").    |
+| `pci_devices[].set_driver`    | `str`  | `omit`    | Use driverctl to override driver (unless "omit").                                   |
+| `pci_devices[].set_name`      | `str`  | `omit`    | Rename device in udev (unless "omit").                                              |
+| `pci_devices[].set_numvfs`    | `str`  | `0`       | Enable Virtual Functions for SR-IOV capable devices (integer >= 0 or "max").        |
+| `pci_devices[].set_switchdev` | `bool` | `false`   | Toggle legacy/switchdev modes for SR-IOV capable devices.                           |
 
 Dependencies
 ------------
@@ -138,11 +139,12 @@ Example Playbook
     - hosts: node
       vars:
         pci_devices:
-          # Enable all available VFs for all existing Mellanox PFs.
+          # Enable all available VFs for all existing Mellanox PFs, then enable switchdev mode.
           - vendor: "15b3"
             device: "1015"
             class: "0200"
             set_numvfs: max
+            set_switchdev: true
 
           # Rename all existing Mellanox VFs using custom counter (starting from 1), then pass them to OpenNebula.
           - vendor: "15b3"

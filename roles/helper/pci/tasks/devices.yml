@@ -5,9 +5,9 @@
   vars:
     _common: [bash, coreutils, driverctl, findutils, grep, pciutils]
     _specific:
-      Debian: []
-      RedHat: []
-      Suse: []
+      Debian: [iproute2]
+      RedHat: [iproute]
+      Suse: [iproute2]
   register: package
   until: package is success
   retries: 12
@@ -141,7 +141,7 @@
         file: "{{ role_path }}/tasks/query.yml"
       when: shell_revert_drivers is changed
 
-    - name: (Re)Enable VFs
+    - name: Enable VFs
       ansible.builtin.shell:
         cmd: |
           set -x -o errexit -o pipefail
