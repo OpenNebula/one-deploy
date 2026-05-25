@@ -57,51 +57,25 @@
 - when: lspci_devices | count > 0
   block:
     - name: Render sriov-enable service unit
-      ansible.builtin.copy:
+      ansible.builtin.template:
         dest: "{{ item.dest }}"
+        src: "{{ item.src }}"
         owner: 0
         group: 0
         mode: "{{ item.mode }}"
-        content: "{{ item.cmd }}"
       loop:
         - dest: /usr/local/sbin/sriov-manage.sh
+          src: sriov-manage.sh.jinja
           mode: u=rwx,go=rx
-          cmd: |
-            #!/usr/bin/env bash
-            set -eu
-
-            # Split the input (e.g., 0000:27:00.0-4) into address and count
-            IFS='-' read -r PCI_ADDR VF_COUNT <<< "$1"
-
-            # Verify the device exists before writing
-            if [[ -d "/sys/bus/pci/devices/$PCI_ADDR" ]]; then
-              echo "Setting $VF_COUNT VFs on $PCI_ADDR"
-              echo "$VF_COUNT" > "/sys/bus/pci/devices/$PCI_ADDR/sriov_numvfs"
-            else
-              echo "Error: Device $PCI_ADDR not found" >&2
-              exit 1
-            fi
         - dest: /etc/systemd/system/sriov-enable@.service
+          src: sriov-enable@.service.jinja
           mode: u=rw,go=r
-          cmd: |
-            [Unit]
-            Description=Enable SR-IOV VFs on %I
-            After=network-pre.target
-
-            [Service]
-            Type=oneshot
-            RemainAfterExit=yes
-            # %I is replaced by the string after the @ in the command
-            ExecStart=/usr/local/sbin/sriov-manage.sh %i
-
-            [Install]
-            WantedBy=multi-user.target
-      register: copy_sriov_enable_service
+      register: template_sriov_enable_service
 
     - name: Reload systemd
       ansible.builtin.systemd_service:
         daemon_reload: true
-      when: copy_sriov_enable_service is changed
+      when: template_sriov_enable_service is changed
 
     - name: Override drivers (revert when needed)
       ansible.builtin.shell:
@@ -156,7 +130,11 @@
           {% endif %}
             if [[ -n "$SRIOV_NUMVFS" ]]; then
               ALL="$(systemctl show --all -P Id 'sriov-enable@{{ v.Slot }}-*.service' | grep -E -v '^\s*$')" ||:
+          {% if v.Set_switchdev == 'yes' %}
+              TO_ENABLE="sriov-enable@{{ v.Slot }}-$SRIOV_NUMVFS-switchdev.service"
+          {% else %}
               TO_ENABLE="sriov-enable@{{ v.Slot }}-$SRIOV_NUMVFS.service"
+          {% endif %}
               if [[ "$(head -n1 '/sys/bus/pci/devices/{{ v.Slot }}/sriov_numvfs')" == 0 ]]; then
                 # This handles the invalid case where VFs are no longer enabled but service is still active
                 TO_DISABLE="$ALL"

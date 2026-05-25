@@ -16,9 +16,6 @@
     _sriov_devices: >-
       {{ _lspci_devices | selectattr('Ecap_sriov', '==', 'yes') }}
 
-    _switchdev_devices: >-
-      {{ _sriov_devices | selectattr('Set_switchdev', '==', 'yes') }}
-
     _all: >-
       {{ _lspci_devices | selectattr('Set_name', 'defined')
                         | rejectattr('Set_name', '==', 'omit')
@@ -42,12 +39,6 @@
       {{ shell_vf_to_pf_fn.stdout_lines | d([])
                                         | map('split', ';')
                                         | items2dict(key_name=0, value_name=2) }}
-
-    _pf_to_first_vf: >-
-      {{ shell_vf_to_pf_fn.stdout_lines | d([])
-                                        | map('split', ';')
-                                        | selectattr(2, '==', '0')
-                                        | items2dict(key_name=1, value_name=0) }}
   block:
     - name: Scan /sys/bus/pci/devices/*/virtfn* (SR-IOV)
       ansible.builtin.shell:
@@ -74,14 +65,6 @@
         mode: u=rw,go=r
       loop_control: { label: "{{ item.dest }}" }
       loop:
-        - dest: /etc/udev/rules.d/98-eswitch.rules
-          content: |
-            # managed by one-deploy
-            # --- PCI
-            {% for v in _switchdev_devices | selectattr('Slot', 'in', _pf_to_first_vf) %}
-            SUBSYSTEM=="pci", ACTION=="add", ENV{ID_PATH}=="pci-{{ _pf_to_first_vf.get(v.Slot) }}", \
-            RUN+="/usr/sbin/devlink dev eswitch set 'pci/{{ v.Slot }}' mode switchdev"
-            {% endfor %}
         - dest: /etc/udev/rules.d/99-rename.rules
           content: |
             # managed by one-deploy

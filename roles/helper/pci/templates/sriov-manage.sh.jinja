@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# managed by one-deploy; vim:syn=bash:
+
+set -o errexit -o nounset -o pipefail; shopt -s nullglob
+
+type -p basename devlink realpath &>/dev/null
+
+# Split the input (e.g., 0000:27:00.0-4-switchdev) into address, count and options
+IFS='-' read -r PCI_ADDR VF_COUNT OPTIONS <<< "$1"
+IFS='-' read -ra OPTIONS <<< "$OPTIONS"
+
+# Verify the device exists before writing
+if ! [[ -d "/sys/bus/pci/devices/$PCI_ADDR/" ]]; then
+    echo "ERROR: No such device: $PCI_ADDR" >&2
+    exit 1
+fi
+
+# Handle extra options before writing
+for OPT in "${OPTIONS[@]}"; do
+    case "$OPT" in
+        switchdev)
+            if ! ESWITCH_SHOW="$(devlink dev eswitch show "pci/$PCI_ADDR")"; then
+                echo "ERROR: Not an eswitch device: $PCI_ADDR" >&2
+                exit 1
+            fi
+
+            if [[ "$ESWITCH_SHOW" =~ (^|[[:space:]])mode[[:space:]]+switchdev([[:space:]]|$) ]]; then
+                echo "WARNING: Nothing to do for: $OPT" >&2
+                continue
+            fi
+
+            # Collect info about drivers in use
+            declare -A VF_DRIVER_MAP
+            for VF_PATH in /sys/bus/pci/devices/$PCI_ADDR/virtfn*; do
+                if ! VF_DRIVER="$(realpath -e $VF_PATH/driver)"; then
+                    echo "WARNING: No driver found: $VF_PATH/driver" >&2
+                    continue
+                fi
+                VF_PCI_ADDR="$(basename $(realpath $VF_PATH))"
+                VF_DRIVER_MAP["$VF_PCI_ADDR"]="$VF_DRIVER"
+            done
+
+            for VF_PCI_ADDR in "${!VF_DRIVER_MAP[@]}"; do
+                echo "Unbinding $VF_PCI_ADDR from ${VF_DRIVER_MAP["$VF_PCI_ADDR"]}" >&2
+                echo "$VF_PCI_ADDR" >"${VF_DRIVER_MAP["$VF_PCI_ADDR"]}/unbind"
+            done
+
+            echo "Enabling switchdev mode on $PCI_ADDR" >&2
+            devlink dev eswitch set "pci/$PCI_ADDR" mode switchdev
+
+            for VF_PCI_ADDR in "${!VF_DRIVER_MAP[@]}"; do
+                echo "Binding $VF_PCI_ADDR to ${VF_DRIVER_MAP["$VF_PCI_ADDR"]}" >&2
+                echo "$VF_PCI_ADDR" >"${VF_DRIVER_MAP["$VF_PCI_ADDR"]}/bind"
+            done
+            ;;
+        *)
+            echo "ERROR: Unrecognized option: $OPT" >&2
+            exit 1
+            ;;
+    esac
+done
+
+echo "Setting $VF_COUNT VFs on $PCI_ADDR"
+echo "$VF_COUNT" >"/sys/bus/pci/devices/$PCI_ADDR/sriov_numvfs"
