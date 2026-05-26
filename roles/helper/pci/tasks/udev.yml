@@ -31,28 +31,28 @@
       {{ _all | selectattr('IOMMUGroup', 'defined') }}
 
     _vf_to_pf: >-
-      {{ shell_vf_to_pf_fn.stdout_lines | d([])
-                                        | map('split', ';')
-                                        | items2dict(key_name=0, value_name=1) }}
+      {{ shell_pf_vf_fn.stdout_lines | d([])
+                                     | map('split', ';')
+                                     | items2dict(key_name=1, value_name=0) }}
 
     _vf_to_fn: >-
-      {{ shell_vf_to_pf_fn.stdout_lines | d([])
-                                        | map('split', ';')
-                                        | items2dict(key_name=0, value_name=2) }}
+      {{ shell_pf_vf_fn.stdout_lines | d([])
+                                     | map('split', ';')
+                                     | items2dict(key_name=1, value_name=2) }}
   block:
     - name: Scan /sys/bus/pci/devices/*/virtfn* (SR-IOV)
       ansible.builtin.shell:
         cmd: |
-          set -o errexit -o pipefail
+          set -o errexit -o pipefail; shopt -s nullglob
           {% for v in _sriov_devices %}
-          find -P '/sys/bus/pci/devices/{{ v.Slot }}/' -maxdepth 1 -type l -name 'virtfn*' -printf '%l|%P\n' | while IFS='|' read -r LINK NAME; do
-            VF="$(basename $LINK)"
-            FN="${NAME#virtfn}"
-            echo "$VF;{{ v.Slot }};$FN"
+          for VF_PATH in '/sys/bus/pci/devices/{{ v.Slot }}/virtfn'*; do
+            VF="$(basename $(realpath $VF_PATH))"
+            FN="$(basename $VF_PATH)"
+            echo "{{ v.Slot }};$VF;${FN#virtfn}"
           done
           {% endfor %}
         executable: /bin/bash
-      register: shell_vf_to_pf_fn
+      register: shell_pf_vf_fn
       changed_when: false
       when: _sriov_devices | count > 0
 

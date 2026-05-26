@@ -3,7 +3,7 @@
   ansible.builtin.package:
     name: "{{ _common + _specific[ansible_os_family] }}"
   vars:
-    _common: [bash, coreutils, driverctl, findutils, grep, pciutils]
+    _common: [bash, coreutils, driverctl, grep, pciutils]
     _specific:
       Debian: [iproute2]
       RedHat: [iproute]
