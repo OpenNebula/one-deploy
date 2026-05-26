@@ -31,12 +31,12 @@ for OPT in "${OPTIONS[@]}"; do
 
             # Collect info about drivers in use
             declare -A VF_DRIVER_MAP
-            for VF_PATH in /sys/bus/pci/devices/$PCI_ADDR/virtfn*; do
-                if ! VF_DRIVER="$(realpath -e $VF_PATH/driver)"; then
+            for VF_PATH in "/sys/bus/pci/devices/$PCI_ADDR/virtfn"*; do
+                if ! VF_DRIVER="$(realpath -e "$VF_PATH/driver")"; then
                     echo "WARNING: No driver found: $VF_PATH/driver" >&2
                     continue
                 fi
-                VF_PCI_ADDR="$(basename $(realpath $VF_PATH))"
+                VF_PCI_ADDR="$(basename "$(realpath "$VF_PATH")")"
                 VF_DRIVER_MAP["$VF_PCI_ADDR"]="$VF_DRIVER"
             done
 

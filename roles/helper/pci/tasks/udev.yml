@@ -46,8 +46,8 @@
           set -o errexit -o pipefail; shopt -s nullglob
           {% for v in _sriov_devices %}
           for VF_PATH in '/sys/bus/pci/devices/{{ v.Slot }}/virtfn'*; do
-            VF="$(basename $(realpath $VF_PATH))"
-            FN="$(basename $VF_PATH)"
+            VF="$(basename "$(realpath "$VF_PATH")")"
+            FN="$(basename "$VF_PATH")"
             echo "{{ v.Slot }};$VF;${FN#virtfn}"
           done
           {% endfor %}
