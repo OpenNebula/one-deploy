@@ -1,0 +1,91 @@
+---
+- vars:
+    _selinux_os:
+      Debian: false
+      RedHat: true
+      openSUSE Leap: true
+      SLES: false
+    _has_selinux: >-
+      {{ _selinux_os[ansible_distribution] | d(_selinux_os[ansible_os_family]) }}
+  block:
+    - name: Ensure /var/run/one/vhost-socks/ exists
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: 9869
+        group: 9869
+        mode: ug=rwx,o=
+        setype: "{{ item.setype | d(omit) }}"
+      loop:
+        - path: /var/run/one/
+        - path: /var/run/one/vhost-socks/
+          setype: "{{ 'virt_var_run_t' if _has_selinux else none }}"
+
+    - name: Check if user 'openvswitch' exists
+      ansible.builtin.getent:
+        database: passwd
+        key: openvswitch
+        fail_key: false
+
+    - when: _has_openvswitch_user
+      vars:
+        _has_openvswitch_user: >-
+          {{ ansible_facts.getent_passwd.openvswitch is not none }}
+      block:
+        - name: Create custom SELinux policy for DPDK / Libvirt shared sockets
+          ansible.builtin.shell:
+            cmd: |
+              set -o errexit
+              TDIR="$(mktemp -d)" && trap "rm -rf $TDIR" EXIT ERR
+              tee "$TDIR/dpdk_virt.te"
+              if (cd "$TDIR" && semodule -E dpdk_virt); then
+                BEFORE="$(cksum $TDIR/dpdk_virt.pp)"
+              else
+                BEFORE=""
+              fi
+              checkmodule -M -m -o "$TDIR/dpdk_virt.mod" "$TDIR/dpdk_virt.te"
+              semodule_package -o "$TDIR/dpdk_virt.pp" -m "$TDIR/dpdk_virt.mod"
+              AFTER="$(cksum $TDIR/dpdk_virt.pp)"
+              if [[ "$AFTER" == "$BEFORE" ]]; then
+                exit 0
+              else
+                semodule -i "$TDIR/dpdk_virt.pp"
+                exit 78 # EREMCHG
+              fi
+            stdin: |
+              module dpdk_virt 1.0;
+              require {
+                  type openvswitch_t;
+                  type virt_var_run_t;
+                  class dir { search getattr read open };
+                  class sock_file { write getattr append };
+              }
+              allow openvswitch_t virt_var_run_t:dir { search getattr read open };
+              allow openvswitch_t virt_var_run_t:sock_file { write getattr append };
+            executable: /bin/bash
+          register: shell_dpdk_virt
+          changed_when:
+            - shell_dpdk_virt.rc in [78]
+          failed_when:
+            - shell_dpdk_virt.rc not in [0, 78]
+          when: _has_selinux
+
+        - name: Add ACLs for /var/run/one/vhost-socks/
+          ansible.posix.acl:
+            path: "{{ item.path }}"
+            state: present
+            etype: user
+            entity: "{{ item.entity }}"
+            permissions: "{{ item.permissions }}"
+            default: "{{ item.default | d(omit) }}"
+          loop:
+            - path: /var/run/one/
+              entity: openvswitch
+              permissions: rx
+            - path: /var/run/one/vhost-socks/
+              entity: openvswitch
+              permissions: rx
+            - path: /var/run/one/vhost-socks/
+              entity: openvswitch
+              permissions: rwX
+              default: true
