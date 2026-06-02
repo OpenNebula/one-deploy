@@ -3,6 +3,32 @@
 # Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 
 
+# NOTE: It does not validate character classes or character count!
+# EXAMPLES:
+# pci -> match_address('0000:0*:00.*', sep='[:.]')
+# mac -> match_address('52:54:*:*:*:0*', sep='[:]')
+def match_address(address, pattern, sep=None):
+    """Tests if a split string matches a set of simple glob patterns."""
+
+    import fnmatch
+    import re
+
+    # In case no separator is provided simply match the whole string.
+    if sep is None:
+        return fnmatch.fnmatch(address, pattern)
+
+    # Make sure both address and pattern contain identical separators.
+    if re.findall(sep, address) != re.findall(sep, pattern):
+        return False
+
+    # Try matching (glob) each segment separately.
+    for x, y in zip(re.split(sep, address), re.split(sep, pattern)):
+        if not fnmatch.fnmatch(x, y):
+            return False
+
+    return True
+
+
 def flatten(to_flatten, extract=False):
     """Flattens nested lists (with optional value extraction)."""
 

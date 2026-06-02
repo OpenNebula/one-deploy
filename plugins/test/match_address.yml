@@ -13,6 +13,11 @@ DOCUMENTATION:
         - An address to match.
       type: string
       required: true
+    pattern:
+      description:
+        - A string containing a sequence of glob patterns.
+      type: string
+      required: true
     sep:
       description:
         - A regex expression used to split the input string (optional).
