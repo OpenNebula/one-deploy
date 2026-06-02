@@ -135,7 +135,9 @@ ovs-vsctl --if-exists del-port '{{ port }}' -- add-bond '{{ br }}' '{{ port }}' 
 
 # --- Bridge / Port / Interface reconfiguration
 
-{% for br in ovs.br | dict2items | selectattr('value.set', 'defined') | map(attribute='key') %}
+{% for br in ovs.br | dict2items | selectattr('value.set', 'defined')
+                                 | selectattr('value.set', 'sequence')
+                                 | selectattr('value.set') | map(attribute='key') %}
 : '{{ br }}'
 log 'Reconfiguring OVS bridge {{ br }}'
 ovs-vsctl \
@@ -145,7 +147,9 @@ ovs-vsctl \
     || die 'Failed to reconfigure {{ br }}'
 {% endfor %}
 
-{% for port in ovs.port | dict2items | selectattr('value.set', 'defined') | map(attribute='key') %}
+{% for port in ovs.port | dict2items | selectattr('value.set', 'defined')
+                                     | selectattr('value.set', 'sequence')
+                                     | selectattr('value.set') | map(attribute='key') %}
 : '{{ port }}'
 log 'Reconfiguring port {{ port }}'
 ovs-vsctl \
@@ -155,7 +159,9 @@ ovs-vsctl \
     || die 'Failed to reconfigure {{ port }}'
 {% endfor %}
 
-{% for iface in ovs.iface | dict2items | selectattr('value.set', 'defined') | map(attribute='key') %}
+{% for iface in ovs.iface | dict2items | selectattr('value.set', 'defined')
+                                       | selectattr('value.set', 'sequence')
+                                       | selectattr('value.set') | map(attribute='key') %}
 : '{{ iface }}'
 log 'Reconfiguring interface {{ iface }}'
 ovs-vsctl \
