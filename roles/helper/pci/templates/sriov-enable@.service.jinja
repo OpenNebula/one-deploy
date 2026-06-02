@@ -1,0 +1,13 @@
+# managed by one-deploy; vim:syn=systemd:
+[Unit]
+Description=Enable SR-IOV VFs on %I
+After=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# %I is replaced by the string after the @ in the command
+ExecStart=/usr/local/sbin/sriov-manage.sh %i
+
+[Install]
+WantedBy=multi-user.target
