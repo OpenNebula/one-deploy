@@ -5,7 +5,7 @@
     - name: Slurp UUID
       ansible.builtin.slurp:
         path: "/etc/ceph/client.{{ ceph.user }}.secret.uuid"
-      register: slurp
+      register: slurp_secret_uuid
       ignore_errors: true
 
     - name: Detect UUID
@@ -15,7 +15,9 @@
       vars:
         _update:
           uuid: >-
-            {{ (_slurp[0].content | b64decode) if _slurp is truthy else None }}
+            {{ (_slurp[0].content | b64decode) if (_slurp is truthy) else none }}
         _slurp: >-
-          {{ ansible_play_batch | map('extract', hostvars, ['slurp']) | selectattr('failed', 'false') | list }}
+          {{ ansible_play_batch | map('extract', hostvars, ['slurp_secret_uuid'])
+                                | selectattr('failed', 'false')
+                                | list }}
       run_once: true

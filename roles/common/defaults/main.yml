@@ -8,8 +8,8 @@ ceph_defaults:
   pool: one
   user: libvirt
   host: >-
-    {{ groups[mon_group_name | d('mons')] | map('extract', hostvars, ['ansible_host']) | join(' ')
-       if groups[mon_group_name | d('mons')] is defined else
+    {{ groups[mon_group | d('mon')] | map('extract', hostvars, ['ansible_host']) | join(' ')
+       if groups[mon_group | d('mon')] is defined else
        [] }}
   uuid: null
   repo: community

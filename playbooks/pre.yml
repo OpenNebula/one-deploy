@@ -16,9 +16,9 @@
     - "{{ frontend_group | d('frontend') }}"
     - "{{ node_group | d('node') }}"
     - "{{ grafana_group | d('grafana') }}"
-    - "{{ mon_group_name | d('mons') }}"
-    - "{{ mgr_group_name | d('mgrs') }}"
-    - "{{ osd_group_name | d('osds') }}"
+    - "{{ mon_group| d('mon') }}"
+    - "{{ mgr_group| d('mgr') }}"
+    - "{{ osd_group| d('osd') }}"
   strategy: linear
   collections:
     - opennebula.deploy
@@ -43,9 +43,9 @@
 - hosts:
     - "{{ frontend_group | d('frontend') }}"
     - "{{ node_group | d('node') }}"
-    - "{{ mon_group_name | d('mons') }}"
-    - "{{ mgr_group_name | d('mgrs') }}"
-    - "{{ osd_group_name | d('osds') }}"
+    - "{{ mon_group | d('mon') }}"
+    - "{{ mgr_group | d('mgr') }}"
+    - "{{ osd_group | d('osd') }}"
   collections:
     - opennebula.deploy
   roles:

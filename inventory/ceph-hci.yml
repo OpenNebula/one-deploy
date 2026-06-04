@@ -4,7 +4,7 @@ all:
     ansible_user: ubuntu
     ensure_keys_for: [ubuntu, root]
     one_pass: opennebulapass
-    one_version: '6.8'
+    one_version: '7.2'
     features:
       # Enable the "ceph" feature in one-deploy.
       ceph: true
@@ -39,38 +39,51 @@ node:
 
 ceph:
   children:
-    ? mons
-    ? mgrs
-    ? osds
+    ? mon
+    ? mgr
+    ? osd
   vars:
-    osd_memory_target: 4294967296 # 4GiB (default)
-    # Assuming all osds are of equal size, setup resource limits and reservations
-    # for all osd systemd services.
-    ceph_osd_systemd_overrides:
-      Service:
-        CPUWeight: 200 # 100 is the kernel default
-        CPUQuota: 100% # 1 full core
-        MemoryMin: "{{ (0.75 * osd_memory_target) | int }}"
-        MemoryHigh: "{{ osd_memory_target | int }}"
-    # Make sure osds preserve memory if it's below the value of the "osd_memory_target" fact.
-    ceph_conf_overrides:
-      osd:
-        ? osd memory target
-        : "{{ osd_memory_target | int }}"
-    osd_auto_discovery: true
-    public_network: 172.20.0.0/24
-
-mons:
-  hosts:
-    f1: { ansible_host: 172.20.0.6, monitor_address: 172.20.0.6 }
-
-mgrs:
+    osd_memory_target: '4294967296' # dummy variable
+    cephadm_spec_osd_defaults: |
+      ---
+      service_type: osd
+      service_id: all-available-devices
+      service_name: osd.all-available-devices
+      placement:
+        label: osd
+      extra_container_args:
+        - '--cpus 2'
+        - '--memory-reservation {{ (0.75 * osd_memory_target) | int }}'
+        - '--memory {{ osd_memory_target | int }}'
+      spec:
+        data_devices:
+          all: true
+        filter_logic: AND
+        objectstore: bluestore
+mon:
   hosts:
     f1: { ansible_host: 172.20.0.6 }
 
-osds:
+mgr:
+  hosts:
+    f1: { ansible_host: 172.20.0.6 }
+
+osd:
+  vars:
+    cephadm_conf:
+      osd_memory_target_autotune: 'false'
+      osd_memory_target: "{{ osd_memory_target }}"
   hosts:
     # NOTE: The Ceph osds are deployed along the OpenNebula KVM nodes (HCI setup).
-    n1: { ansible_host: 172.20.0.7 }
-    n2: { ansible_host: 172.20.0.8 }
-    n3: { ansible_host: 172.20.0.9 }
+    n1:
+      ansible_host: 172.20.0.7
+      cephadm_conf:
+        osd_memory_target: null
+    n2:
+      ansible_host: 172.20.0.8
+      cephadm_conf:
+        osd_memory_target: null
+    n3:
+      ansible_host: 172.20.0.9
+      cephadm_conf:
+        osd_memory_target: null

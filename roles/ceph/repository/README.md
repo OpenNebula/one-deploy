@@ -11,10 +11,10 @@ N/A
 Role Variables
 --------------
 
-| Name           | Type  | Default  | Example     | Description                                                                               |
-|----------------|-------|----------|-------------|-------------------------------------------------------------------------------------------|
-| `ceph.repo`    | `str` |          | `community` | Defines type of Ceph repository to use `distro` or `community`. Tasks ignored if not set. |
-| `ceph.release` | `str` |          | `tentacle`  | Defines Ceph version to use.                                                              |
+| Name           | Type  | Default     | Description                                                                               |
+|----------------|-------|-------------|-------------------------------------------------------------------------------------------|
+| `ceph.repo`    | `str` | `community` | Defines type of Ceph repository to use `distro` or `community`. Tasks ignored if not set. |
+| `ceph.release` | `str` | `tentacle`  | Defines Ceph version to use.                                                              |
 
 Dependencies
 ------------
@@ -24,7 +24,7 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: mons:mgrs:osds
+    - hosts: mon:mgr:osd
       vars:
         ceph:
           repo: distro

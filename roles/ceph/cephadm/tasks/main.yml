@@ -1,0 +1,282 @@
+---
+- when: inventory_hostname in (_mon + _mgr + _osd)
+  vars:
+    _mon_group: "{{ mon_group | d('mon') }}"
+    _mgr_group: "{{ mgr_group | d('mgr') }}"
+    _osd_group: "{{ osd_group | d('osd') }}"
+
+    _mon: "{{ groups[_mon_group] }}"
+    _mgr: "{{ groups[_mgr_group] }}"
+    _osd: "{{ groups[_osd_group] }}"
+
+    _mon_hosts: "{{ raw_inventory[_mon_group].hosts }}"
+    _mgr_hosts: "{{ raw_inventory[_mgr_group].hosts }}"
+    _osd_hosts: "{{ raw_inventory[_osd_group].hosts }}"
+
+    _conf_mon: "{{ raw_inventory[_mon_group].vars.cephadm_conf | d({}) }}"
+    _conf_mgr: "{{ raw_inventory[_mgr_group].vars.cephadm_conf | d({}) }}"
+    _conf_osd: "{{ raw_inventory[_osd_group].vars.cephadm_conf | d({}) }}"
+
+    _conf_mon_hosts: >-
+      {{ _mon_hosts.keys() | zip(_mon_hosts.values() | map(attribute='cephadm_conf', default={}))
+                           | items2dict(key_name=0, value_name=1) }}
+    _conf_mgr_hosts: >-
+      {{ _mgr_hosts.keys() | zip(_mgr_hosts.values() | map(attribute='cephadm_conf', default={}))
+                           | items2dict(key_name=0, value_name=1) }}
+    _conf_osd_hosts: >-
+      {{ _osd_hosts.keys() | zip(_osd_hosts.values() | map(attribute='cephadm_conf', default={}))
+                           | items2dict(key_name=0, value_name=1) }}
+
+    _conf_global: "{{ raw_inventory.ceph.vars.cephadm_conf | d({}) }}"
+
+    _modules: >-
+      {{ cephadm_modules_defaults | combine(cephadm_modules | d({}), recursive=true) }}
+  block:
+    - name: Load first inventory source (raw)
+      ansible.builtin.include_vars:
+        file: "{{ ansible_inventory_sources.0 }}"
+        name: raw_inventory
+
+    - name: Install Ceph/Cephadm with dependencies
+      ansible.builtin.package:
+        name: "{{ _common + _specific[ansible_os_family] }}"
+      vars:
+        _common: [ceph-common, cephadm, podman]
+        _specific:
+          Debian: []
+          RedHat: []
+          Suse: []
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+    - when: inventory_hostname == _mon.0
+      block:
+        - name: Apply bootstrap spec
+          ansible.builtin.command:
+            cmd: bash -s
+            stdin: "{{ _stdin.cmd }}"
+            creates: /etc/ceph/ceph.conf
+          environment:
+            SPEC: "{{ cephadm_bootstrap_spec }}"
+          vars:
+            _stdin:
+              cmd: |
+                set -o errexit -o nounset
+
+                TO_APPLY="$(mktemp)"; trap "rm -f $TO_APPLY" ERR EXIT
+                tee "$TO_APPLY" <<<"$SPEC"
+
+                cephadm bootstrap --mon-ip '{{ ansible_host }}' \
+                                  --skip-monitoring-stack \
+                                  --skip-dashboard \
+                                  --apply-spec "$TO_APPLY"
+
+        - name: Obtain pubkey
+          ansible.builtin.command:
+            cmd: cephadm shell -- bash -s
+            stdin: "{{ _stdin.cmd }}"
+          vars:
+            _stdin:
+              cmd: |
+                set -o errexit
+                ceph cephadm get-pub-key
+          register: command_cephadm_pubkey
+          changed_when: false
+
+    - name: Add pubkey to authorized_keys on all hosts
+      ansible.posix.authorized_key:
+        user: root
+        key: "{{ hostvars[_mon.0].command_cephadm_pubkey.stdout_lines.0 }}"
+
+    - when: inventory_hostname == _mon.0
+      block:
+        - name: Apply config (inventory group level)
+          ansible.builtin.command:
+            cmd: cephadm shell -- bash -s
+            stdin: "{{ _stdin.cmd }}"
+          when: _when
+          vars:
+            _stdin:
+              cmd: |
+                set -o errexit -o pipefail
+
+                BEFORE="$(ceph config dump | cksum)"
+
+                {% for k, v in _conf_global.items() %}
+                {% if v is none %}
+                ceph config rm global '{{ k }}'
+                {% else %}
+                ceph config set global '{{ k }}' '{{ v }}'
+                {% endif %}
+                {% endfor %}
+
+                {% for k, v in _conf_mon.items() %}
+                {% if v is none %}
+                ceph config rm mon '{{ k }}'
+                {% else %}
+                ceph config set mon '{{ k }}' '{{ v }}'
+                {% endif %}
+                {% endfor %}
+
+                {% for k, v in _conf_mgr.items() %}
+                {% if v is none %}
+                ceph config rm mgr '{{ k }}'
+                {% else %}
+                ceph config set mgr '{{ k }}' '{{ v }}'
+                {% endif %}
+                {% endfor %}
+
+                {% for k, v in _conf_osd.items() %}
+                {% if v is none %}
+                ceph config rm osd '{{ k }}'
+                {% else %}
+                ceph config set osd '{{ k }}' '{{ v }}'
+                {% endif %}
+                {% endfor %}
+
+                AFTER="$(ceph config dump | cksum)"
+
+                if [[ "$AFTER" == "$BEFORE" ]]; then
+                  exit 0
+                else
+                  exit 78 # EREMCHG
+                fi
+            _when: >-
+              {{ [ _conf_global | count
+                 , _conf_mon | count
+                 , _conf_mgr | count
+                 , _conf_osd | count ] | sum > 0 }}
+          register: command_apply_group_config
+          changed_when:
+            - command_apply_group_config.rc in [78]
+          failed_when:
+            - command_apply_group_config.rc not in [0, 78]
+
+        - name: Enable modules
+          ansible.builtin.command:
+            cmd: cephadm shell -- bash -s
+            stdin: "{{ _stdin.cmd }}"
+          when: _when
+          vars:
+            _stdin:
+              cmd: |
+                set -o errexit -o pipefail
+
+                BEFORE="$(ceph mgr module ls | cksum)"
+
+                {% for k in _to_enable %}
+                ceph mgr module enable '{{ k }}'
+                {% endfor %}
+
+                AFTER="$(ceph mgr module ls | cksum)"
+
+                if [[ "$AFTER" == "$BEFORE" ]]; then
+                  exit 0
+                else
+                  exit 78 # EREMCHG
+                fi
+            _to_enable: >-
+              {{ _modules | dict2items
+                          | selectattr('value.enabled', 'true')
+                          | items2dict }}
+            _when: >-
+              {{ _to_enable | count > 0 }}
+          register: command_enable_modules
+          changed_when:
+            - command_enable_modules.rc in [78]
+          failed_when:
+            - command_enable_modules.rc not in [0, 78]
+
+        - name: Apply runtime spec
+          ansible.builtin.command:
+            cmd: cephadm shell --env SPEC -- bash -s
+            stdin: "{{ _stdin.cmd }}"
+          environment:
+            SPEC: "{{ cephadm_spec }}"
+          vars:
+            _stdin:
+              cmd: |
+                set -o errexit -o nounset -o pipefail
+
+                TO_APPLY="$(mktemp)"; trap "rm -f $TO_APPLY" ERR EXIT
+                tee "$TO_APPLY" <<<"$SPEC"
+
+                BEFORE="$({ ceph orch host ls --format yaml; \
+                            ceph orch ls --export; } | cksum)"
+
+                ceph orch apply --in-file "$TO_APPLY"
+
+                AFTER="$({ ceph orch host ls --format yaml; \
+                           ceph orch ls --export; } | cksum)"
+
+                if [[ "$AFTER" == "$BEFORE" ]]; then
+                  exit 0
+                else
+                  exit 78 # EREMCHG
+                fi
+          register: command_orch_apply
+          changed_when:
+            - command_orch_apply.rc in [78]
+          failed_when:
+            - command_orch_apply.rc not in [0, 78]
+
+        - name: Apply config (inventory host level)
+          ansible.builtin.command:
+            cmd: cephadm shell -- bash -s
+            stdin: "{{ _stdin.cmd }}"
+          when: _when
+          vars:
+            _stdin:
+              cmd: |
+                set -o errexit -o pipefail
+
+                BEFORE="$(ceph config dump | cksum)"
+
+                {% for h in _conf_mon_hosts.keys() %}
+                {% for k, v in _conf_mon_hosts[h].items() %}
+                {% if v is none %}
+                ceph config rm 'mon/host:{{ h }}' '{{ k }}'
+                {% else %}
+                ceph config set 'mon/host:{{ h }}' '{{ k }}' '{{ v }}'
+                {% endif %}
+                {% endfor %}
+                {% endfor %}
+
+                {% for h in _conf_mgr_hosts.keys() %}
+                {% for k, v in _conf_mgr_hosts[h].items() %}
+                {% if v is none %}
+                ceph config rm 'mgr/host:{{ h }}' '{{ k }}'
+                {% else %}
+                ceph config set 'mgr/host:{{ h }}' '{{ k }}' '{{ v }}'
+                {% endif %}
+                {% endfor %}
+                {% endfor %}
+
+                {% for h in _conf_osd_hosts.keys() %}
+                {% for k, v in _conf_osd_hosts[h].items() %}
+                {% if v is none %}
+                ceph config rm 'osd/host:{{ h }}' '{{ k }}'
+                {% else %}
+                ceph config set 'osd/host:{{ h }}' '{{ k }}' '{{ v }}'
+                {% endif %}
+                {% endfor %}
+                {% endfor %}
+
+                AFTER="$(ceph config dump | cksum)"
+
+                if [[ "$AFTER" == "$BEFORE" ]]; then
+                  exit 0
+                else
+                  exit 78 # EREMCHG
+                fi
+            _when: >-
+              {{ [ _conf_mon_hosts.values() | map('count') | sum
+                 , _conf_mgr_hosts.values() | map('count') | sum
+                 , _conf_osd_hosts.values() | map('count') | sum ] | sum > 0 }}
+          register: command_apply_host_config
+          changed_when:
+            - command_apply_host_config.rc in [78]
+          failed_when:
+            - command_apply_host_config.rc not in [0, 78]
