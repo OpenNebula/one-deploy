@@ -1,6 +1,9 @@
 ---
-- ansible.builtin.import_tasks:
+- ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/openvswitch.yml"
 
-- ansible.builtin.import_tasks:
+# NOTE: While openvswitch role can still run on Front-ends,
+#       it makes little sense however to force the vhost/SELinux setup on them (unused).
+- ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/vhost.yml"
+  when: inventory_hostname in groups[node_group | d('node')]
