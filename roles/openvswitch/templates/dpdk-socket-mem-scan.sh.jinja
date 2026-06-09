@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# managed by one-deploy; vim:syn=bash:
+set -o errexit
+
+VSWITCHD_PID="$(systemctl show --property MainPID --value ovs-vswitchd.service)"
+
+if ! (( VSWITCHD_PID > 0 )); then
+    exit
+fi
+
+gawk -f- "/proc/$VSWITCHD_PID/numa_maps" <<'AWK'
+BEGIN {
+    PROCINFO["sorted_in"] = "@ind_num_asc"
+}
+
+match($0, /\<huge\>/) && match($0, /\<N([0-9]+)=([0-9]+)\>/, N) && match($0, /\<kernelpagesize_kB=([0-9]+)\>/, P) {
+    seen[N[1]] += N[2] * int(P[1] / 1024)
+}
+
+END {
+    for (node in seen) {
+        max_node = (node > max_node) ? node : max_node
+    }
+
+    for (node = 0; node <= max_node; node++) {
+        joined = (joined == "" ? "" : joined ",") ((node in seen) ? seen[node] : 0)
+    }
+
+    print joined
+}
+AWK

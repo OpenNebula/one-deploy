@@ -1,0 +1,22 @@
+# managed by one-deploy; vim:syn=systemd:
+[Unit]
+Description=OVS DPDK Socket Memory Pre-allocation
+After=ovsdb-server.service
+Requires=ovsdb-server.service
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=
+ExecStart=/usr/local/sbin/dpdk-socket-mem.sh
+TimeoutStartSec=120
+StandardOutput=journal
+StandardError=journal
+# Ensure the service runs in a clean environment
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# HugeTLB operations require root
+User=root
+
+[Install]
+WantedBy=multi-user.target
