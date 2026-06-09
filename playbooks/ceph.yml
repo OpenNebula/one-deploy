@@ -1,40 +1,18 @@
 ---
 - hosts:
-    - "{{ mon_group_name | d('mons') }}"
-    - "{{ mgr_group_name | d('mgrs') }}"
-    - "{{ osd_group_name | d('osds') }}"
+    - "{{ mon_group | d('mon') }}"
+    - "{{ mgr_group | d('mgr') }}"
+    - "{{ osd_group | d('osd') }}"
+  tags: [ceph]
   collections:
     - opennebula.deploy
   roles:
+    # This installs the interpreter only.
+    # Extra OS/PyPI packages should not required by this playbook.
+    - role: helper/python3
+
     - role: helper/facts
-      facts_subset: ['all', '!facter', '!ohai']
-      _force: true
       tags: [always]
+
     - role: ceph/repository
-
-- hosts: "{{ mon_group_name | d('mons') }}"
-  roles:
-    - role: ceph-defaults
-    - role: ceph-facts
-    - role: ceph-handler
-    - role: ceph-common
-    - role: ceph-config
-    - role: ceph-mon
-
-- hosts: "{{ mgr_group_name | d('mgrs') }}"
-  roles:
-    - role: ceph-defaults
-    - role: ceph-facts
-    - role: ceph-handler
-    - role: ceph-common
-    - role: ceph-config
-    - role: ceph-mgr
-
-- hosts: "{{ osd_group_name | d('osds') }}"
-  roles:
-    - role: ceph-defaults
-    - role: ceph-facts
-    - role: ceph-handler
-    - role: ceph-common
-    - role: ceph-config
-    - role: ceph-osd
+    - role: ceph/cephadm

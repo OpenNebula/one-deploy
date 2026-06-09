@@ -21,53 +21,59 @@
   ansible.builtin.file:
     path: /var/run/ceph/
     state: directory
-    owner: oneadmin
-    group: oneadmin
+    owner: 9869
+    group: 9869
     mode: u=rwx,go=rx
 
-- delegate_to: "{{ groups.get(mon_group_name | d('mons'), [omit])[0] }}"
+- delegate_to: "{{ groups.get(mon_group| d('mon'), [omit])[0] }}"
   run_once: true
   block:
     - name: Ensure pool exists
-      ansible.builtin.shell:
-        cmd: |
-          set -o errexit
+      ansible.builtin.command:
+        cmd: cephadm shell -- bash -s
+        stdin: "{{ _stdin.cmd }}"
+      vars:
+        _stdin:
+          cmd: |
+            set -o errexit
 
-          if ceph osd pool get '{{ ceph.pool }}' all; then exit 0; fi
+            if ceph osd pool get '{{ ceph.pool }}' all; then exit 0; fi
 
-          ceph osd pool create '{{ ceph.pool }}' 128
+            ceph osd pool create '{{ ceph.pool }}' 128
 
-          exit 78
-        executable: /bin/bash
-      register: shell
+            exit 78 # EREMCHG
+      register: command_ensure_pool
       changed_when:
-        - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
+        - command_ensure_pool.rc in [78]
       failed_when:
-        - shell.rc != 0 and shell.rc != 78
+        - command_ensure_pool.rc not in [0, 78]
 
     - name: Ensure user exists
-      ansible.builtin.shell:
-        cmd: |
-          set -o errexit
+      ansible.builtin.command:
+        cmd: cephadm shell -- bash -s
+        stdin: "{{ _stdin.cmd }}"
+      vars:
+        _stdin:
+          cmd: |
+            set -o errexit
 
-          if ceph auth get 'client.{{ ceph.user }}'; then exit 0; fi
+            if ceph auth get 'client.{{ ceph.user }}'; then exit 0; fi
 
-          ceph auth add 'client.{{ ceph.user }}' mon 'profile rbd' osd 'profile rbd pool={{ ceph.pool }}'
+            ceph auth add 'client.{{ ceph.user }}' mon 'profile rbd' osd 'profile rbd pool={{ ceph.pool }}'
 
-          exit 78
-        executable: /bin/bash
-      register: shell
+            exit 78 # EREMCHG
+      register: command_ensure_user
       changed_when:
-        - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
+        - command_ensure_user.rc in [78]
       failed_when:
-        - shell.rc != 0 and shell.rc != 78
+        - command_ensure_user.rc not in [0, 78]
 
 - when: ceph.uuid is falsy
   block:
     - name: Slurp UUID
       ansible.builtin.slurp:
         path: "/etc/ceph/client.{{ ceph.user }}.secret.uuid"
-      register: slurp
+      register: slurp_secret_uuid
       ignore_errors: true
 
     - name: Detect UUID
@@ -77,9 +83,11 @@
       vars:
         _update:
           uuid: >-
-            {{ (_slurp[0].content | b64decode) if _slurp is truthy else None }}
+            {{ (_slurp[0].content | b64decode) if (_slurp is truthy) else none }}
         _slurp: >-
-          {{ play_hosts | map('extract', hostvars, ['slurp']) | selectattr('failed', 'false') | list }}
+          {{ play_hosts | map('extract', hostvars, ['slurp_secret_uuid'])
+                        | selectattr('failed', 'false')
+                        | list }}
       run_once: true
 
 - when: ceph.uuid is falsy
@@ -93,8 +101,8 @@
     - name: Store UUID
       ansible.builtin.copy:
         dest: "/etc/ceph/client.{{ ceph.user }}.secret.uuid"
-        owner: oneadmin
-        group: oneadmin
+        owner: 9869
+        group: 9869
         mode: u=rw,g=r,o=
         force: false
         content: "{{ new_uuid }}"
@@ -109,37 +117,47 @@
             {{ new_uuid }}
       run_once: true
 
-- delegate_to: "{{ groups.get(mon_group_name | d('mons'), [omit])[0] }}"
+- delegate_to: "{{ groups.get(mon_group| d('mon'), [omit])[0] }}"
   run_once: true
   block:
     - name: Get keyring
-      ansible.builtin.shell:
-        cmd: ceph auth get 'client.{{ ceph.user }}'
-        executable: /bin/bash
-      register: shell_keyring
+      ansible.builtin.command:
+        cmd: cephadm shell -- bash -s
+        stdin: "{{ _stdin.cmd }}"
+      vars:
+        _stdin:
+          cmd: |
+            set -o errexit
+            ceph auth get 'client.{{ ceph.user }}'
+      register: command_keyring
       changed_when: false
 
     - name: Get key
-      ansible.builtin.shell:
-        cmd: ceph auth get-key 'client.{{ ceph.user }}'
-        executable: /bin/bash
-      register: shell_key
+      ansible.builtin.command:
+        cmd: cephadm shell -- bash -s
+        stdin: "{{ _stdin.cmd }}"
+      vars:
+        _stdin:
+          cmd: |
+            set -o errexit
+            ceph auth get-key 'client.{{ ceph.user }}'
+      register: command_key
       changed_when: false
 
 - name: Store keyring
   ansible.builtin.copy:
     dest: "/etc/ceph/ceph.client.{{ ceph.user }}.keyring"
-    owner: oneadmin
-    group: oneadmin
+    owner: 9869
+    group: 9869
     mode: u=rw,g=r,o=
     content: |
-      {{ shell_keyring.stdout | trim }}
+      {{ command_keyring.stdout | trim }}
 
 - name: Create /etc/ceph/ceph.conf
   ansible.builtin.copy:
     dest: /etc/ceph/ceph.conf
-    owner: oneadmin
-    group: oneadmin
+    owner: 9869
+    group: 9869
     mode: u=rw,g=r,o=
     content: |
       [client.{{ ceph.user }}]
@@ -147,23 +165,22 @@
       admin socket = /var/run/ceph/$cluster-$type.$id.$pid.$cctid.asok
       [global]
       rbd_default_format = 2
-      mon host = {{ _mons }}
+      mon host = {{ _mon }}
   vars:
     _hosts: >-
-      {{ groups[mon_group_name | d('mons')] | map('extract', hostvars, ['ansible_host']) | list }}
-    _mons: >-
+      {{ groups.get(mon_group | d('mon')) | map('extract', hostvars, ['ansible_host']) | list }}
+    _mon: >-
       {%- set output = [] -%}
       {%- for host in _hosts -%}
-      {{- output.append('[v2:%(host)s:3300,v1:%(host)s:6789]' | format(host=host)) -}}
+        {{- output.append('[v2:%(host)s:3300,v1:%(host)s:6789]' | format(host=host)) -}}
       {%- endfor -%}
-      {{- output | join(_sep) -}}
-    _sep: ','
+      {{- output | join(',') -}}
 
 - name: Create Libvirt secret XML
   ansible.builtin.copy:
     dest: "/etc/ceph/client.{{ ceph.user }}.secret.xml"
-    owner: oneadmin
-    group: oneadmin
+    owner: 9869
+    group: 9869
     mode: u=rw,g=r,o=
     content: |
       <secret ephemeral='no' private='no'>
@@ -174,17 +191,28 @@
       </secret>
 
 - name: Create Ceph secret in Libvirt
-  ansible.builtin.shell:
-    cmd: |
-      set -o errexit
-      if ! virsh -c 'qemu:///system' secret-dumpxml '{{ ceph.uuid }}'; then
+  ansible.builtin.command:
+    cmd: bash -s
+    stdin: "{{ _stdin.cmd }}"
+  vars:
+    _stdin:
+      cmd: |
+        set -o errexit
+
+        if virsh -c 'qemu:///system' secret-dumpxml '{{ ceph.uuid }}'; then exit 0; fi
+
         virsh -c 'qemu:///system' secret-define \
-        '/etc/ceph/client.{{ ceph.user }}.secret.xml'
+          '/etc/ceph/client.{{ ceph.user }}.secret.xml'
+
         virsh -c 'qemu:///system' secret-set-value \
-        --secret '{{ ceph.uuid }}' \
-        --base64 '{{ shell_key.stdout | trim }}'
-      fi
-    executable: /bin/bash
-  changed_when: false
+          --secret '{{ ceph.uuid }}' \
+          --base64 '{{ command_key.stdout | trim }}'
+
+        exit 78 # EREMCHG
+  register: command_libvirt_secret
+  changed_when:
+    - command_libvirt_secret.rc in [78]
+  failed_when:
+    - command_libvirt_secret.rc not in [0, 78]
   become: true
   become_user: oneadmin
