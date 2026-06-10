@@ -1,5 +1,7 @@
 ---
 - when: one_version is version('7.2.1', '>=')
+  delegate_to: "{{ leader }}"
+  run_once: true
   block:
     - name: Create hooks for backup/restore metrics
       ansible.builtin.shell:
