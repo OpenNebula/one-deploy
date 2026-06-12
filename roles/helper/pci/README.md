@@ -55,6 +55,7 @@ Example Playbook
             #       1[3] -> PCI Function (SR-IOV PF)
             # NOTE: 2    -> "virtfn" index (SR-IOV VF)
             # NOTE: 3    -> index derived from set_counter
+            # NOTE: 4    -> fully resolved PF's name (only when renaming a VF)
             set_name: "pf{1[1]}{1[2]}vf{2}"
 
           # Do not rename "0000:04:00.0" + If it's SR-IOV capable, enable all available VFs.
@@ -132,6 +133,24 @@ Example Playbook
             class: "0200"
             virtual: true
             set_name: "pf{1[1]}{1[2]}{1[3]}vf{2}"
+      roles:
+        - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.helper.pci
+
+    - hosts: node
+      vars:
+        pci_devices:
+          # Enable all available VFs for a specific Mellanox PF + rename the PF.
+          - address: "0000:12:00.0"
+            set_numvfs: max
+            set_name: "pf{0[1]}" # pf12
+
+          # Rename all existing Mellanox VFs using corresponding PF names as prefix.
+          - vendor: "15b3"
+            device: "1016"
+            class: "0200"
+            virtual: true
+            set_name: "{4}vf{2}" # pf12vf0, pf12vf1, ...
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.helper.pci

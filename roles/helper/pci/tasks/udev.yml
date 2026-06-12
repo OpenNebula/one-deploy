@@ -39,6 +39,42 @@
       {{ shell_pf_vf_fn.stdout_lines | d([])
                                      | map('split', ';')
                                      | items2dict(key_name=1, value_name=2) }}
+
+    _names: >-
+      {%- set output = {} -%}
+      {# Resolve basic 0-3 args. #}
+      {%- for v in _all -%}
+        {{-
+          output.update({
+            v.Slot: [
+              v.Slot | regex_findall('[0-9a-fA-F]+'),
+              _vf_to_pf.get(v.Slot, '') | regex_findall('[0-9a-fA-F]+'),
+              _vf_to_fn.get(v.Slot, ''),
+              v.Index | d(0),
+            ],
+          })
+        -}}
+      {%- endfor -%}
+      {# Add 4th arg (PF's name). #}
+      {%- for v in _all | selectattr('Slot', 'in', _vf_to_pf) -%}
+        {%- set p = _lspci_devices | selectattr('Slot', '==', _vf_to_pf[v.Slot]) | first -%}
+        {%- if p.Set_name != 'omit' -%}
+          {{-
+            output.update({
+              v.Slot: output[v.Slot] + [p.Set_name.format(*output[p.Slot])],
+            })
+          -}}
+        {%- endif -%}
+      {%- endfor -%}
+      {# Construct all names from templates and args. #}
+      {%- for v in _all -%}
+        {{-
+          output.update({
+            v.Slot: v.Set_name.format(*output[v.Slot]),
+          })
+        -}}
+      {%- endfor -%}
+      {{- output -}}
   block:
     - name: Scan /sys/bus/pci/devices/*/virtfn* (SR-IOV)
       ansible.builtin.shell:
@@ -70,21 +106,13 @@
             # managed by one-deploy
             # --- NET
             {% for v in _net %}
-            {% set name = v.Set_name.format(v.Slot | regex_findall('[0-9a-fA-F]+'),
-                                            _vf_to_pf.get(v.Slot, '') | regex_findall('[0-9a-fA-F]+'),
-                                            _vf_to_fn.get(v.Slot, ''),
-                                            v.Index | d(0)) %}
-            # {{ v.Slot }} <- {{ name }}
-            SUBSYSTEM=="net", ACTION=="add", ENV{ID_PATH}=="pci-{{ v.Slot }}", NAME="{{ name }}"
+            # {{ v.Slot }} <- {{ _names[v.Slot] }}
+            SUBSYSTEM=="net", ACTION=="add", ENV{ID_PATH}=="pci-{{ v.Slot }}", NAME="{{ _names[v.Slot] }}"
             {% endfor %}
             # --- VFIO
             {% for v in _vfio %}
-            {% set name = v.Set_name.format(v.Slot | regex_findall('[0-9a-fA-F]+'),
-                                            _vf_to_pf.get(v.Slot, '') | regex_findall('[0-9a-fA-F]+'),
-                                            _vf_to_fn.get(v.Slot, ''),
-                                            v.Index | d(0)) %}
-            # {{ v.Slot }} <- {{ name }}
-            SUBSYSTEM=="vfio", ACTION=="add", SYMLINK+="vfio/by-tag/{{ name }}", \
+            # {{ v.Slot }} <- {{ _names[v.Slot] }}
+            SUBSYSTEM=="vfio", ACTION=="add", SYMLINK+="vfio/by-tag/{{ _names[v.Slot] }}", \
             PROGRAM="/usr/bin/test /sys/bus/pci/devices/{{ v.Slot }}/iommu_group -ef /sys/kernel/iommu_groups/%k"
             {% endfor %}
         - dest: /etc/udev/rules.d/99-mode.rules
