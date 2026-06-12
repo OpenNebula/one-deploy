@@ -143,14 +143,14 @@ Example Playbook
           # Enable all available VFs for a specific Mellanox PF + rename the PF.
           - address: "0000:12:00.0"
             set_numvfs: max
-            set_name: "pf{3}"
+            set_name: "pf{0[1]}" # pf12
 
           # Rename all existing Mellanox VFs using corresponding PF names as prefix.
           - vendor: "15b3"
             device: "1016"
             class: "0200"
             virtual: true
-            set_name: "{4}vf{3}"
+            set_name: "{4}vf{2}" # pf12vf0, pf12vf1, ...
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.helper.pci
