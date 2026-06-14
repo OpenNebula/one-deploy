@@ -47,3 +47,15 @@ ds_defaults:
     FILE_DS:
       template:
         TM_MAD: ssh
+  fs_lvm_ssh:
+    SYSTEM_DS:
+      template:
+        TM_MAD: fs_lvm_ssh
+        BRIDGE_LIST: "{{ groups[node_group | d('node')] | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
+      device: ""
+    IMAGE_DS:
+      template:
+        TM_MAD: fs_lvm_ssh
+    FILE_DS:
+      template:
+        TM_MAD: ssh
