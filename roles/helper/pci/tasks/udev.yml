@@ -140,11 +140,14 @@
             SUBSYSTEM=="net", ACTION=="add|move", ENV{ID_PATH}=="pci-{{ v.Slot }}", \
             ENV{NM_UNMANAGED}="1", ENV{FORCE_NM_UNMANAGED}="1"
             SUBSYSTEM=="net", ENV{ID_PATH}=="pci-{{ v.Slot }}", ENV{FORCE_NM_UNMANAGED}=="1", TEST=="/usr/bin/nmcli", \
-            RUN+="/usr/bin/systemd-run --no-block --property=ConditionPathExists=/sys%E{DEVPATH} /usr/bin/nmcli device set %E{ID_NET_NAME} managed no"
+            RUN+="/usr/bin/systemd-run --no-block --property=ConditionPathExists=/sys%E{DEVPATH} \
+                  /usr/bin/nmcli device set %E{ID_NET_NAME} managed no"
             SUBSYSTEM=="net", ENV{ID_PATH}=="pci-{{ v.Slot }}", ENV{FORCE_NM_UNMANAGED}=="1", TEST=="/usr/sbin/netplan", \
-            RUN+="/usr/bin/systemd-run --no-block --property=ConditionPathExists=/sys%E{DEVPATH} /usr/sbin/netplan set network.ethernets.%E{ID_NET_NAME_PATH}=null"
+            RUN+="/usr/bin/systemd-run --no-block --property=ConditionPathExists=/sys%E{DEVPATH} \
+                  /usr/sbin/netplan set network.ethernets.%E{ID_NET_NAME_PATH}=null"
             SUBSYSTEM=="net", ACTION=="add|move", ENV{ID_PATH}=="pci-{{ v.Slot }}", TEST=="/usr/sbin/ip", \
-            RUN+="/usr/bin/systemd-run --no-block --property=ConditionPathExists=/sys%E{DEVPATH} /usr/sbin/ip link set dev %E{INTERFACE} up"
+            RUN+="/usr/bin/systemd-run --no-block --property=ConditionPathExists=/sys%E{DEVPATH} \
+                  /usr/sbin/ip link set dev %E{INTERFACE} up"
             {% endfor %}
       register: copy_udev_rules
 
