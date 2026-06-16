@@ -19,6 +19,15 @@
   retries: 12
   delay: 5
 
+- name: Ensure mount directories exist
+  ansible.builtin.file:
+    path: "{{ item.path | d('/var/lib/one/datastores') }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop: "{{ fstab }}"
+
 - name: Add to fstab and mount filesystems
   ansible.posix.mount:
     src: "{{ item.src }}"
