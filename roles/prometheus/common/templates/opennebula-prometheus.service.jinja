@@ -29,3 +29,19 @@ IOReadBandwidthMax={{ oneprometheus_limits['opennebula-prometheus.service'].IORe
 IOWriteBandwidthMax={{ oneprometheus_limits['opennebula-prometheus.service'].IOWriteBandwidthMax }}
 {% endif %}
 {# --- #}
+{%
+    set prometheus_args = [
+        '--config.file=/etc/one/prometheus/prometheus.yml',
+        '--storage.tsdb.path=/var/lib/prometheus/data/',
+        (oneprometheus_limits['opennebula-prometheus.service']['storage.tsdb.retention.size'] is none) | ternary(
+            none,
+            '--storage.tsdb.retention.size=' ~ oneprometheus_limits['opennebula-prometheus.service']['storage.tsdb.retention.size']
+        ),
+        (oneprometheus_limits['opennebula-prometheus.service']['storage.tsdb.retention.time'] is none) | ternary(
+            none,
+            '--storage.tsdb.retention.time=' ~ oneprometheus_limits['opennebula-prometheus.service']['storage.tsdb.retention.time']
+        ),
+    ] | select
+%}
+ExecStart=
+ExecStart=/usr/bin/prometheus {{ prometheus_args | map('regex_replace', '^(.*)$', "'\g<1>'") | join(' ') }}
