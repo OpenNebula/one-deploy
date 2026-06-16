@@ -74,6 +74,8 @@ oneprometheus_limits_defaults:
     IOWeight: 200
     IOReadBandwidthMax: /var/lib/prometheus 50M
     IOWriteBandwidthMax: /var/lib/prometheus 25M
+    storage.tsdb.retention.size: null
+    storage.tsdb.retention.time: null
   opennebula-smartctl-exporter.service:
     CPUQuota: 25%
     CPUWeight: 25
