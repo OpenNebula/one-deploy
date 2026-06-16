@@ -34,11 +34,35 @@ oneprometheus_limits_defaults:
     IOWeight: null
     IOReadBandwidthMax: null
     IOWriteBandwidthMax: null
+  opennebula-lvm-exporter.service:
+    CPUQuota: 25%
+    CPUWeight: 25
+    MemoryHigh: 128M
+    MemoryMax: 256M
+    IOWeight: null
+    IOReadBandwidthMax: null
+    IOWriteBandwidthMax: null
+  opennebula-mysql-exporter.service:
+    CPUQuota: 25%
+    CPUWeight: 25
+    MemoryHigh: 128M
+    MemoryMax: 256M
+    IOWeight: null
+    IOReadBandwidthMax: null
+    IOWriteBandwidthMax: null
   opennebula-node-exporter.service:
     CPUQuota: 25%
     CPUWeight: 25
     MemoryHigh: 64M
     MemoryMax: 128M
+    IOWeight: null
+    IOReadBandwidthMax: null
+    IOWriteBandwidthMax: null
+  opennebula-ovs-exporter.service:
+    CPUQuota: 50%
+    CPUWeight: 25
+    MemoryHigh: 256M
+    MemoryMax: 512M
     IOWeight: null
     IOReadBandwidthMax: null
     IOWriteBandwidthMax: null
@@ -50,3 +74,11 @@ oneprometheus_limits_defaults:
     IOWeight: 200
     IOReadBandwidthMax: /var/lib/prometheus 50M
     IOWriteBandwidthMax: /var/lib/prometheus 25M
+  opennebula-smartctl-exporter.service:
+    CPUQuota: 25%
+    CPUWeight: 25
+    MemoryHigh: 128M
+    MemoryMax: 256M
+    IOWeight: null
+    IOReadBandwidthMax: null
+    IOWriteBandwidthMax: null
