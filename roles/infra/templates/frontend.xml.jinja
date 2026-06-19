@@ -5,6 +5,9 @@
   <memory unit='KiB'>{{ memory_KiB }}</memory>
   <vcpu placement='static'>{{ vcpu_static }}</vcpu>
   <cpu mode='host-passthrough' check='none' migratable='on'/>
+  <cputune>
+    <shares>{{ (cputune_shares if (cputune_shares | int) < (cputune_shares_max | int) else cputune_shares_max) | int }}</shares>
+  </cputune>
 
   <resource>
     <partition>/machine</partition>
