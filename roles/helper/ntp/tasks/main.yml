@@ -1,6 +1,48 @@
 ---
 - when:
     - ntp is sequence
+    - _timezone_defined or _locale_defined
+  vars:
+    # Process user input.
+    _timezone: >-
+      {{ ntp | selectattr('timezone', 'defined')
+             | map(attribute='timezone')
+             | last
+             | d('') }}
+    _timezone_defined: >-
+      {{ _timezone is string and _timezone | length > 0 }}
+    _locale: >-
+      {{ ntp | selectattr('locale', 'defined')
+             | map(attribute='locale') }}
+    _locale_defined: >-
+      {{ _locale is sequence and _locale | count > 0 }}
+  block:
+    - name: Apply timezone and locale settings
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit
+          BEFORE="$(timedatectl show -p Timezone; localectl)"
+          {% if _timezone_defined %}
+          timedatectl set-timezone '{{ _timezone }}'
+          {% endif %}
+          {% if _locale_defined %}
+          localectl set-locale {{ ' '.join(_locale | map('regex_replace', '^(.*)$', "'\g<1>'")) }}
+          {% endif %}
+          AFTER="$(timedatectl show -p Timezone; localectl)"
+          if [[ "$AFTER" == "$BEFORE" ]]; then
+            exit 0
+          else
+            exit 78 # EREMCHG
+          fi
+        executable: /bin/bash
+      register: shell_timezone_locale
+      changed_when:
+        - shell_timezone_locale.rc in [78]
+      failed_when:
+        - shell_timezone_locale.rc not in [0, 78]
+
+- when:
+    - ntp is sequence
     - ((_pools | count) + (_servers | count)) > 0
   vars:
     # Process user input.
