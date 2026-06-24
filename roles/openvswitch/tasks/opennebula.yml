@@ -1,0 +1,62 @@
+---
+- when:
+    - _pmd_cpu_mask is string
+    - _pmd_cpu_mask | length > 0
+    - _pmd_cpu_mask_cpus | count > 0
+  vars:
+    _pmd_cpu_mask: >-
+      {{ ovs.set | d([])
+                 | selectattr('other_config:pmd-cpu-mask', 'defined')
+                 | map(attribute='other_config:pmd-cpu-mask')
+                 | first
+                 | d('') }}
+
+    _pmd_cpu_mask_bits: >-
+      {{ '{:b}'.format(_pmd_cpu_mask | int(base=16)) | list
+                                                     | reverse }}
+
+    _pmd_cpu_mask_cpus: >-
+      {{ range(_pmd_cpu_mask_bits | count) | zip(_pmd_cpu_mask_bits)
+                                           | selectattr(1, '==', '1')
+                                           | map(attribute=0) }}
+  block:
+    - delegate_to: "{{ leader }}"
+      block:
+        - name: Get Nodes
+          ansible.builtin.command:
+            cmd: onehost list --json
+          changed_when: false
+          register: command
+          run_once: true
+
+        - name: Update ISOLCPUS
+          ansible.builtin.shell:
+            cmd: |
+              set +o errexit -o pipefail
+              TEMPLATE="$(mktemp)"
+              tee "$TEMPLATE"
+              cat "$TEMPLATE" | onehost update '{{ _this }}' -a "$TEMPLATE"; RC="$?"
+              rm -f "$TEMPLATE"
+              exit "$RC"
+            stdin: |
+              {{ _after | opennebula.deploy.to_one }}
+            executable: /bin/bash
+          changed_when: true
+          when: _after | opennebula.deploy.to_one
+                !=
+                _before | opennebula.deploy.to_one
+          vars:
+            _host_pool: >-
+              {{ (command.stdout | from_json).HOST_POOL }}
+            _this: >-
+              {{ ansible_host | d(inventory_hostname) }}
+            _template: >-
+              {{ ([_host_pool.HOST] | flatten
+                                    | selectattr('NAME', '==', _this)
+                                    | first).TEMPLATE }}
+            _before:
+              ISOLCPUS: >-
+                {{ _template.ISOLCPUS | d('') }}
+            _after:
+              ISOLCPUS: >-
+                {{ _pmd_cpu_mask_cpus | join(',') }}
