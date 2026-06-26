@@ -189,6 +189,10 @@ ip route replace default via '{{ gw }}' || die 'Failed to replace default route 
 
 # --- Nameserver configuration
 
+{% if (ovs.iface.values() | list + ovs.br.values() | list) | selectattr('dns', 'defined')
+                                                           | selectattr('dns', 'sequence')
+                                                           | selectattr('dns', 'truthy')
+                                                           | count > 0 %}
 if type -p systemctl resolvectl &>/dev/null && [[ "$(systemctl is-enabled systemd-resolved.service)" != not-found ]]; then
     log 'Enabling systemd-resolved'
     if systemctl enable --now systemd-resolved.service; then
@@ -206,6 +210,7 @@ if type -p systemctl resolvectl &>/dev/null && [[ "$(systemctl is-enabled system
 {% endif %}
 {% endfor %}
 fi
+{% endif %}
 
 # --- Networking refresh
 
