@@ -47,6 +47,17 @@ Example Playbook
 
     - hosts: node
       vars:
+        # Configure OpenNebula to use "lvm" image and system datastores.
+        ds:
+          mode: lvm
+          config:
+            device: /dev/mapper/mpatha
+      roles:
+        - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.datastore.node
+
+    - hosts: node
+      vars:
         # Configure OpenNebula to use "shared" image and system datastores.
         # Create new datastores and symlinks accordingly.
         ds:

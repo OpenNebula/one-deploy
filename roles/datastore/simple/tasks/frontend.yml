@@ -1,6 +1,6 @@
 ---
 - ansible.builtin.import_tasks:
-    file: "{{ role_path }}/tasks/common.yml"
+    file: "{{ role_path }}/tasks/_init.yml"
 
 - name: Setup datastore symlinks (image)
   ansible.builtin.shell: &shell
@@ -18,7 +18,7 @@
 
       if ! ln -s '{{ _mount_path }}' '{{ _base_path }}'; then exit 1; fi
 
-      exit 78
+      exit 78 # EREMCHG
     executable: /bin/bash
   loop: >-
     {{ range(ds_items.image | map(attribute=0)
@@ -31,9 +31,9 @@
       {{ ds_items.image[item].1.BASE_PATH | normpath }}
   register: shell
   changed_when:
-    - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
+    - shell.rc in [78]
   failed_when:
-    - shell.rc != 0 and shell.rc != 78
+    - shell.rc not in [0, 78]
 
 - name: Setup datastore symlinks (file)
   ansible.builtin.shell: *shell
@@ -48,9 +48,9 @@
       {{ ds_items.file[item].1.BASE_PATH | normpath }}
   register: shell
   changed_when:
-    - shell.rc == 78 # EREMCHG "Remote address changed" 8^)
+    - shell.rc in [78]
   failed_when:
-    - shell.rc != 0 and shell.rc != 78
+    - shell.rc not in [0, 78]
 
 - when: inventory_hostname == leader
   block:
