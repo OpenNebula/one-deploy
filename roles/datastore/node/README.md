@@ -56,7 +56,6 @@ Example Playbook
               system:
                 enabled: false
               system1:
-                id: 100
                 managed: true
                 enabled: true
                 symlink:
@@ -67,7 +66,6 @@ Example Playbook
                   TM_MAD: shared
                   BRIDGE_LIST: "{{ groups.node | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
               system2:
-                id: 101
                 managed: true
                 enabled: true
                 symlink:
@@ -75,7 +73,6 @@ Example Playbook
                   src: /opt/nfs2/101/
                 template: *template
               system3:
-                id: 102
                 managed: true
                 enabled: true
                 symlink:
