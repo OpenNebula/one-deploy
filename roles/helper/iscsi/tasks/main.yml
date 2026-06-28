@@ -1,0 +1,61 @@
+---
+- when:
+    - iscsi is defined
+    - iscsi is sequence
+    - iscsi | count > 0
+  block:
+    - name: Install required OS packages
+      ansible.builtin.package:
+        name: "{{ _common + _specific[ansible_os_family] }}"
+      vars:
+        _common: []
+        _specific:
+          Debian: [open-iscsi, multipath-tools]
+          RedHat: [iscsi-initiator-utils, device-mapper-multipath]
+          Suse: [open-iscsi, multipath-tools]
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+    - name: Enable required OS service
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+      loop: "{{ _specific[ansible_os_family] }}"
+      vars:
+        _specific:
+          Debian: [iscsid.service, multipath-tools.service]
+          RedHat: [iscsid.service, multipathd.service]
+          Suse: [iscsid.service, multipathd.service]
+
+    - name: Attach LUNs
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit -o pipefail
+          CHANGED=false
+          {% for v in iscsi %}
+          if ! iscsiadm -m iface -I '{{ v.name }}'; then
+            iscsiadm -m iface -I '{{ v.name }}' --op new
+            iscsiadm -m iface -I '{{ v.name }}' --op update -n iface.initiatorname -v '{{ v.initiator }}'
+            CHANGED=true
+          fi
+          iscsiadm -m discovery -I '{{ v.name }}' -p '{{ v.portal }}' -t st
+          if ! iscsiadm -m session -P 1 | grep -q -m1 'Iface Name: {{ v.name }}'; then
+            iscsiadm -m node -I '{{ v.name }}' -p '{{ v.portal }}' -T '{{ v.target }}' --login
+            iscsiadm -m node -p '{{ v.portal }}' -T '{{ v.target }}' --op update -n node.startup -v automatic
+            CHANGED=true
+          fi
+          {% endfor %}
+          if [[ "$CHANGED" == false ]]; then
+            exit 0
+          else
+            exit 78 # EREMCHG
+          fi
+        executable: /bin/bash
+      register: shell
+      changed_when:
+        - shell.rc in [78]
+      failed_when:
+        - shell.rc not in [0, 78]
