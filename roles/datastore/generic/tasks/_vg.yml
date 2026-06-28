@@ -1,0 +1,51 @@
+---
+- vars:
+    _tm_mad_to_ds_type_map:
+      # NOTE: For 'lvm' DS, the VG name 'vg-one-{{ _ds_id }}' must use the image DS ID.
+      lvm: IMAGE_DS
+      # NOTE: For 'fs_lvm*' DS, the VG name 'vg-one-{{ _ds_id }}' must use the system DS ID.
+      fs_lvm: SYSTEM_DS
+      fs_lvm_ssh: SYSTEM_DS
+  block:
+    - name: Ensure LVM PV and VG exist
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit
+
+          if vgdisplay 'vg-one-{{ _ds_id }}'; then
+            exit 0
+          fi
+
+          if ! [[ -b '{{ _device }}' ]]; then
+            echo 'Device {{ _device }} does not exist or is not a block device.' >&2
+            exit 1
+          fi
+
+          if ! pvdisplay '{{ _device }}' && ! pvcreate '{{ _device }}'; then
+            echo 'Failed to create PV {{ _device }}' >&2
+            exit 2
+          fi
+
+          if ! vgcreate 'vg-one-{{ _ds_id }}' '{{ _device }}'; then
+            echo 'Failed to create VG vg-one-{{ _ds_id }}' >&2
+            exit 3
+          fi
+
+          exit 78 # EREMCHG
+        executable: /bin/bash
+      when:
+        - _ds_id is defined
+        - _device is defined
+        - _tm_mad_to_ds_type_map[_tm_mad] | d() == _ds_type
+      vars:
+        _ds_id: "{{ ds_dict[item].id }}"
+        _device: "{{ ds_dict[item].device }}"
+        _tm_mad: "{{ ds_dict[item].template.TM_MAD | d() }}"
+        _ds_type: "{{ ds_dict[item].template.TYPE | d() }}"
+      register: shell
+      changed_when:
+        - shell.rc in [78]
+      failed_when:
+        - shell.rc not in [0, 78]
+      loop: "{{ ds_names }}"
+      run_once: true
