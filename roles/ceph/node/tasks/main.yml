@@ -25,48 +25,56 @@
     group: 9869
     mode: u=rwx,go=rx
 
-- delegate_to: "{{ groups.get(mon_group| d('mon'), [omit])[0] }}"
-  run_once: true
+- when: _delegate_to is defined
+  vars:
+    _delegate_to: "{{ groups.get(mon_group | d('mon'), []).0 }}"
   block:
-    - name: Ensure pool exists
-      ansible.builtin.command:
-        cmd: cephadm shell -- bash -s
-        stdin: "{{ _stdin.cmd }}"
-      vars:
-        _stdin:
-          cmd: |
-            set -o errexit
+    - delegate_to: "{{ _delegate_to }}"
+      run_once: true
+      block:
+        - name: Ensure pool exists
+          ansible.builtin.command:
+            cmd: cephadm shell -- bash -s
+            stdin: "{{ _stdin.cmd }}"
+          vars:
+            _stdin:
+              cmd: |
+                set -o errexit
 
-            if ceph osd pool get '{{ ceph.pool }}' all; then exit 0; fi
+                if ceph osd pool get '{{ ceph.pool }}' all; then
+                  exit 0
+                fi
 
-            ceph osd pool create '{{ ceph.pool }}' 128
+                ceph osd pool create '{{ ceph.pool }}' 128
 
-            exit 78 # EREMCHG
-      register: command_ensure_pool
-      changed_when:
-        - command_ensure_pool.rc in [78]
-      failed_when:
-        - command_ensure_pool.rc not in [0, 78]
+                exit 78 # EREMCHG
+          register: command_ensure_pool
+          changed_when:
+            - command_ensure_pool.rc in [78]
+          failed_when:
+            - command_ensure_pool.rc not in [0, 78]
 
-    - name: Ensure user exists
-      ansible.builtin.command:
-        cmd: cephadm shell -- bash -s
-        stdin: "{{ _stdin.cmd }}"
-      vars:
-        _stdin:
-          cmd: |
-            set -o errexit
+        - name: Ensure user exists
+          ansible.builtin.command:
+            cmd: cephadm shell -- bash -s
+            stdin: "{{ _stdin.cmd }}"
+          vars:
+            _stdin:
+              cmd: |
+                set -o errexit
 
-            if ceph auth get 'client.{{ ceph.user }}'; then exit 0; fi
+                if ceph auth get 'client.{{ ceph.user }}'; then
+                  exit 0
+                fi
 
-            ceph auth add 'client.{{ ceph.user }}' mon 'profile rbd' osd 'profile rbd pool={{ ceph.pool }}'
+                ceph auth add 'client.{{ ceph.user }}' mon 'profile rbd' osd 'profile rbd pool={{ ceph.pool }}'
 
-            exit 78 # EREMCHG
-      register: command_ensure_user
-      changed_when:
-        - command_ensure_user.rc in [78]
-      failed_when:
-        - command_ensure_user.rc not in [0, 78]
+                exit 78 # EREMCHG
+          register: command_ensure_user
+          changed_when:
+            - command_ensure_user.rc in [78]
+          failed_when:
+            - command_ensure_user.rc not in [0, 78]
 
 - when: ceph.uuid is falsy
   block:
@@ -117,32 +125,36 @@
             {{ new_uuid }}
       run_once: true
 
-- delegate_to: "{{ groups.get(mon_group| d('mon'), [omit])[0] }}"
-  run_once: true
+- when: _delegate_to is defined
+  vars:
+    _delegate_to: "{{ groups.get(mon_group | d('mon'), []).0 }}"
   block:
-    - name: Get keyring
-      ansible.builtin.command:
-        cmd: cephadm shell -- bash -s
-        stdin: "{{ _stdin.cmd }}"
-      vars:
-        _stdin:
-          cmd: |
-            set -o errexit
-            ceph auth get 'client.{{ ceph.user }}'
-      register: command_keyring
-      changed_when: false
+    - delegate_to: "{{ _delegate_to }}"
+      run_once: true
+      block:
+        - name: Get keyring
+          ansible.builtin.command:
+            cmd: cephadm shell -- bash -s
+            stdin: "{{ _stdin.cmd }}"
+          vars:
+            _stdin:
+              cmd: |
+                set -o errexit
+                ceph auth get 'client.{{ ceph.user }}'
+          register: command_keyring
+          changed_when: false
 
-    - name: Get key
-      ansible.builtin.command:
-        cmd: cephadm shell -- bash -s
-        stdin: "{{ _stdin.cmd }}"
-      vars:
-        _stdin:
-          cmd: |
-            set -o errexit
-            ceph auth get-key 'client.{{ ceph.user }}'
-      register: command_key
-      changed_when: false
+        - name: Get key
+          ansible.builtin.command:
+            cmd: cephadm shell -- bash -s
+            stdin: "{{ _stdin.cmd }}"
+          vars:
+            _stdin:
+              cmd: |
+                set -o errexit
+                ceph auth get-key 'client.{{ ceph.user }}'
+          register: command_key
+          changed_when: false
 
 - name: Store keyring
   ansible.builtin.copy:
@@ -199,7 +211,9 @@
       cmd: |
         set -o errexit
 
-        if virsh -c 'qemu:///system' secret-dumpxml '{{ ceph.uuid }}'; then exit 0; fi
+        if virsh -c 'qemu:///system' secret-dumpxml '{{ ceph.uuid }}'; then
+          exit 0
+        fi
 
         virsh -c 'qemu:///system' secret-define \
           '/etc/ceph/client.{{ ceph.user }}.secret.xml'
