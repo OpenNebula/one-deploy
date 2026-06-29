@@ -56,10 +56,10 @@
           '24': [community]
         AlmaLinux:
           '9': [community]
-          '10': []
+          '10': [community]
         RedHat:
           '9': [community]
-          '10': []
+          '10': [community]
         openSUSE Leap:
           '16': []
   tags: [preinstall]
