@@ -16,4 +16,8 @@ dependencies = [
   "molecule",
   "netaddr",
   "pyone",
+  "six",
 ]
+# NOTE: If you experience more dynamic linker issues in your OS,
+#       you may want to extend LD_LIBRARY_PATH further.
+env-vars = { LD_LIBRARY_PATH = "/run/current-system/sw/share/nix-ld/lib" }

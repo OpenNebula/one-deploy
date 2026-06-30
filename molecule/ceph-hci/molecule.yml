@@ -24,9 +24,9 @@ provisioner:
         unattend_disable: true
         update_pkg_cache: true
         one_pass: asd
-        one_version: '7.2'
+        one_version: '7.2.1'
         features: { ceph: true }
-        ceph: { repo: distro }
+        ceph: { repo: community, release: tentacle }
         ds: { mode: ceph }
         vn:
           service:
@@ -42,9 +42,6 @@ provisioner:
               NETWORK_MASK: "{{ '${ONE_SUBNET}' | ansible.utils.ipaddr('netmask') }}"
               GATEWAY: "{{ '${ONE_SUBNET}' | ansible.utils.nthhost(1) }}"
               DNS: 1.1.1.1 8.8.8.8
-    host_vars:
-      ceph-hci-f1:
-        monitor_address: "{{ ansible_host }}"
   config_options:
     defaults:
       gathering: explicit
@@ -75,6 +72,8 @@ platforms:
     template:
       name: ubuntu2404
       content: &content
+        CPU_MODEL:
+          MODEL: host-passthrough
         CONTEXT:
           GROW_FS: /
           NETCFG_TYPE: networkd

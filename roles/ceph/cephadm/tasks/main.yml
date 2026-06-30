@@ -32,10 +32,18 @@
     _modules: >-
       {{ cephadm_modules_defaults | combine(cephadm_modules | d({}), recursive=true) }}
   block:
-    - name: Load first inventory source (raw)
+    - name: Load first inventory source file (raw)
       ansible.builtin.include_vars:
         file: "{{ ansible_inventory_sources.0 }}"
         name: raw_inventory
+      when: ansible_inventory_sources.0 is not directory
+
+    - name: Load first inventory source dir (raw)
+      ansible.builtin.include_vars:
+        dir: "{{ ansible_inventory_sources.0 }}"
+        depth: 1
+        name: raw_inventory
+      when: ansible_inventory_sources.0 is directory
 
     - name: Install Ceph/Cephadm with dependencies
       ansible.builtin.package:
