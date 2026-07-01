@@ -1,2 +1,10 @@
 ---
 fstab: []
+
+fstab_defaults:
+  path: /var/lib/one/datastores
+  fstype: nfs
+  opts: rw,relatime,comment=one-deploy
+  owner: 9869
+  group: 9869
+  mode: u=rwx,g=rx,o=

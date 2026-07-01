@@ -1,55 +1,73 @@
 ---
-- name: Install required OS packages
-  ansible.builtin.package:
-    name: "{{ (_common + _specific[ansible_os_family]) | select }}"
-  vars:
-    _common: [util-linux]
-    _specific:
-      Debian:
-        - "{{ 'nfs-common' if ('nfs' in _fstypes) else None }}"
-      RedHat:
-        - "{{ 'nfs-utils' if ('nfs' in _fstypes) else None }}"
-      Suse:
-        - "{{ 'nfs-client' if ('nfs' in _fstypes) else None }}"
-    _fstypes: >-
-      {{ fstab | d([])
-               | map(attribute='fstype')
-               | map('default', 'nfs')
-               | map('lower') }}
-  register: package
-  until: package is success
-  retries: 12
-  delay: 5
-
-- name: Assert that fstab config matches existing filesystems
-  ansible.builtin.shell:
-    cmd: |
-      set -o errexit
-      FAILED=false
-      {% for v in _fstab %}
-      if TYPE="$(blkid -o value -s TYPE '{{ v.src }}')"; then
-        if [[ "$TYPE" != '{{ v.fstype | d('nfs') }}' ]]; then
-          echo "Filesystem type on device '{{ v.src }}' does not match requested fstab config ('$TYPE' != '{{ v.fstype | d('nfs') }}')." >&2
-          echo 'Please consider fixing this problem manually before continuing.' >&2
-          FAILED=true
-        fi
-      fi
-      {% endfor %}
-      if [[ "$FAILED" == true ]]; then
-        exit 1
-      fi
-    executable: /bin/bash
-  when: _fstab | count > 0
+- when: _fstab | count > 0
   vars:
     _fstab: >-
-      {{ fstab | d([]) | selectattr('src', 'defined') }}
-  changed_when: false
+      {{
+        ({} | combine(
+          range(fstab | count) | zip ((fstab | count) * [fstab_defaults])
+                               | items2dict(key_name=0, value_name=1),
+          range(fstab | count) | zip(fstab)
+                               | items2dict(key_name=0, value_name=1),
+          recursive=true,
+        )).values() | selectattr('src', 'defined')
+      }}
+  block:
+    - name: Install required OS packages
+      ansible.builtin.package:
+        name: "{{ (_common + _specific[ansible_os_family]) | select }}"
+      vars:
+        _common: [util-linux]
+        _specific:
+          Debian:
+            - "{{ 'nfs-common' if ('nfs' in _fstypes) else none }}"
+          RedHat:
+            - "{{ 'nfs-utils' if ('nfs' in _fstypes) else none }}"
+          Suse:
+            - "{{ 'nfs-client' if ('nfs' in _fstypes) else none }}"
+        _fstypes: >-
+          {{ _fstab | map(attribute='fstype')
+                    | map('lower') }}
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
 
-- name: Add to fstab and mount filesystems
-  ansible.posix.mount:
-    src: "{{ item.src }}"
-    path: "{{ item.path | d('/var/lib/one/datastores') }}"
-    fstype: "{{ item.fstype | d('nfs') }}"
-    opts: "{{ item.opts | d('rw,relatime,comment=one-deploy') }}"
-    state: mounted
-  loop: "{{ fstab }}"
+    - name: Assert that fstab config matches existing filesystems
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit
+          FAILED=false
+          {% for v in _fstab %}
+          if TYPE="$(blkid -o value -s TYPE '{{ v.src }}')"; then
+            if [[ "$TYPE" != '{{ v.fstype }}' ]]; then
+              echo "Filesystem type on device '{{ v.src }}' does not match requested fstab config ('$TYPE' != '{{ v.fstype }}')." >&2
+              echo 'Please consider fixing this problem manually before continuing.' >&2
+              FAILED=true
+            fi
+          fi
+          {% endfor %}
+          if [[ "$FAILED" == true ]]; then
+            exit 1
+          fi
+        executable: /bin/bash
+      changed_when: false
+
+    # NOTE: All intermediate subdirectories will be created if they do not exist.
+    #       Since Ansible 1.7 they will be created with the supplied permissions.
+    - name: Ensure mountpoints with desired permissions exist
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+        state: directory
+      loop: "{{ _fstab }}"
+
+    - name: Add to fstab and mount filesystems
+      ansible.posix.mount:
+        src: "{{ item.src }}"
+        path: "{{ item.path }}"
+        fstype: "{{ item.fstype }}"
+        opts: "{{ item.opts }}"
+        state: mounted
+      loop: "{{ _fstab }}"
