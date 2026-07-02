@@ -1,6 +1,7 @@
 ---
 - when: _fstab | count > 0
   vars:
+    # Merge with defaults.
     _fstab: >-
       {{
         ({} | combine(
@@ -9,9 +10,17 @@
           range(fstab | count) | zip(fstab)
                                | items2dict(key_name=0, value_name=1),
           recursive=true,
-        )).values() | selectattr('src', 'defined')
+        )).values()
       }}
   block:
+    - name: Assert that fstab structure has all required fields
+      ansible.builtin.assert:
+        that: _fstab == _fstab | selectattr('src', 'defined')
+                               | selectattr('path', 'defined')
+                               | selectattr('fstype', 'defined')
+        fail_msg: Fields 'src', 'path' and 'fstype' are strictly required.
+                  Please make sure to define them.
+
     - name: Install required OS packages
       ansible.builtin.package:
         name: "{{ (_common + _specific[ansible_os_family]) | select }}"
