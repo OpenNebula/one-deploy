@@ -1,8 +1,4 @@
 ---
-- name: Compute facts (OVS)
-  ansible.builtin.set_fact:
-    ovs: "{{ ovs_defaults | combine(ovs | d({}), recursive=true) }}"
-
 - when: ((ovs.iface | count) + (ovs.bond | count) + (ovs.br | count)) > 0
   vars:
     # helpers
