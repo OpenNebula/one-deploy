@@ -1,2 +1,8 @@
 ---
 fstab: []
+
+fstab_defaults:
+  opts: rw,relatime,comment=one-deploy
+  owner: 9869
+  group: 9869
+  mode: u=rwx,g=rx,o=
