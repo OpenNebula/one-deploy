@@ -1,0 +1,35 @@
+---
+# Copyright: OpenNebula Project, OpenNebula Systems
+# Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+DOCUMENTATION:
+  name: ipv4_mac
+  short_description: Convert IPv4 into MAC
+  description:
+    - Convert IPv4 (A.B.C.D) into MAC (02:01:A:B:C:D).
+  options:
+    _input:
+      description:
+        - String to convert.
+      type: str
+      required: true
+    fmt:
+      description:
+        - Format string (e.g. 02:01:%02x:%02x:%02x:%02x).
+      type: str
+      required: false
+      default: '02:01:%02x:%02x:%02x:%02x'
+  author:
+    - Michal Opala (@sk4zuzu)
+
+EXAMPLES: |
+  # '10.11.12.13' -> '02:01:0a:0b:0c:0d'
+  - name: Conversion example
+    ansible.builtin.debug:
+      msg: >-
+        {{ '10.11.12.13' | opennebula.deploy.ipv4_mac }}
+
+RETURN:
+  _value:
+    description: String containing MAC.
+    type: str
