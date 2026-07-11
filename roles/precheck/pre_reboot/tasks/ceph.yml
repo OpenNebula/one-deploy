@@ -53,13 +53,13 @@
           '13': []
         Ubuntu:
           '22': [community]
-          '24': []
+          '24': [community]
         AlmaLinux:
           '9': [community]
-          '10': []
+          '10': [community]
         RedHat:
           '9': [community]
-          '10': []
+          '10': [community]
         openSUSE Leap:
           '16': []
   tags: [preinstall]

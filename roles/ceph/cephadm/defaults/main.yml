@@ -1,0 +1,110 @@
+---
+cephadm_expected_labels:
+  - _no_schedule        # Do not schedule or deploy daemons on this host.
+  - _no_conf_keyring    # Do not deploy config files or keyrings on this host.
+  - _no_autotune_memory # Do not autotune memory on this host.
+  - _admin              # Distribute config files and keyrings to this host.
+  - mon
+  - mgr
+  - osd
+
+
+cephadm_bootstrap_spec: |
+  {{ cephadm_bootstrap_spec_host_defaults }}
+
+cephadm_bootstrap_spec_host_defaults: |
+  {% set _mon = groups[mon_group | d('mon')] %}
+  ---
+  service_type: host
+  hostname: "{{ hostvars[_mon.0].inventory_hostname }}"
+  addr: "{{ hostvars[_mon.0].ansible_host }}"
+  labels: {{ ['_admin'] | union(hostvars[_mon.0].group_names)
+                        | select('in', cephadm_expected_labels)
+                        | union(hostvars[_mon.0].cephadm_extra_labels | d([])) }}
+
+
+cephadm_conf: {}
+
+
+cephadm_modules: "{{ cephadm_modules_defaults }}"
+
+cephadm_modules_defaults:
+  dashboard: { enabled: true }
+  prometheus: { enabled: true }
+
+
+cephadm_spec: |
+  {{ cephadm_spec_host_defaults }}
+  {{ cephadm_spec_mon_defaults }}
+  {{ cephadm_spec_mgr_defaults }}
+  {{ cephadm_spec_osd_defaults }}
+  {{ cephadm_spec_prometheus_defaults }}
+
+cephadm_spec_host_defaults: |
+  {% set _mon = groups[mon_group | d('mon')] %}
+  {% set _mgr = groups[mgr_group | d('mgr')] %}
+  {% set _osd = groups[osd_group | d('osd')] %}
+  {% for v in (_mon + _mgr + _osd) | unique %}
+  ---
+  service_type: host
+  hostname: "{{ hostvars[v].inventory_hostname }}"
+  addr: "{{ hostvars[v].ansible_host }}"
+  labels: {{ (v in _mon) | ternary(['_admin'], [])
+                         | union(hostvars[v].group_names)
+                         | select('in', cephadm_expected_labels)
+                         | union(hostvars[v].cephadm_extra_labels | d([])) }}
+  {% endfor %}
+
+cephadm_spec_mon_defaults: |
+  ---
+  service_type: mon
+  placement:
+    label: mon
+
+cephadm_spec_mgr_defaults: |
+  ---
+  service_type: mgr
+  placement:
+    label: mgr
+
+cephadm_spec_osd_defaults: |
+  ---
+  service_type: osd
+  service_id: all-available-devices
+  service_name: osd.all-available-devices
+  placement:
+    label: osd
+  spec:
+    data_devices:
+      all: true
+    filter_logic: AND
+    objectstore: bluestore
+
+cephadm_spec_prometheus_defaults: |
+  ---
+  service_type: prometheus
+  service_name: prometheus
+  placement:
+    count: 1
+  unmanaged: true
+  ---
+  service_type: node-exporter
+  service_name: node-exporter
+  placement:
+    host_pattern: '*'
+  unmanaged: true
+  ---
+  service_type: alertmanager
+  service_name: alertmanager
+  placement:
+    count: 1
+  unmanaged: true
+  ---
+  service_type: grafana
+  service_name: grafana
+  placement:
+    count: 1
+  unmanaged: true
+  spec:
+    anonymous_access: true
+    protocol: https

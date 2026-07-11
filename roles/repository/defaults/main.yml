@@ -6,9 +6,9 @@ repo_constraints:
     condition: >-
       {{ (features.ceph | bool is true) and (ceph.repo is defined) and (ceph.repo == 'community') }}
     hosts: >-
-      {{ (groups.get(node_group | d('node'), []) + groups.get(mon_group_name | d('mons'), [])
-                                                 + groups.get(mgr_group_name | d('mgrs'), [])
-                                                 + groups.get(osd_group_name | d('osds'), [])) | unique }}
+      {{ (groups.get(node_group | d('node'), []) + groups.get(mon_group | d('mon'), [])
+                                                 + groups.get(mgr_group | d('mgr'), [])
+                                                 + groups.get(osd_group | d('osd'), [])) | unique }}
   frr:
     condition: >-
       {{ features.evpn | bool is true }}

@@ -2,7 +2,7 @@
 all:
   vars:
     ansible_user: root
-    one_version: '6.8'
+    one_version: '7.2'
     one_pass: opennebulapass
     features:
       # Enable the "ceph" feature in one-deploy.
@@ -37,22 +37,19 @@ node:
 
 ceph:
   children:
-    ? mons
-    ? mgrs
-    ? osds
-  vars:
-    osd_auto_discovery: true
-    public_network: 172.20.0.0/24
+    ? mon
+    ? mgr
+    ? osd
 
-mons:
+mon:
   hosts:
-    mon1: { ansible_host: 172.20.0.6, monitor_address: 172.20.0.6 }
+    mon1: { ansible_host: 172.20.0.6 }
 
-mgrs:
+mgr:
   hosts:
     mgr1: { ansible_host: 172.20.0.6 }
 
-osds:
+osd:
   hosts:
     osd1: { ansible_host: 172.20.0.10 }
     osd2: { ansible_host: 172.20.0.11 }

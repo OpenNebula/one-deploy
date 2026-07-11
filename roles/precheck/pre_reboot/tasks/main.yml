@@ -2,9 +2,9 @@
 - when: inventory_hostname in _hosts
   vars:
     _hosts: >-
-      {{ (groups.get(node_group | d('node'), []) + groups.get(mon_group_name | d('mons'), [])
-                                                 + groups.get(mgr_group_name | d('mgrs'), [])
-                                                 + groups.get(osd_group_name | d('osds'), [])) | unique }}
+      {{ (groups.get(node_group | d('node'), []) + groups.get(mon_group | d('mon'), [])
+                                                 + groups.get(mgr_group | d('mgr'), [])
+                                                 + groups.get(osd_group | d('osd'), [])) | unique }}
   block:
     - ansible.builtin.include_tasks:
         file: "{{ role_path }}/tasks/ceph.yml"

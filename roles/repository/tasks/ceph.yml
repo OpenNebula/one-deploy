@@ -51,10 +51,44 @@
                 mode: u=rw,go=r
                 content: "{{ uri.content }}"
 
-            - name: Import Ceph GPG key
-              ansible.builtin.rpm_key:
-                key: "{{ _repo_key_path[ansible_os_family] | trim }}"
-              when: ansible_pkg_mgr in ['dnf', 'zypper']
+            - when: ansible_pkg_mgr in ['dnf', 'zypper']
+              block:
+                - &import
+                  name: Import Ceph GPG key
+                  ansible.builtin.rpm_key:
+                    key: "{{ _repo_key_path[ansible_os_family] | trim }}"
+              rescue:
+                - name: Extend crypto policies (FIX)
+                  ansible.builtin.shell:
+                    cmd: |
+                      set -o errexit -o nounset -o pipefail
+
+                      POLICIES="$(update-crypto-policies --show)"
+
+                      if [[ "$POLICIES" =~ (^|:)SHA1RPM(:|$) ]]; then
+                        exit 0
+                      fi
+
+                      install -o 0 -g 0 -m u=rw,go=r -D \
+                        /dev/fd/0 \
+                        /etc/crypto-policies/policies/modules/SHA1RPM.pmod \
+                        <<<"$SHA1RPM"
+
+                      update-crypto-policies --set "$POLICIES:SHA1RPM"
+
+                      exit 78 # EREMCHG
+                    executable: /bin/bash
+                  environment:
+                    SHA1RPM: |
+                      hash = SHA1+
+                      sign = RSA-SHA1+
+                  register: shell
+                  changed_when:
+                    - shell.rc in [78]
+                  failed_when:
+                    - shell.rc not in [0, 78]
+
+                - *import
 
     - name: Install Ceph package source
       ansible.builtin.copy:
