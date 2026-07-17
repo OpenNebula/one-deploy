@@ -99,6 +99,10 @@
     _repo_key_url: "{{ opennebula_repo_key_url_defaults | combine(opennebula_repo_key_url, recursive=true) }}"
     _repo_path: "{{ opennebula_repo_path_defaults | combine(opennebula_repo_path, recursive=true) }}"
     _repo_url: "{{ opennebula_repo_url_defaults | combine(opennebula_repo_url, recursive=true) }}"
+    # Handle OpenNebula EE credentials.
+    _repo_auth_path: "{{ opennebula_repo_auth_path_defaults | combine(opennebula_repo_auth_path, recursive=true) }}"
+    _username: "{{ (one_token | d).split(':', 1) | first }}"
+    _password: "{{ (one_token | d).split(':', 1) | last }}"
   block:
     - when: opennebula_repo_force_trusted | bool is false
       block:
@@ -145,6 +149,26 @@
                 key: "{{ _repo_key_path[ansible_os_family] | trim }}"
               when: ansible_pkg_mgr in ['dnf', 'zypper']
 
+    - name: Install OpenNebula credentials
+      ansible.builtin.copy:
+        dest: "{{ _repo_auth_path[ansible_os_family] | trim }}"
+        mode: u=rw,go=
+        content: "{{ _content[ansible_os_family] }}"
+      when:
+        - one_edition in ['Enterprise']
+        - _content[ansible_os_family] is not none
+      vars:
+        # NOTE: one_token passwords only contain [A-Za-z0-9] characters.
+        _content:
+          Debian: |
+            machine enterprise.opennebula.io
+            login {{ _username }}
+            password {{ _password }}
+          RedHat: null # handled in .repo files
+          Suse: |
+            username={{ _username }}
+            password={{ _password }}
+
     - name: Install OpenNebula package source
       ansible.builtin.copy:
         dest: "{{ _repo_path[ansible_os_family] | trim }}"
@@ -168,8 +192,8 @@
           # RPM
           openSUSE Leap: |
             [opennebula]
-            name=OpenNebula {{ _edition }} Edition
-            baseurl={{ _repo_url['openSUSE Leap'] | trim }}/$releasever_major/$basearch
+            name=OpenNebula {{ one_edition }} Edition
+            baseurl={{ _repo_url['openSUSE Leap'] | trim }}/$releasever_major/$basearch?credentials=opennebula.conf
             enabled=1
             {% if opennebula_repo_force_trusted | bool is false %}
             repo_gpgcheck=1
@@ -184,8 +208,12 @@
             {% endif %}
           RedHat: |
             [opennebula]
-            name=OpenNebula {{ _edition }} Edition
+            name=OpenNebula {{ one_edition }} Edition
             baseurl={{ _repo_url.RedHat | trim }}/$releasever/$basearch
+            {% if one_edition in ['Enterprise'] %}
+            username={{ _username }}
+            password={{ _password }}
+            {% endif %}
             enabled=1
             {% if opennebula_repo_force_trusted | bool is false %}
             repo_gpgcheck=1
@@ -200,8 +228,8 @@
             {% endif %}
           Suse: |
             [opennebula]
-            name=OpenNebula {{ _edition }} Edition
-            baseurl={{ _repo_url.Suse | trim }}/$releasever_major/$basearch
+            name=OpenNebula {{ one_edition }} Edition
+            baseurl={{ _repo_url.Suse | trim }}/$releasever_major/$basearch?credentials=opennebula.conf
             enabled=1
             {% if opennebula_repo_force_trusted | bool is false %}
             repo_gpgcheck=1
@@ -214,6 +242,4 @@
             gpgcheck=0
             sslverify=0
             {% endif %}
-        _edition: >-
-          {{ 'Enterprise' if (one_token is defined and one_token is truthy) else 'Community' }}
       register: opennebula_repo
