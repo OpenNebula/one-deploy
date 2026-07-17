@@ -15,19 +15,34 @@
                            | map('bool')
                            | select
                            | count > 0) }}
+    _service:
+      Debian: rsyslog.service
+      RedHat: rsyslog.service
+      Suse: rsyslog.service
   block:
-    - name: Stat /etc/rsyslog.d/
-      ansible.builtin.stat:
-        path: /etc/rsyslog.d/
-        get_attributes: false
-        get_checksum: false
-        get_mime: false
-      register: stat_rsyslog_d
+    - name: Detect rsyslog service (query raw status)
+      ansible.builtin.systemd_service:
+        name: "{{ _service[ansible_os_family] }}"
+      register: systemd_rsyslog_service
+      no_log: true
 
-    - when:
-        - stat_rsyslog_d.stat.exists
-        - stat_rsyslog_d.stat.isdir
+    - when: _enabled
+      vars:
+        _enabled: >-
+          {{ [systemd_rsyslog_service] | selectattr('status.LoadState', 'defined')
+                                       | rejectattr('status.LoadState', 'in', ['masked', 'not-found'])
+                                       | selectattr('status.UnitFileState', 'defined')
+                                       | selectattr('status.UnitFileState', 'in', ['enabled'])
+                                       | count > 0 }}
       block:
+        - name: Create /etc/rsyslog.d/
+          ansible.builtin.file:
+            path: /etc/rsyslog.d/
+            state: directory
+            owner: 0
+            group: 0
+            mode: u=rwx,go=rx
+
         - name: Render rsyslog configs
           ansible.builtin.copy:
             dest: "/etc/rsyslog.d/{{ item }}.conf"
@@ -45,8 +60,8 @@
           register: copy_rsyslog_configs
 
         - name: Restart rsyslog (NOW)
-          ansible.builtin.service:
-            name: rsyslog.service
+          ansible.builtin.systemd_service:
+            name: "{{ _service[ansible_os_family] }}"
             state: restarted
           when:
             - copy_rsyslog_configs is defined
