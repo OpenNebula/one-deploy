@@ -108,6 +108,9 @@
       tags: [prometheus]
       when: *prometheus
 
+    - role: helper/vmdns
+      tags: [vmdns]
+
 - hosts: "{{ node_group | d('node') }}"
   tags: [node, stage2]
   collections:
