@@ -4,6 +4,8 @@
   collections:
     - opennebula.deploy
   roles:
+    - role: helper/online
+
     # This installs the interpreter only.
     # Extra OS/PyPI packages should not required by this playbook.
     - role: helper/python3
