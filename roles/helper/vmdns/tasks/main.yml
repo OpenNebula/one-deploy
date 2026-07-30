@@ -7,6 +7,8 @@
     _files:
       - dest: /var/lib/one/remotes/hooks/vmdns/
         state: directory
+        owner: 9869
+        group: 9869
         mode: u=rwx,g=rx,o=
 
       - when: "{{ _use_ha }}"
@@ -24,6 +26,8 @@
 
     _configs:
       - dest: /etc/systemd/resolved.conf.d/99-vmdns.conf
+        owner: 0
+        group: 0
         mode: u=rw,go=r
         content: |
           # managed by one-deploy
@@ -33,6 +37,8 @@
     _scripts:
       - dest: /var/lib/one/remotes/hooks/vmdns/refresh.rb
         src: "{{ role_path }}/files/refresh.rb"
+        owner: 9869
+        group: 9869
         mode: u=rwx,g=rx,o=
 
     _templates:
@@ -93,8 +99,8 @@
         src: "{{ item.src | d(omit) }}"
         state: "{{ item.state }}"
         force: "{{ item.force | d(false) }}"
-        owner: "{{ item.owner | d(9869) }}"
-        group: "{{ item.group | d(9869) }}"
+        owner: "{{ item.owner | d(omit) }}"
+        group: "{{ item.group | d(omit) }}"
         mode: "{{ item.mode | d(omit) }}"
       when: item.when | d(true)
       loop: "{{ _files }}"
@@ -104,9 +110,9 @@
         dest: "{{ item.dest }}"
         src: "{{ item.src | d(omit) }}"
         content: "{{ item.content | d(omit) }}"
-        owner: "{{ item.owner | d(9869) }}"
-        group: "{{ item.group | d(9869) }}"
-        mode: "{{ item.mode }}"
+        owner: "{{ item.owner | d(omit) }}"
+        group: "{{ item.group | d(omit) }}"
+        mode: "{{ item.mode | d(omit) }}"
       when: item.when | d(true)
       loop: "{{ _configs + _scripts }}"
       register: copy_configs_and_scripts
