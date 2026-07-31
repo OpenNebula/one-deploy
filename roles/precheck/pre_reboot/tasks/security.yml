@@ -59,4 +59,4 @@
     fail_msg: >
       The helper/vmdns role produces a solution that cannot be considered secure.
       Please do not use it in production environments.
-      For non-production environments, ensure the prod_env variable is set to false or undefined.
+      For non-production environments, ensure the prod_env variable is set to false or left undefined.

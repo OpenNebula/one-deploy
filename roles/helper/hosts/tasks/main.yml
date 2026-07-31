@@ -62,4 +62,5 @@
       ansible.builtin.command:
         cmd: tee --append /etc/hosts
         stdin: "{{ _new_lines | join(_lf) }}"
+      changed_when: true
       when: _new_lines | count > 0
