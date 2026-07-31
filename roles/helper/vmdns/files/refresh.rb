@@ -60,7 +60,7 @@ def refresh(hosts_file = '/etc/hosts')
             end
         end[:lines]
     end.then do |unmanaged|
-        document.dig('VM_POOL', 'VM')&.each_with_object([]) do |vm, acc|
+        document.dig('VM_POOL', 'VM').to_a.each_with_object([]) do |vm, acc|
             ip = [vm.dig('TEMPLATE', 'NIC')].flatten.dig(0, 'IP')
             next unless ip
 
