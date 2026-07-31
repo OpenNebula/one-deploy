@@ -50,3 +50,13 @@
   when:
     - prod_env | d(false) | bool is true
     - _items[item].condition
+
+- name: Make sure helper/vmdns role is not used in production environments
+  ansible.builtin.assert:
+    that: (vmdns_server | d(none) is none)
+          or
+          (prod_env | d(false) | bool is false)
+    fail_msg: >
+      The helper/vmdns role produces a solution that cannot be considered secure.
+      Please do not use it in production environments.
+      For non-production environments, ensure the prod_env variable is set to false or undefined.

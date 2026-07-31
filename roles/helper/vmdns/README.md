@@ -28,6 +28,7 @@ Example Playbook
         leader_hook: raft/failover.sh
         follower_hook: raft/failover.sh
         vmdns_server: resolved
+        prod_env: false
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.helper.vmdns
