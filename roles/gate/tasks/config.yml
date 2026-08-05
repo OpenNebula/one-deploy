@@ -1,12 +1,16 @@
 ---
-- name: Configure OneGate Server (:host)
+- name: Configure OneGate Server (:server/:bind)
   opennebula.deploy.cfgtool:
     dest: /etc/one/onegate-server.conf
     parser: Yaml
     actions:
       - put:
-          path: [":host"]
-          value: "{{ gate_bind_addr }}"
+          path: >-
+            {{ [':server', ':bind']
+               if one_version is version('7.3.80', '>=') else
+               [':host'] }}
+          value: >-
+            {{ gate_bind_addr }}
   notify:
     - Restart OneGate Server
 
