@@ -1,7 +1,7 @@
 ---
 - tags: [preinstall]
   when:
-    - unattend_disable | bool is true
+    - unattend_disable | bool
   block:
     - name: Query raw status of unattended-upgrades.service
       ansible.builtin.systemd_service:
@@ -23,8 +23,36 @@
       delay: 5
       when: systemd_unattended_upgrades.status.LoadState not in ['masked', 'not-found']
 
+- tags: [preinstall]
+  when:
+    - pkg_cache_proxy is not none
+    - pkg_cache_proxy | length > 0
+  block:
+    - name: Define APT proxy endpoint
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/98proxy
+        owner: 0
+        group: 0
+        mode: u=rw,go=r
+        content: |
+          # managed by one-deploy
+          Acquire::http::Proxy "{{ pkg_cache_proxy }}";
+          Acquire::https::Proxy "false";
+      when: ansible_pkg_mgr in ['apt']
+
+    - name: Define DNF proxy endpoint
+      community.general.ini_file:
+        path: /etc/dnf/dnf.conf
+        section: main
+        option: proxy
+        value: "{{ pkg_cache_proxy }}"
+        owner: 0
+        group: 0
+        mode: u=rw,go=r
+      when: ansible_pkg_mgr in ['dnf']
+
 - name: Update package cache
   ansible.builtin.package:
     name: []
     update_cache: true
-  when: update_pkg_cache | bool is true
+  when: update_pkg_cache | bool
