@@ -3,7 +3,7 @@
   ansible.builtin.package:
     name: "{{ _common + _specific[ansible_os_family] }}"
   vars:
-    _common: [bash, coreutils, driverctl, grep, pciutils]
+    _common: [bash, coreutils, driverctl, grep, pciutils, psmisc]
     _specific:
       Debian: [iproute2]
       RedHat: [iproute]
@@ -182,6 +182,94 @@
         file: "{{ role_path }}/tasks/query.yml"
       when: shell_enable_vfs is changed
 
+    - name: Release NVIDIA devices (they block NVIDIA driver overrides)
+      ansible.builtin.shell:
+        cmd: |
+          set -x -o errexit -o pipefail
+          BEFORE="$(driverctl list-overrides | sort)" ||:
+          CHANGED=false
+          DAEMON_STOPPED=false
+          HELD=''
+          {% for v in _nvidia_bound %}
+          if ! grep -E -q -m1 '^{{ v.Slot }}\s+{{ v.Set_driver }}$' <<< "$BEFORE"; then
+            if systemctl is-active --quiet nvidia-persistenced.service; then
+              systemctl stop nvidia-persistenced.service
+              echo DAEMON_STOPPED
+              DAEMON_STOPPED=true
+              CHANGED=true
+            fi
+            PM="$(nvidia-smi -i '{{ v.Slot }}' --query-gpu=persistence_mode --format=csv,noheader 2>&1)" ||:
+            case "$PM" in
+              Enabled)
+                if nvidia-smi -i '{{ v.Slot }}' -pm 0 1>&2; then
+                  CHANGED=true
+                else
+                  echo "Failed to disable persistence mode of '{{ v.Slot }}'" >&2
+                  HELD="$HELD {{ v.Slot }}"
+                fi
+                ;;
+              Disabled)
+                ;;
+              *)
+                # An undetermined persistence mode (NVML mismatch, GPU fallen
+                # off the bus, missing nvidia-smi) must NOT pass — kernel-level
+                # persistence holds the device with no fd for fuser to see.
+                echo "Cannot determine persistence mode of '{{ v.Slot }}': $PM" >&2
+                HELD="$HELD {{ v.Slot }}"
+                ;;
+            esac
+            MINOR="$(sed -n 's/^Device Minor:[[:space:]]*//p' '/proc/driver/nvidia/gpus/{{ v.Slot }}/information' 2>/dev/null)" ||:
+            if [[ -z "$MINOR" ]]; then
+              echo "Cannot determine the /dev/nvidia minor of '{{ v.Slot }}'" >&2
+              HELD="$HELD {{ v.Slot }}"
+            elif fuser -s "/dev/nvidia$MINOR" 2>/dev/null; then
+              # 1>&2 keeps stdout reserved for the DAEMON_STOPPED marker
+              fuser -v "/dev/nvidia$MINOR" 1>&2 ||:
+              echo "Processes above still hold /dev/nvidia$MINOR ('{{ v.Slot }}')" >&2
+              HELD="$HELD {{ v.Slot }}"
+            fi
+          fi
+          {% endfor %}
+          if [[ -n "$HELD" ]]; then
+            echo "Devices still in use:$HELD — the driver override would hang forever in the NVIDIA driver; stop the holders listed above and re-run." >&2
+            if [[ "$DAEMON_STOPPED" == true ]]; then
+              systemctl start nvidia-persistenced.service ||: # restore before failing
+            elif systemctl is-enabled --quiet nvidia-persistenced.service 2>/dev/null \
+                 && ! systemctl is-active --quiet nvidia-persistenced.service; then
+              systemctl start nvidia-persistenced.service ||: # heal an inherited orphan
+            fi
+            exit 16 # EBUSY
+          fi
+          if [[ "$CHANGED" == false ]]; then
+            exit 0
+          else
+            exit 78 # EREMCHG
+          fi
+        executable: /bin/bash
+      when: _nvidia_bound | count > 0
+      vars:
+        _nvidia_bound: >-
+          {%- set output = [] -%}
+          {%- for v in _to_override -%}
+            {%- if v.Driver | d('') == 'nvidia' -%}
+              {{- output.append(v) -}}
+            {%- endif -%}
+          {%- endfor -%}
+          {{- output -}}
+        _to_override: >-
+          {%- set output = [] -%}
+          {%- for v in lspci_devices -%}
+            {%- if (v.Set_driver != 'omit') and ((v.Ecap_sriov == 'no') or (v.Set_numvfs != 'max' and v.Set_numvfs | int == 0)) -%}
+              {{- output.append(v) -}}
+            {%- endif -%}
+          {%- endfor -%}
+          {{- output -}}
+      register: shell_release_nvidia
+      changed_when:
+        - shell_release_nvidia.rc in [78]
+      failed_when:
+        - shell_release_nvidia.rc not in [0, 78]
+
     - name: Override drivers
       ansible.builtin.shell:
         cmd: |
@@ -225,3 +313,22 @@
       ansible.builtin.include_tasks:
         file: "{{ role_path }}/tasks/query.yml"
       when: shell_override_drivers is changed
+
+    - name: Start NVIDIA persistence daemon back
+      ansible.builtin.shell:
+        cmd: |
+          set -x -o errexit -o pipefail
+          WAS_STOPPED='{{ (shell_release_nvidia.stdout is defined and "DAEMON_STOPPED" in shell_release_nvidia.stdout) | ternary("true", "false") }}'
+          if ! systemctl is-active --quiet nvidia-persistenced.service; then
+            if systemctl is-enabled --quiet nvidia-persistenced.service 2>/dev/null || [[ "$WAS_STOPPED" == true ]]; then
+              systemctl start nvidia-persistenced.service
+              exit 78 # EREMCHG
+            fi
+          fi
+          exit 0
+        executable: /bin/bash
+      register: shell_start_persistenced
+      changed_when:
+        - shell_start_persistenced.rc in [78]
+      failed_when:
+        - shell_start_persistenced.rc not in [0, 78]
