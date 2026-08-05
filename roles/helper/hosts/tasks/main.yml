@@ -1,43 +1,66 @@
 ---
-- when: ensure_hostname | bool is true
+- when: ensure_hostname | bool
   block:
     - name: Set hostname
       ansible.builtin.hostname:
         name: "{{ inventory_hostname }}"
 
-- when: ensure_hosts | bool is true
+- when: ensure_hosts | bool
+  vars:
+    # Split /etc/hosts into lines.
+    _lines: >-
+      {{ (slurp.content | b64decode).splitlines() }}
+
+    # Remove comments, empty lines and loopback entries.
+    _cleaned: >-
+      {{ _lines | map('regex_replace', '#.*', '')
+                | map('regex_replace', '^(127\.0\.\d+\.\d+|::\d+)\s.*', '')
+                | map('trim')
+                | select }}
+
+    # Split all lines into words, remove empty strings.
+    _words: >-
+      {{ _cleaned | map('split')
+                  | flatten
+                  | map('trim')
+                  | select
+                  | list }}
+
+    # Collect possible new hostnames.
+    _new_hostnames: >-
+      {{ federation.groups.all | reject('in', _words) }}
+
+    # Extract addresses for possible hostnames.
+    _new_addresses: >-
+      {{ _new_hostnames | map('extract', hostvars, ['ansible_host'])
+                        | map('d') }}
+
+    # Assemble a list of valid address/hostname pairs.
+    _new_items: >-
+      {{ _new_addresses | zip(_new_hostnames)
+                        | selectattr(0, 'truthy') }}
+
+    _new_lines: >-
+      {{ _new_items | map('join', ' ') }}
+
+    _lf: "\n"
   block:
     - name: Slurp /etc/hosts
       ansible.builtin.slurp:
         path: /etc/hosts
       register: slurp
 
-    - name: Populate /etc/hosts
-      ansible.builtin.lineinfile:
-        path: /etc/hosts
-        line: '{{ _addr }} {{ _host }}'
-      when:
-        - _host is truthy
-        - _addr is truthy
-        - _host not in _words
-        - _addr not in _words
-      vars:
-        # Split /etc/hosts into lines.
-        _lines: >-
-          {{ (slurp.content | b64decode).splitlines() }}
-        # Remove comments, empty lines and "loopback"-related entries.
-        _cleaned: >-
-          {{ _lines | map('regex_replace', '#.*', '')
-                    | map('regex_replace', '^(127\.0\.\d+\.\d+|::\d+)\s.*', '')
-                    | map('trim')
-                    | select }}
-        # Split all lines into words, remove empty strings.
-        _words: >-
-          {{ _cleaned | map('split')
-                      | flatten
-                      | map('trim')
-                      | select
-                      | list }}
-        _addr: "{{ hostvars[_host].ansible_host | d() }}"
-        _host: "{{ item }}"
-      loop: "{{ federation.groups.all }}"
+    # NOTE: Modules like lineinfile entirely recreate the destination,
+    #       which causes not only an inode change, but also ACL removal.
+    #       Here we update /etc/hosts in a single step and in such a way
+    #       that it's never recreated or truncated.
+    # NOTE: This is not intended to be a complete /etc/hosts management
+    #       solution, which is why we never modify existing entries.
+    #       If your production environment requires non-static inventory,
+    #       then please consider managing a real DNS service.
+    - name: Append new entries to /etc/hosts
+      ansible.builtin.command:
+        cmd: tee --append /etc/hosts
+        stdin: "{{ _new_lines | join(_lf) }}"
+      changed_when: true
+      when: _new_lines | count > 0

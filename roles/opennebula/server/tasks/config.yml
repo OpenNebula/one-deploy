@@ -209,6 +209,28 @@
 
 - when: use_ha is true
   block:
+    - when: _hooks is contains('raft/failover.sh')
+      vars:
+        _hooks:
+          - "{{ leader_hook }}"
+          - "{{ follower_hook }}"
+      block:
+        - name: Create raft/failover.d
+          ansible.builtin.file:
+            path: /var/lib/one/remotes/hooks/raft/failover.d
+            state: directory
+            owner: 9869
+            group: 9869
+            mode: u=rwx,g=rx,o=
+
+        - name: Create raft/failover.sh
+          ansible.builtin.copy:
+            dest: /var/lib/one/remotes/hooks/raft/failover.sh
+            src: "{{ role_path }}/files/failover.sh"
+            owner: 9869
+            group: 9869
+            mode: u=rwx,g=rx,o=
+
     - name: Configure oned (RAFT)
       opennebula.deploy.cfgtool:
         dest: /etc/one/oned.conf
@@ -216,13 +238,13 @@
         actions:
           - put:
               path: [RAFT_LEADER_HOOK, COMMAND]
-              value: '"raft/vip.sh"'
+              value: '"{{ leader_hook }}"'
           - put:
               path: [RAFT_LEADER_HOOK, ARGUMENTS]
               value: '"leader {{ one_vip_if }} {{ one_vip }}/{{ one_vip_cidr }}"'
           - put:
               path: [RAFT_FOLLOWER_HOOK, COMMAND]
-              value: '"raft/vip.sh"'
+              value: '"{{ follower_hook }}"'
           - put:
               path: [RAFT_FOLLOWER_HOOK, ARGUMENTS]
               value: '"follower {{ one_vip_if }} {{ one_vip }}/{{ one_vip_cidr }}"'

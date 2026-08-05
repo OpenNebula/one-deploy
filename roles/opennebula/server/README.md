@@ -11,26 +11,28 @@ N/A
 Role Variables
 --------------
 
-| Name                | Type   | Default      | Example       | Description                                                                                                     |
-|---------------------|--------|--------------|---------------|-----------------------------------------------------------------------------------------------------------------|
-| `one_pass`          | `str`  | `null`       | `asd123`      | Use specific password for the `oneadmin` user.                                                                  |
-| `force_ha`          | `bool` | `false`      |               | Deploy OpenNebula in HA mode even with a single Frontend.                                                       |
-| `unsafe_migrations` | `bool` | `true`       |               | Disable LibVirt's NFS/mountpoint checks.                                                                        |
-| `keep_empty_bridge` | `bool` | `true`       |               | Make sure empty network bridges are never removed (from Nodes).                                                 |
-| `one_vip`           | `str`  | undefined    | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader.                                                          |
-| `one_vip_if`        | `str`  | undefined    | `eth0`        | NIC device to assign the `one_vip` address to (on Frontends).                                                   |
-| `one_vip_cidr`      | `int`  | undefined    | `24`          | CIDR prefix of the subnet `one_vip` is allocated in.                                                            |
-| `db_backend`        | `str`  | `MariaDB`    |               |`MariaDB` or `SQLite`.                                                                                           |
-| `db_name`           | `str`  | `opennebula` |               | Name of the database/schema used by OpenNebula.                                                                 |
-| `db_owner`          | `str`  | `oneadmin`   |               | User used by OpenNebula to access the database.                                                                 |
-| `db_password`       | `str`  | `opennebula` |               | Password used by OpenNebula to authenticate the user.                                                           |
-| `gate_endpoint`     | `str`  | conditional  | (check below) | An URL used to reach the OneGate endpoint (HTTP).                                                               |
-| `admin_pubkey`      | `str`  | loaded       | (check below) | SSH pubkey loaded from `/var/lib/one/.ssh/id_rsa.pub`, provided by the user (as string) or ignored when `null`. |
-| `sched_rank`        | `dict` | undefined    | (check below) | Rank scheduler configuration.                                                                                   |
-| `sched_drs`         | `dict` | undefined    | (check below) | OpenNebula Distributed Resource Scheduler configuration.                                                        |
-| `auth.default`      | `str`  | `null`       |               | Pick default auth mechanism (currently only `ldap` is supported in one-deploy).                                 |
-| `auth.ldap.config`  | `dict` | `{}`         | (check below) | LDAP authentication config (/etc/one/auth/ldap_auth.conf).                                                      |
-| `auth.ldap.mapping` | `dict` | `{}`         | (check below) | LDAP authentication group mapping (manually defined).                                                           |
+| Name                | Type   | Default       | Example       | Description                                                                                                     |
+|---------------------|--------|---------------|---------------|-----------------------------------------------------------------------------------------------------------------|
+| `one_pass`          | `str`  | `null`        | `asd123`      | Use specific password for the `oneadmin` user.                                                                  |
+| `force_ha`          | `bool` | `false`       |               | Deploy OpenNebula in HA mode even with a single Frontend.                                                       |
+| `unsafe_migrations` | `bool` | `true`        |               | Disable LibVirt's NFS/mountpoint checks.                                                                        |
+| `keep_empty_bridge` | `bool` | `true`        |               | Make sure empty network bridges are never removed (from Nodes).                                                 |
+| `one_vip`           | `str`  | undefined     | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader.                                                          |
+| `one_vip_if`        | `str`  | undefined     | `eth0`        | NIC device to assign the `one_vip` address to (on Frontends).                                                   |
+| `one_vip_cidr`      | `int`  | undefined     | `24`          | CIDR prefix of the subnet `one_vip` is allocated in.                                                            |
+| `leader_hook`       | `str`  | `raft/vip.sh` |               | Define RAFT leader VIP handler.                                                                                 |
+| `follower_hook`     | `str`  | `raft/vip.sh` |               | Define RAFT follower VIP handler.                                                                               |
+| `db_backend`        | `str`  | `MariaDB`     |               |`MariaDB` or `SQLite`.                                                                                           |
+| `db_name`           | `str`  | `opennebula`  |               | Name of the database/schema used by OpenNebula.                                                                 |
+| `db_owner`          | `str`  | `oneadmin`    |               | User used by OpenNebula to access the database.                                                                 |
+| `db_password`       | `str`  | `opennebula`  |               | Password used by OpenNebula to authenticate the user.                                                           |
+| `gate_endpoint`     | `str`  | conditional   | (check below) | An URL used to reach the OneGate endpoint (HTTP).                                                               |
+| `admin_pubkey`      | `str`  | loaded        | (check below) | SSH pubkey loaded from `/var/lib/one/.ssh/id_rsa.pub`, provided by the user (as string) or ignored when `null`. |
+| `sched_rank`        | `dict` | undefined     | (check below) | Rank scheduler configuration.                                                                                   |
+| `sched_drs`         | `dict` | undefined     | (check below) | OpenNebula Distributed Resource Scheduler configuration.                                                        |
+| `auth.default`      | `str`  | `null`        |               | Pick default auth mechanism (currently only `ldap` is supported in one-deploy).                                 |
+| `auth.ldap.config`  | `dict` | `{}`          | (check below) | LDAP authentication config (/etc/one/auth/ldap_auth.conf).                                                      |
+| `auth.ldap.mapping` | `dict` | `{}`          | (check below) | LDAP authentication group mapping (manually defined).                                                           |
 
 Dependencies
 ------------

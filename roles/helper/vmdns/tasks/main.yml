@@ -1,0 +1,153 @@
+---
+- when: vmdns_server in ['resolved']
+  vars:
+    _use_ha: >-
+      {{ use_ha | d((force_ha | bool is true) or (federation.groups.frontend | count > 1)) }}
+
+    _files:
+      - dest: /var/lib/one/remotes/hooks/vmdns/
+        state: directory
+        owner: 9869
+        group: 9869
+        mode: u=rwx,g=rx,o=
+
+      - when: "{{ _use_ha }}"
+        dest: /var/lib/one/remotes/hooks/raft/failover.d/01-vmdns.rb
+        src: /var/lib/one/remotes/hooks/vmdns/refresh.rb
+        state: link
+        force: true
+
+      - when: "{{ vmdns_server == 'resolved' }}"
+        dest: /etc/systemd/resolved.conf.d/
+        state: directory
+        owner: 0
+        group: 0
+        mode: u=rwx,go=rx
+
+    _configs:
+      - dest: /etc/systemd/resolved.conf.d/99-vmdns.conf
+        owner: 0
+        group: 0
+        mode: u=rw,go=r
+        content: |
+          # managed by one-deploy
+          [Resolve]
+          DNSStubListenerExtra=0.0.0.0
+
+    _scripts:
+      - dest: /var/lib/one/remotes/hooks/vmdns/refresh.rb
+        src: "{{ role_path }}/files/refresh.rb"
+        owner: 9869
+        group: 9869
+        mode: u=rwx,g=rx,o=
+
+    _templates:
+      - TEMPLATE:
+          NAME: vmdns_insert
+          TYPE: api
+          CALL: one.template.instantiate
+          RESOURCE: VM
+          REMOTE: 'NO'
+          TIMEOUT: 60
+          COMMAND: /var/lib/one/remotes/hooks/vmdns/refresh.rb
+
+      - TEMPLATE:
+          NAME: vmdns_remove
+          TYPE: state
+          RESOURCE: VM
+          REMOTE: 'NO'
+          'ON': DONE # Ansible converts ON to True otherwise..
+          TIMEOUT: 60
+          COMMAND: /var/lib/one/remotes/hooks/vmdns/refresh.rb
+  block:
+    - name: Assert that it is possible to install working RAFT hook
+      ansible.builtin.assert:
+        that: (_use_ha is false)
+              or
+              (leader_hook == 'raft/failover.sh' and follower_hook == 'raft/failover.sh')
+        fail_msg: Please switch to raft/failover.sh for VIP management first.
+
+    - ansible.builtin.include_role:
+        name: opennebula/leader
+      when: leader is undefined
+
+    - name: Install required OS packages
+      ansible.builtin.package:
+        name: "{{ _common + _specific[ansible_os_family] }}"
+      vars:
+        _common: [acl]
+        _specific:
+          Debian: []
+          RedHat: []
+          Suse: []
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+    - name: Grant oneadmin access to /etc/hosts
+      ansible.posix.acl:
+        path: /etc/hosts
+        entity: 9869
+        etype: user
+        permissions: rw
+        state: present
+
+    - name: Touch files and directories
+      ansible.builtin.file:
+        dest: "{{ item.dest }}"
+        src: "{{ item.src | d(omit) }}"
+        state: "{{ item.state }}"
+        force: "{{ item.force | d(false) }}"
+        owner: "{{ item.owner | d(omit) }}"
+        group: "{{ item.group | d(omit) }}"
+        mode: "{{ item.mode | d(omit) }}"
+      when: item.when | d(true)
+      loop: "{{ _files }}"
+
+    - name: Create configs and scripts
+      ansible.builtin.copy:
+        dest: "{{ item.dest }}"
+        src: "{{ item.src | d(omit) }}"
+        content: "{{ item.content | d(omit) }}"
+        owner: "{{ item.owner | d(omit) }}"
+        group: "{{ item.group | d(omit) }}"
+        mode: "{{ item.mode | d(omit) }}"
+      when: item.when | d(true)
+      loop: "{{ _configs + _scripts }}"
+      register: copy_configs_and_scripts
+
+    - name: Restart systemd-resolved
+      ansible.builtin.systemd_service:
+        name: systemd-resolved.service
+        state: restarted
+      when:
+        - vmdns_server == 'resolved'
+        - copy_configs_and_scripts is changed
+
+    - when: inventory_hostname == leader
+      block:
+        - name: Create hooks
+          ansible.builtin.shell:
+            cmd: |
+              set -o errexit
+
+              TEMPLATE="$(mktemp)" && trap "rm -rf $TEMPLATE" EXIT ERR
+              tee "$TEMPLATE"
+
+              if onehook show '{{ item.TEMPLATE.NAME }}'; then
+                exit 0
+              fi
+
+              onehook create "$TEMPLATE"
+
+              exit 78 # EREMCHG
+            stdin: >-
+              {{ item.TEMPLATE | opennebula.deploy.to_one }}
+            executable: /bin/bash
+          register: shell
+          changed_when:
+            - shell.rc in [78]
+          failed_when:
+            - shell.rc not in [0, 78]
+          loop: "{{ _templates }}"
