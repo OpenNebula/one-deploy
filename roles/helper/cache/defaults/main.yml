@@ -1,3 +1,4 @@
 ---
 update_pkg_cache: false
 unattend_disable: false
+pkg_cache_proxy: null
