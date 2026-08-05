@@ -23,6 +23,8 @@
   collections:
     - opennebula.deploy
   roles:
+    - role: helper/online
+
     - role: helper/python3 # for python intepreter
 
     - role: helper/facts

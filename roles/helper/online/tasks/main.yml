@@ -1,0 +1,39 @@
+---
+- when: (online_timeout | int > 0) and (online_delay | int > 0)
+  delegate_to: localhost
+  become: false
+  vars:
+    _local_user: >-
+      {{ lookup('ansible.builtin.env', 'USER') }}
+
+    _ssh_args: >-
+      {{ lookup('ansible.builtin.config', 'ssh_args', plugin_type='connection',
+                                                      plugin_name='ssh') }}
+    _ssh_common_args: >-
+      {{ lookup('ansible.builtin.config', 'ssh_common_args', plugin_type='connection',
+                                                             plugin_name='ssh') }}
+    _ssh_extra_args: >-
+      {{ lookup('ansible.builtin.config', 'ssh_extra_args', plugin_type='connection',
+                                                            plugin_name='ssh') }}
+  block:
+    - name: Test SSH connectivity
+      ansible.builtin.command:
+        cmd: >-
+          ssh -q
+          -o 'ConnectTimeout=8'
+          -o 'BatchMode=yes'
+          -o 'StrictHostKeyChecking=no'
+          -o 'UserKnownHostsFile=/dev/null'
+          -o 'User={{ ansible_user | d(_local_user) }}'
+          -o 'HostName={{ ansible_host | d(inventory_hostname) }}'
+          -o 'Port={{ ansible_port | d(22) }}'
+          -o 'RemoteCommand=true'
+          {{ _ssh_args }}
+          {{ _ssh_common_args }}
+          {{ _ssh_extra_args }}
+          .
+      register: command_online
+      until: command_online.rc in [0]
+      retries: "{{ ((online_timeout | int) / (online_delay | int)) | int }}"
+      delay: "{{ online_delay | int }}"
+      changed_when: false
