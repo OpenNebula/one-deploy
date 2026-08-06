@@ -66,9 +66,9 @@
     - name: Ensure mountpoints with desired permissions exist
       ansible.builtin.file:
         path: "{{ item.path }}"
-        owner: "{{ item.owner }}"
-        group: "{{ item.group }}"
-        mode: "{{ item.mode }}"
+        owner: "{{ item.owner | default(omit, true) }}"
+        group: "{{ item.group | default(omit, true) }}"
+        mode: "{{ item.mode | default(omit, true) }}"
         state: directory
       loop: "{{ _fstab }}"
 
