@@ -1,5 +1,6 @@
 ---
 one_version: '7.2'
+one_edition: "{{ 'Enterprise' if (one_token is defined and one_token is truthy) else 'Community' }}"
 
 repo_constraints:
   ceph:
@@ -122,6 +123,7 @@ opennebula_repo_key_path: {}
 opennebula_repo_key_url: {}
 opennebula_repo_path: {}
 opennebula_repo_url: {}
+opennebula_repo_auth_path: {}
 
 opennebula_repo_key_path_defaults:
   Debian: /etc/apt/trusted.gpg.d/opennebula2.asc
@@ -141,36 +143,41 @@ opennebula_repo_path_defaults:
 opennebula_repo_url_defaults:
   # DEB
   Debian: >-
-    {%- if one_token is defined and one_token is truthy -%}
-      https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_major_version }}
+    {%- if one_edition in ['Enterprise'] -%}
+      https://enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_major_version }}
     {%- else -%}
       https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_major_version }}
     {%- endif -%}
   Ubuntu: >-
-    {%- if one_token is defined and one_token is truthy -%}
-      https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }}
+    {%- if one_edition in ['Enterprise'] -%}
+      https://enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }}
     {%- else -%}
       https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}/{{ ansible_distribution_version }}
     {%- endif -%}
   # RPM
   openSUSE Leap: >-
-    {%- if one_token is defined and one_token is truthy -%}
-      https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/openSUSE
+    {%- if one_edition in ['Enterprise'] -%}
+      https://enterprise.opennebula.io/repo/{{ one_version }}/openSUSE
     {%- else -%}
       https://downloads.opennebula.io/repo/{{ one_version }}/openSUSE
     {%- endif -%}
   RedHat: >-
-    {%- if one_token is defined and one_token is truthy -%}
-      https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
+    {%- if one_edition in ['Enterprise'] -%}
+      https://enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
     {%- else -%}
       https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
     {%- endif -%}
   Suse: >-
-    {%- if one_token is defined and one_token is truthy -%}
-      https://{{ one_token }}@enterprise.opennebula.io/repo/{{ one_version }}/SLES
+    {%- if one_edition in ['Enterprise'] -%}
+      https://enterprise.opennebula.io/repo/{{ one_version }}/SLES
     {%- else -%}
       https://downloads.opennebula.io/repo/{{ one_version }}/SLES
     {%- endif -%}
+
+opennebula_repo_auth_path_defaults:
+  Debian: /etc/apt/auth.conf.d/opennebula.conf
+  RedHat: null # handled in .repo files
+  Suse: /etc/zypp/credentials.d/opennebula.conf
 
 opennebula_repo_pre_enable_defaults:
   AlmaLinux:
