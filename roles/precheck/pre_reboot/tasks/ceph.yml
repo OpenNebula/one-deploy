@@ -54,6 +54,7 @@
         Ubuntu:
           '22': [community]
           '24': [community]
+          '26': [distro]
         AlmaLinux:
           '9': [community]
           '10': [community]
