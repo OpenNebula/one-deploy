@@ -11,16 +11,16 @@ N/A
 Role Variables
 --------------
 
-| Name             | Type    | Default                          | Example                   | Description                                           |
-|------------------|---------|----------------------------------|---------------------------|-------------------------------------------------------|
-| `fstab`          | `list`  | `[]`                             |                           | A list of mount definitions.                          |
-| `fstab[].src`    | `str`   | undefined                        | `server:/srv/shared`      | Device to be mounted on path.                         |
-| `fstab[].path`   | `str`   | undefined                        | `/var/lib/one/datastores` | Path to the mountpoint.                               |
-| `fstab[].fstype` | `str`   | undefined                        | `nfs`                     | Filesystem type.                                      |
-| `fstab[].opts`   | `str`   | `rw,relatime,comment=one-deploy` |                           | Mount options.                                        |
-| `fstab[].owner`  | `str`   | `9869`                           |                           | Name/UID of the user that should own the mountpoint.  |
-| `fstab[].group`  | `str`   | `9869`                           |                           | Name/GID of the group that should own the mountpoint. |
-| `fstab[].mode`   | `str`   | `u=rwx,g=rx,o=`                  |                           | The permissions the resulting mountpoint should have. |
+| Name             | Type    | Default                          | Example                   | Description                                                              |
+|------------------|---------|----------------------------------|---------------------------|--------------------------------------------------------------------------|
+| `fstab`          | `list`  | `[]`                             |                           | A list of mount definitions.                                             |
+| `fstab[].src`    | `str`   | undefined                        | `server:/srv/shared`      | Device to be mounted on path.                                            |
+| `fstab[].path`   | `str`   | undefined                        | `/var/lib/one/datastores` | Path to the mountpoint.                                                  |
+| `fstab[].fstype` | `str`   | undefined                        | `nfs`                     | Filesystem type.                                                         |
+| `fstab[].opts`   | `str`   | `rw,relatime,comment=one-deploy` |                           | Mount options.                                                           |
+| `fstab[].owner`  | `str`   | `9869`                           |                           | Name/UID of the user that should own the mountpoint. Use `null` to skip  |
+| `fstab[].group`  | `str`   | `9869`                           |                           | Name/GID of the group that should own the mountpoint. Use `null` to skip |
+| `fstab[].mode`   | `str`   | `u=rwx,g=rx,o=`                  |                           | The permissions the resulting mountpoint should have. Use `null` to skip |
 
 Dependencies
 ------------
