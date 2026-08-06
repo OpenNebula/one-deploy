@@ -21,6 +21,9 @@ Role Variables
 | `os_image_size`                      | `str`  | `20G`              |                     | The size to which one-deploy will **try** to adjust the OS image. |
 | `memory_KiB`                         | `str`  | `2097152`          |                     | Memory amount to be set in XML in Libvirt.                        |
 | `vcpu_static`                        | `str`  | `1`                |                     | VCPU amount to be set in XML in Libvirt.                          |
+| `cputune_shares_base`                | `int`  | `200`              |                     | Base value used to compute PWS (assuming CGv2).                   |
+| `cputune_shares_max`                 | `int`  | `10000`            |                     | PWS value cap (assuming CGv2).                                    |
+| `cputune_shares`                     | `int`  | computed           |                     | The proportional weighted share (PWS) for the domain.             |
 | `vnc_max_port`                       | `str`  | `65535`            |                     | Upper limit for VNC ports to start counting-down from.            |
 | `passthrough_fs`                     | `list` | `[]`               | (check below)       | Shared HV filesystems to attach to the Front-end VMs.             |
 |                                      |        |                    |                     |                                                                   |
