@@ -95,7 +95,6 @@
 {% if infra_bridge_type in ['bridge', 'openvswitch'] %}
     <interface type='bridge'>
       <source bridge='{{ infra_bridge }}'/>
-      <target dev='{{ frontend }}-nic0'/>
 {% elif infra_bridge_type == 'openvswitch_dpdk' %}
     <interface type='vhostuser'>
       <source type='unix' path='{{ infra_dpdk_socket_path }}' mode='server'/>
