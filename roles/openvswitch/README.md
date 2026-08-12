@@ -28,10 +28,12 @@ Example Playbook
       vars:
         kernel_ok_to_reboot: true
         kernel_params:
-          - default_hugepagesz: "1G"
-          - hugepagesz: "1G"
-          - hugepages: 3
           - intel_iommu: "on"
+          # NOTE: With the 'auto' dpdk-socket-mem and 2 x MTU 9000 this is not enough,
+          #       the dpdk-socket-mem.service will attempt dynamic allocation.
+          #       Pre-allocating hugepages in kernel's cmdline is highly recommended.
+          - default_hugepagesz: "1G"
+          - hugepages: 4
         kernel_modules:
           - load: vfio-pci
           - load: vfio_iommu_type1
@@ -58,7 +60,10 @@ Example Playbook
         ovs:
           set:
             - other_config:dpdk-init: 'true'
-            - other_config:dpdk-socket-mem: '1024,0'
+            - other_config:per-port-memory: 'false' # the default
+            # NOTE: With 'auto' one-deploy will automatically calculate and allocate memory for you.
+            #       Please ensure you have enough memory available.
+            - other_config:dpdk-socket-mem: auto
           port:
             ovsbr0: # "internal" port
               set:
