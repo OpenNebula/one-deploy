@@ -15,25 +15,25 @@ Role Variables
 |--------------------------------------|--------|--------------------|---------------------|-------------------------------------------------------------------|
 | `frontend_group`                     | `str`  | `frontend`         |                     | Custom name of the Frontend group in the inventory.               |
 | `infra_group`                        | `str`  | `infra`            |                     | Custom name of the Infra group in the inventory.                  |
-| &nbsp;                               | &nbsp; | &nbsp;             |  &nbsp;             | &nbsp;                                                            |
+|                                      |        |                    |                     |                                                                   |
 | `runtime_dir`                        | `str`  | `/var/one-deploy/` |                     | Directory used to store QCOW2 and ISO images.                     |
 | `os_image_url`                       | `str`  |                    |                     | HTTP(S) link to Debian/RedHat-like image running `one-contextd`.  |
 | `os_image_size`                      | `str`  | `20G`              |                     | The size to which one-deploy will **try** to adjust the OS image. |
 | `memory_KiB`                         | `str`  | `2097152`          |                     | Memory amount to be set in XML in Libvirt.                        |
 | `vnc_max_port`                       | `str`  | `65535`            |                     | Upper limit for VNC ports to start counting-down from.            |
 | `passthrough_fs`                     | `list` | `[]`               | (check below)       | Shared HV filesystems to attach to the Front-end VMs.             |
-| &nbsp;                               | &nbsp; | &nbsp;             |  &nbsp;             | &nbsp;                                                            |
+|                                      |        |                    |                     |                                                                   |
 | `vcpu_pinned`                        | `str`  |                    | `1-2,4`             | List of isolcpus= ranges (comma-separated).                       |
 | `vcpu_static`                        | `str`  | `1`                |                     | VCPU amount to be set in XML in Libvirt.                          |
 | `vcpu_shares`                        | `str`  | `200`              |                     | The proportional weighted share (PWS) for the domain.             |
-| &nbsp;                               | &nbsp; |  &nbsp;            |  &nbsp;             | &nbsp;                                                            |
+|                                      |        |                    |                     |                                                                   |
 | `infra_bridge`                       | `str`  | `br0`              |                     | Pre-defined bridge interface to insert VM NICs to.                |
 | `infra_vlan_id`                      | `str`  |                    |                     | Optionally set the VLAN ID for the bridge.                        |
 | `dpdk_socket_path`                   | `str`  |                    |                     | Path for existing socket when using OVS with DPDK.                |
-| &nbsp;                               | &nbsp; | &nbsp;             |  &nbsp;             | &nbsp;                                                            |
+|                                      |        |                    |                     |                                                                   |
 | `infra_hostname`                     | `str`  |                    | `n1a1`              | Defines on which HV machine the Front-end VM should be deployed.  |
 | `infra_xml_variant`                  | `str`  | undefined          | `pinned`            | Defined which domain XML variant will be used in Libvirt.         |
-| &nbsp;                               | &nbsp; | &nbsp;             |  &nbsp;             | &nbsp;                                                            |
+|                                      |        |                    |                     |                                                                   |
 | `context.ETH0_DNS`                   | `str`  |                    | `1.1.1.1`           | DNS server.                                                       |
 | `context.ETH0_SEARCH_DOMAIN`         | `str`  |                    | `1.1.1.1`           | DNS search domain.                                                |
 | `context.ETH0_GATEWAY`               | `str`  |                    | `10.2.50.1`         | Gateway.                                                          |
@@ -92,7 +92,7 @@ Example Inventory
           - nohz_full: "1-3,5-7"
           - rcu_nocbs: "1-3,5-7"
           - irqaffinity: "0,4"
-          - kthread_cpus: "0-4"
+          - kthread_cpus: "0,4"
           - systemd.cpu_affinity: "0,4"
           - default_hugepagesz: "1G"
           - hugepages: "0:2,1:2"
