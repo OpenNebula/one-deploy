@@ -11,11 +11,11 @@
 - name: Generate bastion SSH main config
   ansible.builtin.template:
     dest: "{{ inventory_dir }}/.one-deploy/bastion"
-    src: bastion.j2
+    src: bastion.jinja
     mode: u=rw,g=r,o=
 
 - name: Generate bastion SSH env config
   ansible.builtin.template:
     dest: "{{ inventory_dir }}/.one-deploy/bastion.d/{{ env_name }}"
-    src: bastion.d/env.j2
+    src: bastion.d/env.jinja
     mode: u=rw,g=r,o=

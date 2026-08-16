@@ -1,5 +1,5 @@
-Role: opennebula.deploy.bastion
-===============================
+Role: opennebula.deploy.helper.bastion
+======================================
 
 A role that renders local SSH configs (in the inventory dir), then those can be used to access cluster nodes via a SSH jump host (aka bastion).
 
@@ -32,7 +32,7 @@ Example Playbook
         # NOTE: the env_name should normally be defined in your inventory!
         env_name: nebula3
       roles:
-        - role: opennebula.deploy.bastion
+        - role: opennebula.deploy.helper.bastion
           delegate_to: localhost
           become: false
 
