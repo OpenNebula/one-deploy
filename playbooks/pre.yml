@@ -4,7 +4,7 @@
   collections:
     - opennebula.deploy
   roles:
-    - role: bastion
+    - role: helper/bastion
       delegate_to: localhost
       become: false
       tags: [bastion]
