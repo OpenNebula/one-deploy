@@ -24,10 +24,21 @@
         - name: Dynamically add ungrouped inventory host to represent the Leader
           ansible.builtin.add_host:
             name: leader
-            ansible_host: "{{ hostvars[_leader].ansible_host | d(_leader) }}"
-            ansible_user: "{{ hostvars[_federation.groups.frontend[0]].ansible_user }}"
+            ansible_host: >-
+              {{ hostvars[_leader].ansible_host | d(_leader) }}
+            ansible_user: >-
+              {{ hostvars[_federation.groups.frontend[0]].ansible_user }}
             ansible_python_interpreter: >-
               {{ hostvars[_federation.groups.frontend[0]].ansible_python_interpreter }}
+            ansible_ssh_args: >-
+              {{ lookup('ansible.builtin.config', 'ssh_args', plugin_type='connection',
+                                                              plugin_name='ssh') }}
+            ansible_ssh_common_args: >-
+              {{ lookup('ansible.builtin.config', 'ssh_common_args', plugin_type='connection',
+                                                                     plugin_name='ssh') }}
+            ansible_ssh_extra_args: >-
+              {{ lookup('ansible.builtin.config', 'ssh_extra_args', plugin_type='connection',
+                                                                    plugin_name='ssh') }}
           changed_when: false
           when: _leader is defined
           vars:
