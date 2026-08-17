@@ -64,3 +64,25 @@
         openSUSE Leap:
           '16': []
   tags: [preinstall]
+
+- name: Assert that ansible_host is always an IP address in Ceph inventory groups
+  ansible.builtin.assert:
+    that: _addresses is all
+    fail_msg: Currently ansible_host must be an IP address for every Ceph cluster member.
+              Please adjust your inventory.
+  vars:
+    _groups:
+      - "{{ mon_group | d('mon') }}"
+      - "{{ mgr_group | d('mgr') }}"
+      - "{{ osd_group | d('osd') }}"
+    _addresses: >-
+      {{ _groups | map('extract', groups)
+                 | select('defined')
+                 | flatten
+                 | select
+                 | map('extract', hostvars)
+                 | select('defined')
+                 | map(attribute='ansible_host')
+                 | unique
+                 | map('ansible.utils.ipaddr') }}
+  run_once: true
