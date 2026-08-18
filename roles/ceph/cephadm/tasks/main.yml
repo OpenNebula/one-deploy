@@ -32,18 +32,40 @@
     _modules: >-
       {{ cephadm_modules_defaults | combine(cephadm_modules | d({}), recursive=true) }}
   block:
+    # NOTE: This is a special case used internally in OpenNebula's QA environments.
+    - when:
+        - ansible_inventory_sources.0 is not directory
+        - ansible_inventory_sources.0 | basename in ['inventory.rb']
+      run_once: true
+      become: false
+      block:
+        - name: Load dynamic inventory (raw)
+          ansible.builtin.command:
+            cmd: "{{ ansible_inventory_sources.0 }} --raw"
+          register: command_raw_inventory
+          delegate_to: localhost
+          changed_when: false
+
+        - name: Store dynamic inventory (raw)
+          ansible.builtin.set_fact:
+            raw_inventory: >-
+              {{ command_raw_inventory.stdout | from_json }}
+
     - name: Load first inventory source file (raw)
       ansible.builtin.include_vars:
         file: "{{ ansible_inventory_sources.0 }}"
         name: raw_inventory
-      when: ansible_inventory_sources.0 is not directory
+      when:
+        - ansible_inventory_sources.0 is not directory
+        - ansible_inventory_sources.0 | basename not in ['inventory.rb']
 
     - name: Load first inventory source dir (raw)
       ansible.builtin.include_vars:
         dir: "{{ ansible_inventory_sources.0 }}"
         depth: 1
         name: raw_inventory
-      when: ansible_inventory_sources.0 is directory
+      when:
+        - ansible_inventory_sources.0 is directory
 
     - name: Install Ceph/Cephadm with dependencies
       ansible.builtin.package:
