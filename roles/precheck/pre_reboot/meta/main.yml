@@ -1,6 +1,7 @@
 ---
 collections:
   - opennebula.deploy
+  - ansible.utils
 
 dependencies:
   - role: opennebula.deploy.common
