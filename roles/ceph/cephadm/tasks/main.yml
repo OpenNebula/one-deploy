@@ -77,6 +77,7 @@
                 tee "$TO_APPLY" <<<"$SPEC"
 
                 cephadm bootstrap --mon-ip '{{ ansible_host }}' \
+                                  --allow-fqdn-hostname \
                                   --skip-monitoring-stack \
                                   --skip-dashboard \
                                   --apply-spec "$TO_APPLY"
