@@ -16,12 +16,24 @@
   vars:
     _subject_alt_name:
       - "{{ ('DNS:' ~ one_fqdn) if (one_fqdn is defined) else '' }}"
-      - "{{ ('IP:' ~ one_vip) if (one_vip is defined) else ('IP:' ~ hostvars[leader].ansible_host) }}"
+      - >-
+        {%- set address = one_vip | d((one_vips[0].address
+                                       if (one_vips[0] is mapping)
+                                       else one_vips[0])
+                                      if (one_vips is defined and one_vips | count > 0)
+                                      else hostvars[leader].ansible_host) -%}
+        {%- set is_ip = (address | string | regex_search('^([0-9]{1,3}\.){3}[0-9]{1,3}$'))
+                         or
+                         (address | string | regex_search(':')) -%}
+        {{- (is_ip | ternary('IP:', 'DNS:')) ~ address -}}
       - >-
         {%- set output = [] -%}
         {%- for item in one_vips | d([]) -%}
         {%- set address = item.address if (item is mapping) else item -%}
-        {{- output.append('IP:' ~ address) -}}
+        {%- set is_ip = (address | string | regex_search('^([0-9]{1,3}\.){3}[0-9]{1,3}$'))
+                         or
+                         (address | string | regex_search(':')) -%}
+        {{- output.append((is_ip | ternary('IP:', 'DNS:')) ~ address) -}}
         {%- endfor -%}
         {{- output -}}
 
