@@ -45,7 +45,11 @@
     _gate_endpoint: >-
       {{ gate_endpoint | d(_default) }}
     _default: >-
-      {{ 'http://' ~ (one_vip | d(_host)) ~ ':5030' }}
+      {{ 'http://' ~ _vip ~ ':5030' }}
+    _vip: >-
+      {{ one_vip | d(one_vips[0].address
+                     if (one_vips is defined and one_vips | count > 0)
+                     else _host) }}
     _host: >-
       {{ hostvars[federation.groups.frontend[0]].ansible_host }}
   notify:
@@ -260,7 +264,24 @@
 
 - when:
     - use_ha is true
-    - one_vip is defined
+    - >-
+      (one_vip is defined) or
+      (one_vips is defined and one_vips | count > 0)
+  vars:
+    _one_vips: >-
+      {{ one_vips | d([
+           {
+             "interface": one_vip_if,
+             "address": one_vip,
+             "cidr": one_vip_cidr
+           }
+         ]) }}
+    _one_vip_arguments: >-
+      {%- set output = [] -%}
+      {%- for item in _one_vips -%}
+      {{- output.append(item.interface ~ ' ' ~ item.address ~ '/' ~ item.cidr) -}}
+      {%- endfor -%}
+      {{- output | join(' ') -}}
   block:
     - when: _hooks is contains('raft/failover.sh')
       vars:
@@ -294,13 +315,13 @@
               value: '"{{ leader_hook }}"'
           - put:
               path: [RAFT_LEADER_HOOK, ARGUMENTS]
-              value: '"leader {{ one_vip_if }} {{ one_vip }}/{{ one_vip_cidr }}"'
+              value: '"leader {{ _one_vip_arguments }}"'
           - put:
               path: [RAFT_FOLLOWER_HOOK, COMMAND]
               value: '"{{ follower_hook }}"'
           - put:
               path: [RAFT_FOLLOWER_HOOK, ARGUMENTS]
-              value: '"follower {{ one_vip_if }} {{ one_vip }}/{{ one_vip_cidr }}"'
+              value: '"follower {{ _one_vip_arguments }}"'
       notify:
         - Restart OpenNebula
 
@@ -313,11 +334,18 @@
           path: [NETWORK, MONITOR_ADDRESS]
           value: '"{{ _monitor_address }}"'
   when:
-    - _monitor_address is defined
+    - >-
+      (monitor_address is defined) or
+      (one_vip is defined) or
+      (one_vips is defined and one_vips | count > 0)
     - _monitor_address is string
   vars:
     _monitor_address: >-
-      {{ one_vip if monitor_address is undefined and one_vip is defined else monitor_address }}
+      {{ monitor_address
+         if monitor_address is defined
+         else one_vip
+         if one_vip is defined
+         else one_vips[0].address }}
   notify:
     - Restart OpenNebula
 

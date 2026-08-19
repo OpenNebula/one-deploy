@@ -2,7 +2,9 @@
 - name: Guess the Leader
   ansible.builtin.set_fact:
     leader: >-
-      {{ one_vip | d(federation.groups.frontend[0]) }}
+      {{ one_vip | d(one_vips[0].address
+                     if (one_vips is defined and one_vips | count > 0)
+                     else federation.groups.frontend[0]) }}
 
 - block:
     - name: Decrement the retry counter
