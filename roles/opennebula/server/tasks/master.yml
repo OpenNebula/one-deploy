@@ -49,7 +49,11 @@
       {{ _document.ZONE.TEMPLATE }}
     _update:
       ENDPOINT: >-
-        http://{{ one_vip | d(hostvars[leader].ansible_host) }}:2633/RPC2
+        http://{{ _vip }}:2633/RPC2
+    _vip: >-
+      {{ one_vip | d(one_vips[0].address
+                     if (one_vips is defined and one_vips | count > 0)
+                     else hostvars[leader].ansible_host) }}
 
 - name: Configure oned (FEDERATION/MODE,ZONE_ID)
   opennebula.deploy.cfgtool:

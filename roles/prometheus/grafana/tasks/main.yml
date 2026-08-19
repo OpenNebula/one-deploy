@@ -34,6 +34,10 @@
     mode: u=rw,go=r
   loop: "{{ _loop }}"
   vars:
+    _vip: >-
+      {{ one_vip | d(one_vips[0].address
+                     if (one_vips is defined and one_vips | count > 0)
+                     else leader) }}
     _loop:
       - dest: /etc/grafana/provisioning/datasources/prometheus.yml
         content: |
@@ -42,7 +46,7 @@
           - name: prometheus
             type: prometheus
             access: proxy
-            url: "http://{{ one_vip | d(leader) }}:9090"
+            url: "http://{{ _vip }}:9090"
             isDefault: true
             editable: false
       - dest: /etc/grafana/provisioning/dashboards/opennebula.yml

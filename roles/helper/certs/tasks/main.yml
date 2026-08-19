@@ -5,7 +5,7 @@
 
 - name: Compute facts
   ansible.builtin.set_fact:
-    subject_alt_name: "{{ _subject_alt_name | select }}"
+    subject_alt_name: "{{ _subject_alt_name | flatten | select | unique }}"
     ca_key: "{{ pki.base }}/{{ pki.dirs.key }}/{{ pki.ca.key }}"
     ca_csr: "{{ pki.base }}/{{ pki.dirs.csr }}/{{ pki.ca.csr }}"
     ca_crt: "{{ pki.base }}/{{ pki.dirs.crt }}/{{ pki.ca.crt }}"
@@ -17,6 +17,7 @@
     _subject_alt_name:
       - "{{ ('DNS:' ~ one_fqdn) if (one_fqdn is defined) else '' }}"
       - "{{ ('IP:' ~ one_vip) if (one_vip is defined) else ('IP:' ~ hostvars[leader].ansible_host) }}"
+      - "{{ one_vips | d([]) | map(attribute='address') | map('regex_replace', '^', 'IP:') | list }}"
 
 - name: Install required system packages
   ansible.builtin.package:

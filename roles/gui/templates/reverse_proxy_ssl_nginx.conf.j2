@@ -1,8 +1,10 @@
 
+{% set _one_primary_vip = one_vip | d(one_vips[0].address if (one_vips is defined and one_vips | count > 0) else hostvars[leader].ansible_host) %}
+
 #### cloudserver.org HTTP virtual host
 server {
         listen 80;
-        server_name {{ one_fqdn | d(one_vip) | d(hostvars[leader].ansible_host) }};
+        server_name {{ one_fqdn | d(_one_primary_vip) }};
 
         ### Permanent redirect to HTTPS (optional)
         return 301 $scheme://$server_name:$server_port$request_uri;
@@ -11,7 +13,7 @@ server {
 #### cloudserver.org HTTPS virtual host
 server {
         listen 443 ssl;
-        server_name {{ one_fqdn | d(one_vip) | d(hostvars[leader].ansible_host) }};
+        server_name {{ one_fqdn | d(_one_primary_vip) }};
 
         ### SSL Parameters
         ssl_certificate_key {{ ssl.key }};
@@ -48,5 +50,4 @@ server {
                 access_log off;
         }
 }
-
 
