@@ -18,6 +18,7 @@ ds_defaults:
     SYSTEM_DS:
       template:
         TM_MAD: ceph
+        DISK_TYPE: RBD
         POOL_NAME: "{{ ceph.pool if features.ceph is true else None }}"
         CEPH_HOST: "{{ ceph.host if features.ceph is true else None }}"
         CEPH_USER: "{{ ceph.user if features.ceph is true else None }}"
