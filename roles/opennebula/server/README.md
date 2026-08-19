@@ -71,6 +71,16 @@ one_vips:
     interface: eth1
 ```
 
+Alternatively, if all VIPs use the same interface and CIDR prefix:
+
+```yaml
+one_vip_if: eth0
+one_vip_cidr: 24
+one_vips:
+  - 10.11.12.13
+  - 10.11.12.14
+```
+
 ```yaml
 - hosts: frontend
   vars:

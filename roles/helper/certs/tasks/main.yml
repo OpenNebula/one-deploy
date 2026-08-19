@@ -17,7 +17,13 @@
     _subject_alt_name:
       - "{{ ('DNS:' ~ one_fqdn) if (one_fqdn is defined) else '' }}"
       - "{{ ('IP:' ~ one_vip) if (one_vip is defined) else ('IP:' ~ hostvars[leader].ansible_host) }}"
-      - "{{ one_vips | d([]) | map(attribute='address') | map('regex_replace', '^', 'IP:') | list }}"
+      - >-
+        {%- set output = [] -%}
+        {%- for item in one_vips | d([]) -%}
+        {%- set address = item.address if (item is mapping) else item -%}
+        {{- output.append('IP:' ~ address) -}}
+        {%- endfor -%}
+        {{- output -}}
 
 - name: Install required system packages
   ansible.builtin.package:
