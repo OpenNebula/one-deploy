@@ -8,7 +8,9 @@ evpn_if: >-
 
 # A cluster is a collection of route reflectors and their clients, and is used by route reflectors to avoid looping.
 evpn_cluster_id: >-
-  {{ one_vip | d(one_vips[0].address
+  {{ one_vip | d((one_vips[0].address
+                  if (one_vips[0] is mapping)
+                  else one_vips[0])
                  if (one_vips is defined and one_vips | count > 0)
                  else hostvars[groups[frontend_group | d('frontend')][0]].ansible_default_ipv4.address) }}
 

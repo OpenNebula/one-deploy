@@ -48,26 +48,38 @@
       - (one_vips is undefined) or (_one_vips_valid | bool is true)
     fail_msg: >-
       Please either define all or undefine all one_vip, one_vip_cidr, one_vip_if vars.
-      Alternatively define one_vips as a non-empty list of mappings with address, cidr and interface.
+      Alternatively define one_vips as a non-empty list of addresses plus global one_vip_cidr/one_vip_if,
+      or as mappings with address and optional cidr/interface defaults.
       one_vip may still be defined as the primary endpoint address when one_vips is used.
   vars:
     _legacy_vip_count: >-
       {{ [one_vip is defined, one_vip_cidr is defined, one_vip_if is defined]
          | select | list | count }}
     _legacy_vip_ok: >-
-      {{ (_legacy_vip_count | int == 0) or
+      {{ (one_vips is defined) or
+         (_legacy_vip_count | int == 0) or
          (_legacy_vip_count | int == 3) or
          ((one_vips is defined) and
           (one_vip is defined) and
           (one_vip_cidr is undefined) and
           (one_vip_if is undefined)) }}
     _one_vips_valid: >-
+      {%- set output = [] -%}
+      {%- for item in one_vips | d([]) -%}
+      {%- if item is mapping -%}
+      {{- output.append(
+            (item.address is defined) and
+            ((item.cidr is defined) or (one_vip_cidr is defined)) and
+            ((item.interface is defined) or (one_vip_if is defined))
+          ) -}}
+      {%- else -%}
+      {{- output.append((one_vip_cidr is defined) and (one_vip_if is defined)) -}}
+      {%- endif -%}
+      {%- endfor -%}
       {{ (one_vips is sequence) and
          (one_vips is not string) and
          (one_vips | count > 0) and
-         (one_vips | selectattr('address', 'defined') | list | count == one_vips | count) and
-         (one_vips | selectattr('cidr', 'defined') | list | count == one_vips | count) and
-         (one_vips | selectattr('interface', 'defined') | list | count == one_vips | count) }}
+         (output is all) }}
 
 - name: Check if distro family is supported
   ansible.builtin.assert:

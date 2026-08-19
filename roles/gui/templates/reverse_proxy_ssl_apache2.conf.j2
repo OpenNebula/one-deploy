@@ -1,4 +1,4 @@
-{% set _one_primary_vip = one_vip | d(one_vips[0].address if (one_vips is defined and one_vips | count > 0) else hostvars[leader].ansible_host) %}
+{% set _one_primary_vip = one_vip | d((one_vips[0].address if (one_vips[0] is mapping) else one_vips[0]) if (one_vips is defined and one_vips | count > 0) else hostvars[leader].ansible_host) %}
 <VirtualHost *:443>
   ServerName {{ one_fqdn | d(_one_primary_vip) }}
 
