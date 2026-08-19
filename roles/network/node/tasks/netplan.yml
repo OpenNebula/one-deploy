@@ -1,14 +1,9 @@
 ---
-- name: Get Netplan config
-  ansible.builtin.shell:
-    cmd: netplan get all
-    executable: /bin/bash
-  changed_when: false
-  register: shell
+- vars:
+    _network: >-
+      {{ (command_get_all.stdout | from_yaml).network | d({}) }}
 
-- name: Parse Netplan config
-  ansible.builtin.set_fact:
-    phydev_cfg: >-
+    _phydev_cfg: >-
       {%- set output = [] -%}
       {%- for type, devices in _network.items() -%}
         {%- if devices is mapping -%}
@@ -18,53 +13,73 @@
         {%- endif -%}
       {%- endfor -%}
       {{- dict(output) -}}
-  vars:
-    # NOTE: If you don't use netplan, then the automatic IP address "move" will be skipped.
-    _network: >-
-      {{ (shell.stdout | from_yaml).network | d({}) }}
 
-- name: Decide if bridge should be created
-  ansible.builtin.set_fact:
-    should_create_bridge: >-
-      {{ phydev_cfg[_phydev] is defined
+    _should_create_bridge: >-
+      {{ (_phydev in _phydev_cfg)
          and
-         phydev_cfg[_bridge] is undefined }}
+         (_bridge not in _phydev_cfg) }}
 
-- when: should_create_bridge is true
+    # NOTE: We leave the bridge alone if it already has an IP address assigned,
+    #       as we must not override any existing user config.
+    #       A coincidence here is that this serves as an idempotence guard and the
+    #       done condition at the same time.
+    _should_update_bridge: >-
+      {{ (_bridge in _phydev_cfg)
+         and
+         (_phydev_cfg[_bridge].config.get('addresses', []) is falsy) }}
   block:
-    - name: Use Netplan CLI to reconfigure networking
-      ansible.builtin.shell:
-        cmd: |
-          set -o errexit
+    - &collect
+      block:
+        - name: Get Netplan's config
+          ansible.builtin.command:
+            cmd: netplan get all
+          changed_when: false
+          register: command_get_all
 
-          {% for key, value in _update.items() %}
-          netplan set 'bridges.{{ _bridge }}.{{ key }}={{ value | to_json }}'
-          {% endfor %}
-          netplan set 'bridges.{{ _bridge }}.interfaces=["{{ _phydev }}"]'
-          netplan set 'bridges.{{ _bridge }}.macaddress={{ _macaddress }}'
+    - when: _should_create_bridge
+      block:
+        - name: Create a bridge using Netplan's CLI
+          ansible.builtin.command:
+            cmd: netplan set 'bridges.{{ _bridge }}={}'
+          changed_when: true
 
-          {% for key, value in _cleanup.items() %}
-          netplan set '{{ phydev_cfg[_phydev].type }}.{{ _phydev }}.{{ key }}={{ value | to_json }}'
-          {% endfor %}
+    - *collect
 
-          netplan apply
-        executable: /bin/bash
-      changed_when: true
-      vars:
-        _update: >-
-          {{ phydev_cfg[_phydev].config | dict2items
-                                        | selectattr('key', 'in', _cleanup.keys())
-                                        | items2dict }}
-        _macaddress: >-
-          {{ ansible_facts[_phydev]['macaddress'] }}
-        _cleanup:
-          dhcp4: false
-          dhcp6: false
-          addresses: null
-          gateway4: null
-          gateway6: null
-          nameservers: null
-          macaddress: null
-          mtu: null
-          routes: null
-          routing-policy: null
+    - when: _should_update_bridge
+      block:
+        - name: Use Netplan's CLI to reconfigure networking
+          ansible.builtin.shell:
+            cmd: |
+              set -o errexit
+
+              {% for k, v in _update.items() %}
+              netplan set 'bridges.{{ _bridge }}.{{ k }}={{ v | to_json }}'
+              {% endfor %}
+              netplan set 'bridges.{{ _bridge }}.interfaces=["{{ _phydev }}"]'
+              netplan set 'bridges.{{ _bridge }}.macaddress={{ _macaddress }}'
+
+              {% for k, v in _cleanup.items() %}
+              netplan set '{{ _phydev_cfg[_phydev].type }}.{{ _phydev }}.{{ k }}={{ v | to_json }}'
+              {% endfor %}
+
+              netplan apply
+            executable: /bin/bash
+          changed_when: true
+          vars:
+            _update: >-
+              {{ _phydev_cfg[_phydev].config | dict2items
+                                             | selectattr('key', 'in', _cleanup.keys())
+                                             | items2dict }}
+            _macaddress: >-
+              {{ ansible_facts[_phydev].macaddress }}
+            _cleanup:
+              dhcp4: false
+              dhcp6: false
+              addresses: null
+              gateway4: null
+              gateway6: null
+              nameservers: null
+              macaddress: null
+              mtu: null
+              routes: null
+              routing-policy: null
