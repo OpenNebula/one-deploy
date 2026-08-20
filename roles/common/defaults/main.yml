@@ -1,5 +1,9 @@
 ---
 features_defaults:
+  gate: true
+  flow: true
+  form: true
+  gui: true
   prometheus: false
   ceph: false
   evpn: false
