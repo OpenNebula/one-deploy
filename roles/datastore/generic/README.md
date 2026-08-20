@@ -31,7 +31,142 @@ Dependencies
 Example Playbook
 ----------------
 
-Please check examples from `opennebula.datastores.frontend` and `opennebula.datastore.node` roles.
+Please also check examples from `opennebula.datastores.frontend` and `opennebula.datastore.node` roles.
+
+    # Configure datastores 0, 1 to use 'lvm' driver.
+
+    - hosts: node
+      vars:
+        iscsi:
+          - name: target0
+            target: iqn.1970-01.com.example:target0
+            initiator: iqn.1970-01.com.example:client0
+            portal: 10.2.11.1:3260
+          - name: target1
+            target: iqn.1970-01.com.example:target1
+            initiator: iqn.1970-01.com.example:client1
+            portal: 10.2.11.1:3261
+      roles:
+        - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.helper.iscsi
+
+    - hosts: frontend:node
+      vars:
+        ds:
+          mode: generic
+          config:
+            SYSTEM_DS:
+              system:
+                template:
+                  TYPE: SYSTEM_DS
+                  TM_MAD: lvm
+                  DISK_TYPE: BLOCK
+                  BRIDGE_LIST: "{{ groups.node | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
+            IMAGE_DS:
+              default:
+                device: /dev/mapper/mpatha
+                template:
+                  TYPE: IMAGE_DS
+                  DS_MAD: lvm
+                  TM_MAD: lvm
+                  DISK_TYPE: BLOCK
+                  BRIDGE_LIST: "{{ groups.node | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
+                  LVM_THIN_ENABLE: 'YES'
+      roles:
+        - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.datastore
+
+    # Configure datastores 0, 1 to use 'fs_lvm' driver.
+
+    - hosts: node
+      vars:
+        iscsi:
+          - name: target0
+            target: iqn.1970-01.com.example:target0
+            initiator: iqn.1970-01.com.example:client0
+            portal: 10.2.11.1:3260
+          - name: target1
+            target: iqn.1970-01.com.example:target1
+            initiator: iqn.1970-01.com.example:client1
+            portal: 10.2.11.1:3261
+      roles:
+        - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.helper.iscsi
+
+    - hosts: frontend:node
+      vars:
+        fstab:
+          - src: 10.2.11.1:/nfs/default
+            path: /nfs/default
+            fstype: nfs
+            opts: rw,relatime,comment=one-deploy
+        ds:
+          mode: generic
+          config:
+            SYSTEM_DS:
+              system:
+                device: /dev/mapper/mpatha
+                template:
+                  TYPE: SYSTEM_DS
+                  TM_MAD: fs_lvm
+                  DISK_TYPE: BLOCK
+                  BRIDGE_LIST: "{{ groups.node | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
+            IMAGE_DS:
+              default:
+                symlink:
+                  src: /nfs/default/
+                template:
+                  TYPE: IMAGE_DS
+                  DS_MAD: fs
+                  TM_MAD: fs_lvm
+                  DISK_TYPE: BLOCK
+                  LVM_THIN_ENABLE: 'YES'
+      roles:
+        - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.helper.fstab
+        - role: opennebula.deploy.datastore
+
+    # Configure datastores 0, 1 to use 'fs_lvm_ssh' driver.
+
+    - hosts: node
+      vars:
+        iscsi:
+          - name: target0
+            target: iqn.1970-01.com.example:target0
+            initiator: iqn.1970-01.com.example:client0
+            portal: 10.2.11.1:3260
+          - name: target1
+            target: iqn.1970-01.com.example:target1
+            initiator: iqn.1970-01.com.example:client1
+            portal: 10.2.11.1:3261
+      roles:
+        - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.helper.iscsi
+
+    - hosts: frontend:node
+      vars:
+        ds:
+          mode: generic
+          config:
+            SYSTEM_DS:
+              system:
+                device: /dev/mapper/mpatha
+                template:
+                  TYPE: SYSTEM_DS
+                  TM_MAD: fs_lvm_ssh
+                  DISK_TYPE: BLOCK
+                  BRIDGE_LIST: "{{ groups.node | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
+            IMAGE_DS:
+              default:
+                template:
+                  TYPE: IMAGE_DS
+                  DS_MAD: fs
+                  TM_MAD: fs_lvm_ssh
+                  DISK_TYPE: BLOCK
+                  LVM_THIN_ENABLE: 'YES'
+      roles:
+        - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.datastore
 
 License
 -------

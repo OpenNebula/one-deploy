@@ -1,0 +1,40 @@
+---
+- when: ds.mode == 'lvm'
+  block:
+    - name: Ensure LVM PV and VG exist
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit
+
+          if vgdisplay 'vg-one-{{ _ds_id }}'; then
+            exit 0
+          fi
+
+          if ! [[ -b '{{ _device }}' ]]; then
+            echo 'Device {{ _device }} does not exist or is not a block device.' >&2
+            exit 1
+          fi
+
+          if ! pvdisplay '{{ _device }}' && ! pvcreate '{{ _device }}'; then
+            echo 'Failed to create PV {{ _device }}' >&2
+            exit 2
+          fi
+
+          if ! vgcreate 'vg-one-{{ _ds_id }}' '{{ _device }}'; then
+            echo 'Failed to create VG vg-one-{{ _ds_id }}' >&2
+            exit 3
+          fi
+
+          exit 78 # EREMCHG
+        executable: /bin/bash
+      when:
+        - _device is defined
+      vars:
+        _ds_id: '1'
+        _device: "{{ ds.config.device }}"
+      register: shell
+      changed_when:
+        - shell.rc in [78]
+      failed_when:
+        - shell.rc not in [0, 78]
+      run_once: true

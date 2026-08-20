@@ -88,13 +88,13 @@
         _update1: >-
           {%- set output = [] -%}
           {%- for item in ds_dict_parsed.items() -%}
-          {{- output.append([item.0, {"id": item.1.ID | int}]) -}}
+            {{- output.append([item.0, {"id": item.1.ID | int}]) -}}
           {%- endfor -%}
           {{- dict(output) -}}
         _update2: >-
           {%- set output = [] -%}
           {%- for item in shell_create_datastores.results -%}
-          {{- output.append([item.item, {"id": item.stdout_lines[-1].split(':')[-1] | trim | int}]) -}}
+            {{- output.append([item.item, {"id": item.stdout_lines[-1].split(':')[-1] | trim | int}]) -}}
           {%- endfor -%}
           {{- dict(output) -}}
 
