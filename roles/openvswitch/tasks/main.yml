@@ -1,7 +1,13 @@
 ---
 - name: Compute facts (OVS)
   ansible.builtin.set_fact:
-    ovs: "{{ ovs_defaults | combine(ovs | d({}), recursive=true) }}"
+    ovs: >-
+      {{ _ovs }}
+    ovs_enabled: >-
+      {{ ((_ovs.iface | count) + (_ovs.bond | count) + (_ovs.br | count)) > 0 }}
+  vars:
+    _ovs: >-
+      {{ ovs_defaults | combine(ovs | d({}), recursive=true) }}
 
 - when: leader is undefined
   block:

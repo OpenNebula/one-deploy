@@ -7,31 +7,50 @@
         repos_enabled_defaults: [opennebula]
       when: opennebula_repo is undefined
 
-    - name: Install Prometheus with dependencies
+- vars:
+    _loop:
+      - when: "{{ true }}"
+        name: opennebula-libvirt-exporter.service
+        pkg: "opennebula-prometheus-{{ node_hypervisor }}"
+        dest: /etc/systemd/system/opennebula-libvirt-exporter.service.d/override.conf
+        src: "{{ role_path }}/../common/templates/opennebula-libvirt-exporter.service.jinja"
+
+      - when: "{{ one_version is version('7.2.1', '>=') }}"
+        name: opennebula-lvm-exporter.service
+        pkg: opennebula-prometheus-lvm
+        dest: /etc/systemd/system/opennebula-lvm-exporter.service.d/override.conf
+        src: "{{ role_path }}/../common/templates/opennebula-lvm-exporter.service.jinja"
+
+      - when: "{{ true }}"
+        name: opennebula-node-exporter.service
+        pkg: "opennebula-prometheus-{{ node_hypervisor }}"
+        dest: /etc/systemd/system/opennebula-node-exporter.service.d/override.conf
+        src: "{{ role_path }}/../common/templates/opennebula-node-exporter.service.jinja"
+
+      - when: "{{ one_version is version('7.2.1', '>=') and (ovs_enabled | d(false)) }}"
+        name: opennebula-ovs-exporter.service
+        pkg: opennebula-prometheus-ovs
+        dest: /etc/systemd/system/opennebula-ovs-exporter.service.d/override.conf
+        src: "{{ role_path }}/../common/templates/opennebula-ovs-exporter.service.jinja"
+
+      - when: "{{ one_version is version('7.2.1', '>=') }}"
+        name: opennebula-smartctl-exporter.service
+        pkg: opennebula-prometheus-smartctl
+        dest: /etc/systemd/system/opennebula-smartctl-exporter.service.d/override.conf
+        src: "{{ role_path }}/../common/templates/opennebula-smartctl-exporter.service.jinja"
+  block:
+    - name: Install Prometheus exporters
       ansible.builtin.package:
-        name: "{{ _common + _specific[ansible_os_family] }}"
+        name: "{{ _common + _pkgs }}"
       vars:
-        _common:
-          - bash
-          - opennebula-prometheus-{{ node_hypervisor }}
-        _specific:
-          Debian: []
-          RedHat: []
-          Suse: []
+        _common: [bash]
+        _pkgs: >-
+          {{ _loop | selectattr('when') | map(attribute='pkg') | select | unique }}
       register: package
       until: package is success
       retries: 12
       delay: 5
 
-- vars:
-    _loop:
-      - name: opennebula-libvirt-exporter.service
-        dest: /etc/systemd/system/opennebula-libvirt-exporter.service.d/override.conf
-        src: "{{ role_path }}/../common/templates/opennebula-libvirt-exporter.service.jinja"
-      - name: opennebula-node-exporter.service
-        dest: /etc/systemd/system/opennebula-node-exporter.service.d/override.conf
-        src: "{{ role_path }}/../common/templates/opennebula-node-exporter.service.jinja"
-  block:
     - name: Override systemd units (mkdir)
       ansible.builtin.file:
         path: "{{ item.dest | dirname }}"
@@ -39,6 +58,7 @@
         owner: 0
         group: 0
         mode: u=rwx,go=rx
+      when: item.when
       loop: "{{ _loop }}"
 
     - name: Override systemd units
@@ -48,6 +68,7 @@
         owner: 0
         group: 0
         mode: u=rw,go=r
+      when: item.when
       loop: "{{ _loop }}"
       register: template_override_units
 
@@ -59,6 +80,7 @@
           {{ 'restarted' if _changed else 'started' }}
         daemon_reload: >-
           {{ _changed }}
+      when: item.when
       loop: "{{ _loop }}"
       vars:
         _changed: >-
