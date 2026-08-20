@@ -17,8 +17,11 @@
   roles:
     - role: database
     - role: opennebula/server
+
     - role: gate
       tags: [gate]
+      when:
+        - features.gate | bool # enabled by default
 
     # Wait until the Leader is elected, then run handlers (and possibly restart all oned instances),
     # then wait until the cluster is stable again. NOTE: After all that we make sure not to restart
@@ -29,16 +32,22 @@
 
     - role: flow
       tags: [flow]
+      when:
+        - features.flow | bool # enabled by default
+        - features.gate | bool # enabled by default
 
     - role: form
       tags: [form]
       when:
+        - features.form | bool # enabled by default
         - one_version is version('7.1.80', '>=')
         # NOTE: Due to too old version of ruby in SLES 15 OneForm is unsupported.
         - not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15')
 
     - role: gui
       tags: [gui]
+      when:
+        - features.gui | bool # enabled by default
 
 - hosts: "{{ router_group | d('router') }}"
   tags: [network]
@@ -50,7 +59,7 @@
 
     - role: frr/evpn
       when: &evpn
-        - features.evpn | bool is true
+        - features.evpn | bool # disabled by default
 
 - hosts: "{{ node_group | d('node') }}"
   tags: [node, stage2]
@@ -62,7 +71,7 @@
     - role: ceph/node
       tags: [ceph]
       when:
-        - features.ceph | bool is true
+        - features.ceph | bool # disabled by default
 
     - role: datastore/node
       tags: [datastore]
@@ -83,7 +92,7 @@
     - role: prometheus/exporter
       tags: [prometheus]
       when: &prometheus
-        - features.prometheus | bool is true
+        - features.prometheus | bool # disabled by default
 
 - hosts: "{{ frontend_group | d('frontend') }}"
   tags: [frontend, stage3]
@@ -93,7 +102,7 @@
     - role: ceph/frontend
       tags: [ceph]
       when:
-        - features.ceph | bool is true
+        - features.ceph | bool # disabled by default
 
     - role: datastore/frontend
       tags: [datastore]
