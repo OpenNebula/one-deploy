@@ -1,0 +1,88 @@
+---
+- vars:
+    _interfaces: >-
+      {{ (('<config>' ~ command_show_config.stdout
+                      ~ '</config>') | ansible.utils.from_xml).config.interface }}
+
+    _phydev_cfg: >-
+      {{ _interfaces | map(attribute='name')
+                     | zip(_interfaces)
+                     | items2dict(key_name=0, value_name=1) }}
+
+    _should_create_bridge: >-
+      {{ (_phydev in _phydev_cfg)
+         and
+         (_bridge not in _phydev_cfg) }}
+
+    # NOTE: We leave the bridge alone if it already has an IP address assigned,
+    #       as we must not override any existing user config.
+    #       A coincidence here is that this serves as an idempotence guard and the
+    #       done condition at the same time.
+    _should_update_bridge: >-
+      {{ (_bridge in _phydev_cfg)
+         and
+         (_phydev_cfg[_bridge].get('ipv4:static', {}).get('address', {}).get('local', '') is falsy) }}
+  block:
+    - &collect
+      block:
+        - name: Get Wicked's config
+          ansible.builtin.command:
+            cmd: wicked show-config
+          register: command_show_config
+          changed_when: false
+
+    - when: _should_create_bridge
+      block:
+        - name: Create a bridge using Wicked (configure)
+          ansible.builtin.copy:
+            dest: "/etc/sysconfig/network/ifcfg-{{ _bridge }}"
+            owner: 0
+            group: 0
+            mode: ug=rw,o=
+            content: |
+              STARTMODE='auto'
+              BOOTPROTO='none'
+              BRIDGE='yes'
+              BRIDGE_STP='off'
+              BRIDGE_FORWARDDELAY='0'
+
+        - name: Create a bridge using Wicked (apply)
+          ansible.builtin.command:
+            cmd: wicked ifup '{{ _bridge }}'
+          changed_when: true
+
+    - *collect
+
+    - when: _should_update_bridge
+      block:
+        - name: Use Wicked to reconfigure networking (configure)
+          ansible.builtin.copy:
+            dest: "{{ item.dest }}"
+            owner: 0
+            group: 0
+            mode: ug=rw,o=
+            content: "{{ item.content }}"
+          loop:
+            - dest: "/etc/sysconfig/network/ifcfg-{{ _bridge }}"
+              content: |
+                STARTMODE='auto'
+                BOOTPROTO='static'
+                LLADDR='{{ _macaddress }}'
+                IPADDR='{{ _phydev_cfg[_phydev]['ipv4:static'].address.local }}'
+                BRIDGE='yes'
+                BRIDGE_PORTS='{{ _phydev }}'
+                BRIDGE_STP='off'
+                BRIDGE_FORWARDDELAY='0'
+
+            - dest: "/etc/sysconfig/network/ifcfg-{{ _phydev }}"
+              content: |
+                STARTMODE='auto'
+                BOOTPROTO='none'
+          vars:
+            _macaddress: >-
+              {{ ansible_facts[_phydev].macaddress }}
+
+        - name: Use Wicked to reconfigure networking (apply)
+          ansible.builtin.command:
+            cmd: wicked ifreload '{{ _phydev }}' '{{ _bridge }}'
+          changed_when: true
