@@ -64,6 +64,10 @@
             group: 0
             mode: ug=rw,o=
             content: "{{ item.content | d(omit) }}"
+          register: copy_wicked_config
+          failed_when:
+            - item.ignore_errors | d(false) is false
+            - copy_wicked_config is failed
           loop:
             - dest: "/etc/sysconfig/network/ifcfg-{{ _bridge }}"
               content: |
@@ -81,7 +85,8 @@
                 STARTMODE='auto'
                 BOOTPROTO='none'
 
-            - dest: "/etc/sysconfig/network/ifroute-{{ _bridge }}"
+            - ignore_errors: true
+              dest: "/etc/sysconfig/network/ifroute-{{ _bridge }}"
               src: "/etc/sysconfig/network/ifroute-{{ _phydev }}"
           vars:
             _macaddress: >-
