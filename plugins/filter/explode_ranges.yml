@@ -1,0 +1,35 @@
+---
+# Copyright: OpenNebula Project, OpenNebula Systems
+# Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+DOCUMENTATION:
+  name: explode_ranges
+  short_description: Simplify isolcpus= syntax handling.
+  description:
+    - Convert 'A-C,D' into 'A,B,C,D'.
+  options:
+    _input:
+      description:
+        - String to convert.
+      type: str
+      required: true
+    split:
+      description:
+        - When true returns a list.
+      type: bool
+      required: false
+      default: false
+  author:
+    - Michal Opala (@sk4zuzu)
+
+EXAMPLES: |
+  # '0-2,4' -> ['0', '1', '2', '4']
+  - name: Conversion example
+    ansible.builtin.debug:
+      msg: >-
+        {{ '0-2,4' | opennebula.deploy.explode_ranges(split=true) }}
+
+RETURN:
+  _value:
+    description: String (joined) or a list of indices (depending on split=).
+    type: raw

@@ -1,0 +1,5 @@
+---
+collections:
+  - opennebula.deploy
+
+allow_duplicates: true
