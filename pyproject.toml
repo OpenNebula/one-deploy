@@ -17,6 +17,7 @@ dependencies = [
   "netaddr",
   "pyone",
   "six",
+  "xmltodict",
 ]
 # NOTE: If you experience more dynamic linker issues in your OS,
 #       you may want to extend LD_LIBRARY_PATH further.

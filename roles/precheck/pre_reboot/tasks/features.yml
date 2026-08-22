@@ -106,22 +106,3 @@
       or
       (not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15'))
     fail_msg: OVS / DPDK management is unsupported for this OS / OpenNebula combination, please disable it.
-
-- name: Check if 'move_ip' VNET feature is supported for this OS / OpenNebula combination
-  ansible.builtin.assert:
-    that:
-      (_move_ip is not any)
-      or
-      (not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15'))
-    fail_msg: Moving IP address from PHYDEV to BRIDGE is unsupported for this OS / OpenNebula combination,
-              please set 'move_ip' to false for every relevant VNET explicitly.
-  vars:
-    _move_ip: >-
-      {{ vn | d({})
-            | dict2items
-            | selectattr('value.template.VN_MAD', 'defined')
-            | selectattr('value.template.VN_MAD', 'in', ['bridge', 'dummy', 'fw'])
-            | selectattr('value.template.BRIDGE', 'defined')
-            | selectattr('value.template.PHYDEV', 'defined')
-            | map(attribute='value.move_ip', default=true)
-            | select('boolean') }}

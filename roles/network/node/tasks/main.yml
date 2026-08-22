@@ -10,6 +10,7 @@
       Debian: [netplan]
       RedHat: [networkmanager]
       openSUSE Leap: [networkmanager]
+      Suse: [wicked]
     _phydev: "{{ vn_dict[_item.0].template.PHYDEV }}"
     _bridge: "{{ vn_dict[_item.0].template.BRIDGE }}"
     # Narrow down VNET types when move_ip is unspecified (but allow users to override it still).
