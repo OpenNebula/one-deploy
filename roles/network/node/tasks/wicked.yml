@@ -33,7 +33,7 @@
 
     - when: _should_create_bridge
       block:
-        - name: Create a bridge using Wicked (configure)
+        - name: Use Wicked to create a bridge (configure)
           ansible.builtin.copy:
             dest: "/etc/sysconfig/network/ifcfg-{{ _bridge }}"
             owner: 0
@@ -46,7 +46,7 @@
               BRIDGE_STP='off'
               BRIDGE_FORWARDDELAY='0'
 
-        - name: Create a bridge using Wicked (apply)
+        - name: Use Wicked to create a bridge (apply)
           ansible.builtin.command:
             cmd: wicked ifup '{{ _bridge }}'
           changed_when: true
