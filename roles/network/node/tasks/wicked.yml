@@ -58,10 +58,12 @@
         - name: Use Wicked to reconfigure networking (configure)
           ansible.builtin.copy:
             dest: "{{ item.dest }}"
+            src: "{{ item.src | d(omit) }}"
+            remote_src: "{{ item.src is defined }}"
             owner: 0
             group: 0
             mode: ug=rw,o=
-            content: "{{ item.content }}"
+            content: "{{ item.content | d(omit) }}"
           loop:
             - dest: "/etc/sysconfig/network/ifcfg-{{ _bridge }}"
               content: |
@@ -78,6 +80,9 @@
               content: |
                 STARTMODE='auto'
                 BOOTPROTO='none'
+
+            - dest: "/etc/sysconfig/network/ifroute-{{ _bridge }}"
+              src: "/etc/sysconfig/network/ifroute-{{ _phydev }}"
           vars:
             _macaddress: >-
               {{ ansible_facts[_phydev].macaddress }}
