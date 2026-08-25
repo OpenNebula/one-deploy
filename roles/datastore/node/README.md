@@ -47,6 +47,17 @@ Example Playbook
 
     - hosts: node
       vars:
+        # Configure OpenNebula to use "lvm" image and system datastores.
+        ds:
+          mode: lvm
+          config:
+            device: /dev/mapper/mpatha
+      roles:
+        - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.datastore.node
+
+    - hosts: node
+      vars:
         # Configure OpenNebula to use "shared" image and system datastores.
         # Create new datastores and symlinks accordingly.
         ds:
@@ -56,7 +67,6 @@ Example Playbook
               system:
                 enabled: false
               system1:
-                id: 100
                 managed: true
                 enabled: true
                 symlink:
@@ -67,7 +77,6 @@ Example Playbook
                   TM_MAD: shared
                   BRIDGE_LIST: "{{ groups.node | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
               system2:
-                id: 101
                 managed: true
                 enabled: true
                 symlink:
@@ -75,7 +84,6 @@ Example Playbook
                   src: /opt/nfs2/101/
                 template: *template
               system3:
-                id: 102
                 managed: true
                 enabled: true
                 symlink:

@@ -2,9 +2,9 @@
 - name: Compute helper facts
   ansible.builtin.set_fact:
     ds_names: >-
-      {{ hostvars[leader | d(omit)].ds_names | d(_items | map(attribute='key') | list) }}
+      {{ hostvars[leader | d()].ds_names | d(_items | map(attribute='key') | list) }}
     ds_dict: >-
-      {{ hostvars[leader | d(omit)].ds_dict | d(_items | items2dict) }}
+      {{ hostvars[leader | d()].ds_dict | d(_items | items2dict) }}
   vars:
     _ds: >-
       {{ ds_defaults | combine(ds.config | d({}), recursive=true) }}

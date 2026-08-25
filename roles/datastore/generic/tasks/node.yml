@@ -4,3 +4,6 @@
 
 - ansible.builtin.import_tasks:
     file: "{{ role_path }}/tasks/_link.yml"
+
+- ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/_vg.yml"

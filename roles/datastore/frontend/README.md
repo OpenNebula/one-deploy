@@ -66,13 +66,19 @@ Example Playbook
 
     - hosts: frontend
       vars:
+        # Configure OpenNebula to use "lvm" image and system datastores.
+        ds:
+          mode: lvm
+          config:
+            device: /dev/mapper/mpatha
+      roles:
+        - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.datastore.frontend
+
+    - hosts: frontend
+      vars:
         # Configure OpenNebula to use "shared" image and system datastores.
         # Create new datastores and symlinks accordingly.
-        # NOTE: 1. In OpenNebula all user-created datastores start from ID=100.
-        #       2. If the 'id' attribute refers to an existing datastore, then one-deploy tries to update it.
-        #       3. If 2. is false, then a new datastore is created using the next available ID.
-        #       4. Users *MUST* provide the 'id' attribute for each new entry in the 'ds.config' dict
-        #          (starting from 100, then incrementing by 1 further down the line).
         ds:
           mode: generic
           config:
@@ -80,7 +86,6 @@ Example Playbook
               system:
                 enabled: false
               system1:
-                id: 100
                 managed: true
                 enabled: true
                 symlink:
@@ -91,7 +96,6 @@ Example Playbook
                   TM_MAD: shared
                   BRIDGE_LIST: "{{ groups.node | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
               system2:
-                id: 101
                 managed: true
                 enabled: true
                 symlink:
@@ -99,7 +103,6 @@ Example Playbook
                   src: /opt/nfs2/101/
                 template: *template
               system3:
-                id: 102
                 managed: true
                 enabled: true
                 symlink:
