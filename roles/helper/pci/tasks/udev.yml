@@ -17,18 +17,24 @@
       {{ _lspci_devices | selectattr('Ecap_sriov', '==', 'yes') }}
 
     _all: >-
-      {{ _lspci_devices | selectattr('Set_name', 'defined')
-                        | rejectattr('Set_name', '==', 'omit')
-                        | selectattr('Class', 'defined')
+      {{ _lspci_devices | selectattr('Class', 'defined')
                         | selectattr('Driver', 'defined')
                         | selectattr('Slot', 'defined') }}
 
-    _net: >-
+    _to_unmanage: >-
       {{ _all | selectattr('Class', 'in', ['0200'])
               | rejectattr('Driver', 'in', ['vfio-pci']) }}
 
-    _vfio: >-
-      {{ _all | selectattr('IOMMUGroup', 'defined') }}
+    _to_rename: >-
+      {{ _all | selectattr('Set_name', 'defined')
+              | rejectattr('Set_name', '==', 'omit') }}
+
+    _to_rename_net: >-
+      {{ _to_rename | selectattr('Class', 'in', ['0200'])
+                    | rejectattr('Driver', 'in', ['vfio-pci']) }}
+
+    _to_rename_vfio: >-
+      {{ _to_rename | selectattr('IOMMUGroup', 'defined') }}
 
     _vf_to_pf: >-
       {{ shell_pf_vf_fn.stdout_lines | d([])
@@ -43,7 +49,7 @@
     _names: >-
       {%- set output = {} -%}
       {# Resolve basic 0-3 args. #}
-      {%- for v in _all -%}
+      {%- for v in _to_rename -%}
         {{-
           output.update({
             v.Slot: [
@@ -56,7 +62,7 @@
         -}}
       {%- endfor -%}
       {# Add 4th arg (PF's name). #}
-      {%- for v in _all | selectattr('Slot', 'in', _vf_to_pf) -%}
+      {%- for v in _to_rename | selectattr('Slot', 'in', _vf_to_pf) -%}
         {%- set p = _lspci_devices | selectattr('Slot', '==', _vf_to_pf[v.Slot]) | first -%}
         {%- if p.Set_name != 'omit' -%}
           {{-
@@ -67,7 +73,7 @@
         {%- endif -%}
       {%- endfor -%}
       {# Construct all names from templates and args. #}
-      {%- for v in _all -%}
+      {%- for v in _to_rename -%}
         {{-
           output.update({
             v.Slot: v.Set_name.format(*output[v.Slot]),
@@ -101,24 +107,48 @@
         mode: u=rw,go=r
       loop_control: { label: "{{ item.dest }}" }
       loop:
-        - dest: /etc/udev/rules.d/99-rename.rules
-          content: |
-            # managed by one-deploy
-            # --- NET
-            {% for v in _net %}
-            # {{ v.Slot }} <- {{ _names[v.Slot] }}
-            SUBSYSTEM=="net", ACTION=="add", ENV{ID_PATH}=="pci-{{ v.Slot }}", NAME="{{ _names[v.Slot] }}"
-            {% endfor %}
-            # --- VFIO
-            {% for v in _vfio %}
-            # {{ v.Slot }} <- {{ _names[v.Slot] }}
-            SUBSYSTEM=="vfio", ACTION=="add", SYMLINK+="vfio/by-tag/{{ _names[v.Slot] }}", \
-            PROGRAM="/usr/bin/test /sys/bus/pci/devices/{{ v.Slot }}/iommu_group -ef /sys/kernel/iommu_groups/%k"
-            {% endfor %}
         - dest: /etc/udev/rules.d/99-mode.rules
           content: |
             # managed by one-deploy
             SUBSYSTEM=="vfio", ACTION=="add", GROUP="kvm", MODE="0666"
+        - dest: /etc/udev/rules.d/99-rename.rules
+          content: |
+            # managed by one-deploy
+            # --- NET
+            {% for v in _to_rename_net %}
+            # {{ v.Slot }} <- {{ _names[v.Slot] }}
+            SUBSYSTEM=="net", ACTION=="add", ENV{ID_PATH}=="pci-{{ v.Slot }}", NAME="{{ _names[v.Slot] }}"
+            {% endfor %}
+            # --- VFIO
+            {% for v in _to_rename_vfio %}
+            # {{ v.Slot }} <- {{ _names[v.Slot] }}
+            SUBSYSTEM=="vfio", ACTION=="add", SYMLINK+="vfio/by-tag/{{ _names[v.Slot] }}", \
+            PROGRAM="/usr/bin/test /sys/bus/pci/devices/{{ v.Slot }}/iommu_group -ef /sys/kernel/iommu_groups/%k"
+            {% endfor %}
+        # NOTE: NM_UNMANAGED does not seem to be sufficient (unless you reboot) as NM ignores settings in UDEV in case
+        #       the device is already managed.
+        #       FORCE_NM_UNMANAGED that is non-standard variable, used here as NM_UNMANAGED can be modifed by
+        #       something else.
+        #       "/usr/bin/systemd-run --no-block" is used here to never block UDEV + existence of the device can be verified
+        #       without spawning extra shell.
+        - dest: /etc/udev/rules.d/99-unmanage.rules
+          content: |
+            # managed by one-deploy
+            # --- NET
+            {% for v in _to_unmanage %}
+            # {{ v.Slot }}
+            SUBSYSTEM=="net", ACTION=="add|move", ENV{ID_PATH}=="pci-{{ v.Slot }}", \
+            ENV{NM_UNMANAGED}="1", ENV{FORCE_NM_UNMANAGED}="1"
+            SUBSYSTEM=="net", ENV{ID_PATH}=="pci-{{ v.Slot }}", ENV{FORCE_NM_UNMANAGED}=="1", TEST=="/usr/bin/nmcli", \
+            RUN+="/usr/bin/systemd-run --no-block --property=ConditionPathExists=/sys%E{DEVPATH} \
+                  /usr/bin/nmcli device set %E{ID_NET_NAME} managed no"
+            SUBSYSTEM=="net", ENV{ID_PATH}=="pci-{{ v.Slot }}", ENV{FORCE_NM_UNMANAGED}=="1", TEST=="/usr/sbin/netplan", \
+            RUN+="/usr/bin/systemd-run --no-block --property=ConditionPathExists=/sys%E{DEVPATH} \
+                  /usr/sbin/netplan set network.ethernets.%E{ID_NET_NAME_PATH}=null"
+            SUBSYSTEM=="net", ACTION=="add|move", ENV{ID_PATH}=="pci-{{ v.Slot }}", TEST=="/usr/sbin/ip", \
+            RUN+="/usr/bin/systemd-run --no-block --property=ConditionPathExists=/sys%E{DEVPATH} \
+                  /usr/sbin/ip link set dev %E{INTERFACE} up"
+            {% endfor %}
       register: copy_udev_rules
 
     - name: Refresh udev rules
