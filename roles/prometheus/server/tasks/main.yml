@@ -9,16 +9,9 @@
 
     - name: Install Prometheus with dependencies
       ansible.builtin.package:
-        name: "{{ _common + _specific[ansible_os_family] }}"
+        name: "{{ _common }}"
       vars:
-        _common:
-          - bash
-          - opennebula-prometheus
-          - opennebula-prometheus-{{ node_hypervisor }}
-        _specific:
-          Debian: []
-          RedHat: []
-          Suse: []
+        _common: [bash, opennebula-prometheus]
       register: package
       until: package is success
       retries: 12

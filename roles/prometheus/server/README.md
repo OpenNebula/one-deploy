@@ -61,11 +61,21 @@ Example Playbook
             CPUWeight: 25
             MemoryHigh: 128M
             MemoryMax: 256M
+          opennebula-mysql-exporter.service:
+            CPUQuota: 25%
+            CPUWeight: 25
+            MemoryHigh: 128M
+            MemoryMax: 256M
           opennebula-node-exporter.service:
             CPUQuota: 25%
             CPUWeight: 25
             MemoryHigh: 64M
             MemoryMax: 128M
+          opennebula-ovs-exporter.service:
+            CPUQuota: 50%
+            CPUWeight: 25
+            MemoryHigh: 256M
+            MemoryMax: 512M
           opennebula-prometheus.service:
             CPUQuota: 100%
             CPUWeight: 100
@@ -74,6 +84,13 @@ Example Playbook
             IOWeight: 200
             IOReadBandwidthMax: /var/lib/prometheus 50M
             IOWriteBandwidthMax: /var/lib/prometheus 25M
+            storage.tsdb.retention.size: 50GB
+            storage.tsdb.retention.time: 30d
+          opennebula-smartctl-exporter.service:
+            CPUQuota: 25%
+            CPUWeight: 25
+            MemoryHigh: 128M
+            MemoryMax: 256M
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.repository
