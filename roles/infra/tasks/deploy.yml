@@ -87,7 +87,7 @@
 
 - name: Compute VNC ports
   ansible.builtin.set_fact:
-    frontends_to_vnc_ports: >-
+    frontend_vnc_ports: >-
       {{ dict(_frontends | zip(_ports)) }}
   vars:
     _ports: >-
@@ -97,12 +97,32 @@
     _frontend_group: >-
       {{ frontend_group | d('frontend') }}
 
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/limits.yml"
+
 - name: Define Front-end VMs
   community.libvirt.virt:
     command: define
-    xml: "{{ lookup('template', 'frontend.xml.jinja') }}"
+    xml: >-
+      {%- set output = {} -%}
+      {%- for v in infra_xml[infra_xml_variant] -%}
+        {{-
+          output.update(output | combine(
+            v | ansible.utils.from_xml | combine(_fixup, recursive=true),
+            recursive=true,
+            list_merge='append_rp',
+          ))
+        -}}
+      {%- endfor -%}
+      {{- output | ansible.utils.to_xml(full_document=false) -}}
     autostart: true
   vars:
+    # NOTE: This is required because (for example) '<devices></devices>' produces '{"devices": null}'
+    #       which cannot be merged recursively.
+    _fixup:
+      domain:
+        cputune: {}
+        devices: {}
     context: "{{ hostvars[frontend].context }}"
   loop_control: { loop_var: frontend }
   loop: "{{ infra_to_frontends[inventory_hostname] }}"
