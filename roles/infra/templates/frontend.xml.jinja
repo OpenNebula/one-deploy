@@ -99,7 +99,6 @@
 {% elif infra_bridge_type == 'openvswitch_dpdk' %}
     <interface type='vhostuser'>
       <source type='unix' path='{{ infra_dpdk_socket_path }}' mode='server'/>
-      <driver name='vhost' queues='2'/>
 {% endif %}
       <mac address='{{ context.ETH0_MAC | d("02:01:%02x:%02x:%02x:%02x" | format(*(context.ETH0_IP.split(".") | map("int")))) }}'/>
 {% if infra_bridge_type == 'openvswitch' %}
@@ -111,6 +110,7 @@
       </vlan>
 {% endif %}
       <model type='virtio'/>
+      <driver name='vhost' queues='{{ vcpu_static }}'/>
       <alias name='net0'/>
     </interface>
 {% endif %}
