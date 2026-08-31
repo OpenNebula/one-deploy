@@ -8,3 +8,6 @@ vnc_max_port: 65535
 infra_bridge: br0
 infra_bridge_type: bridge
 passthrough_fs: []
+cputune_shares_base: 200 # twice the OpenNebula's default (for CGv2)
+cputune_shares_max: 10000
+cputune_shares: "{{ ((vcpu_static | int) * (cputune_shares_base | int)) | round(0, 'ceil') }}"
