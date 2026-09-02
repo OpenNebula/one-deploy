@@ -1,7 +1,7 @@
 Role: opennebula.deploy.helper.iscsi
 ====================================
 
-A role that attached iSCSI LUNs.
+A role that attaches iSCSI LUNs.
 
 Requirements
 ------------
