@@ -71,3 +71,7 @@
         enabled: true
         daemon_reload: true
       loop: "{{ nbd }}"
+      register: systemd_service
+      until: systemd_service is succeeded
+      retries: 12
+      delay: 5

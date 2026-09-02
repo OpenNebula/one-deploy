@@ -33,6 +33,11 @@ Example Playbook
           - name: export0
             host: 10.2.11.1
             device: nbd0
+            options: port=10809
+          - name: export1
+            host: 10.2.11.1
+            device: nbd1
+            options: port=10809
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.helper.nbd
