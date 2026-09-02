@@ -71,6 +71,9 @@
     - role: helper/logs
       tags: [logs]
 
+    - role: helper/nbd
+      tags: [nbd]
+
     - role: helper/iscsi
       tags: [iscsi]
 

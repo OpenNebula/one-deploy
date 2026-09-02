@@ -1,0 +1,77 @@
+---
+- when:
+    - nbd is defined
+    - nbd is sequence
+    - nbd | count > 0
+  block:
+    - name: Install required OS packages
+      ansible.builtin.package:
+        name: "{{ _common + _specific[ansible_os_family] }}"
+      vars:
+        _common: []
+        _specific:
+          Debian: [nbd-client]
+          RedHat: [nbd]
+          Suse: [nbd]
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+    - name: Create / Populate /etc/nbdtab
+      ansible.builtin.lineinfile:
+        path: /etc/nbdtab
+        create: true
+        mode: u=rw,go=r
+        owner: 0
+        group: 0
+        regexp: '^{{ item.device | regex_escape }}\\s'
+        line: '{{ item.device }} {{ item.host }} {{ item.name }}{{ _options }}'
+      vars:
+        _options: >-
+          {{ (' ' ~ item.options) if item.options | d() else '' }}
+      loop: "{{ nbd }}"
+
+    # NOTE: Originally in Ubuntu (for example) there's /usr/lib/systemd/system/nbd@.service,
+    #       but it doesn't "survive reboots" without modifications. Since we'd have to modify
+    #       it anyways, it's much better to overwrite it completely (RHEL doesn't have it).
+    #       Placing it in /etc/systemd/system/nbd@.service gives us exactly complete overwrite
+    #       we need.
+    - name: Install / Overwrite nbd@.service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/nbd@.service
+        mode: u=rw,go=r
+        owner: 0
+        group: 0
+        content: |
+          [Unit]
+          Description=NBD client connection for %i
+          Documentation=man:nbd-client
+          PartOf=nbd.service
+          Before=dev-%i.device
+          After=nbd-server.device
+          After=network-online.target
+          Conflicts=shutdown.target
+          DefaultDependencies=no
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          ExecStart=/usr/sbin/nbd-client %i
+          ExecStop=/usr/sbin/nbd-client -d /dev/%i
+
+          [Install]
+          RequiredBy=dev-%i.device
+          RequiredBy=multi-user.target
+
+    - name: Enable / Start nbd@.service
+      ansible.builtin.systemd_service:
+        name: "nbd@{{ item.device }}.service"
+        state: started
+        enabled: true
+        daemon_reload: true
+      loop: "{{ nbd }}"
+      register: systemd_service
+      until: systemd_service is succeeded
+      retries: 12
+      delay: 5
