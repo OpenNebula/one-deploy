@@ -122,6 +122,36 @@
               {% endfor %}
           register: copy_sources
 
+        - name: Disable sources < 99-ntp.sources
+          ansible.builtin.shell:
+            cmd: |
+              set -o errexit -o pipefail; shopt -s nullglob
+
+              CHANGED=false
+
+              cd /etc/chrony/sources.d/
+
+              # NOTE: Sources starting with a non-digit are always disabled,
+              #       then only sources that are >= 99-ntp.sources are kept untouched.
+              while IFS= read -r -d '' FILE; do
+                if [[ "$FILE" == 99-ntp.sources ]]; then break; fi
+                mv "$FILE"{,.disabled}
+                CHANGED=true
+              done < <(printf '%s\0' [!0-9]*.sources | grep -z . ||:;
+                       printf '%s\0'  [0-9]*.sources | grep -z . | sort -z -V ||:)
+
+              if [[ "$CHANGED" == false ]]; then
+                exit 0
+              else
+                exit 78 # EREMCHG
+              fi
+            executable: /bin/bash
+          register: shell_disable_sources
+          changed_when:
+            - shell_disable_sources.rc in [78]
+          failed_when:
+            - shell_disable_sources.rc not in [0, 78]
+
         - name: Cleanup chrony.conf
           ansible.builtin.replace:
             path: "{{ _cfg_path }}"
@@ -133,7 +163,11 @@
           ansible.builtin.systemd_service:
             name: "{{ _supported[_detected][ansible_os_family] }}"
             state: restarted
-          when: copy_sources is changed or replace_chrony_conf is changed
+          when: (copy_sources is changed)
+                or
+                (shell_disable_sources is changed)
+                or
+                (replace_chrony_conf is changed)
 
     - when: _detected == 'timesyncd'
       block:
@@ -154,6 +188,7 @@
             content: |
               # managed by one-deploy
               [Time]
+              NTP=
               NTP={{ _time_ntp | join(' ') }}
           vars:
             _time_ntp: >-
