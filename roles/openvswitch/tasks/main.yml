@@ -9,7 +9,9 @@
     _ovs: >-
       {{ ovs_defaults | combine(ovs | d({}), recursive=true) }}
 
-- when: leader is undefined
+- when:
+    - ovs_enabled
+    - leader is undefined
   block:
     - ansible.builtin.include_tasks:
         file: "{{ role_path }}/tasks/openvswitch.yml"
@@ -20,7 +22,9 @@
         file: "{{ role_path }}/tasks/vhost.yml"
       when: inventory_hostname in groups[node_group | d('node')]
 
-- when: leader is defined
+- when:
+    - ovs_enabled
+    - leader is defined
   block:
     - ansible.builtin.include_tasks:
         file: "{{ role_path }}/tasks/opennebula.yml"
