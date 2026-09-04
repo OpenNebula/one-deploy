@@ -1,4 +1,53 @@
 ---
+- when: one_version is version('7.2.1', '>=')
+  delegate_to: "{{ leader }}"
+  run_once: true
+  block:
+    - name: Create hooks for backup/restore metrics
+      ansible.builtin.shell:
+        cmd: |
+          set +o errexit
+          TEMPLATE="$(mktemp)"
+          tee "$TEMPLATE"
+          onehook show '{{ item.template.NAME }}'; RC="$?"
+          if (( RC != 0 )); then
+            onehook create "$TEMPLATE"; RC="$?"
+            if (( RC == 0 )); then
+              RC=78 # EREMCHG
+            fi
+          fi
+          rm -f "$TEMPLATE"
+          exit "$RC"
+        stdin: |
+          {{ item.template | opennebula.deploy.to_one }}
+        executable: /bin/bash
+      register: shell
+      changed_when:
+        - shell.rc in [78]
+      failed_when:
+        - shell.rc not in [0, 78]
+      loop:
+        - template:
+            NAME: "hook-add-backup-metrics"
+            TYPE: "api"
+            ARGUMENTS: "$API backup"
+            ARGUMENTS_STDIN: "YES"
+            CALL: "one.vm.backup"
+            COMMAND: >-
+              /bin/env GEM_HOME=/usr/share/one/gems/
+              ruby -I/usr/lib/one/ruby/ /var/lib/one/remotes/hooks/metrics/backup_restore_metrics.rb
+            REMOTE: "NO"
+        - template:
+            NAME: "hook-add-restore-metrics"
+            TYPE: "api"
+            ARGUMENTS: "$API restore"
+            ARGUMENTS_STDIN: "YES"
+            CALL: "one.vm.restore"
+            COMMAND: >-
+              /bin/env GEM_HOME=/usr/share/one/gems/
+              ruby -I/usr/lib/one/ruby/ /var/lib/one/remotes/hooks/metrics/backup_restore_metrics.rb
+            REMOTE: "NO"
+
 - name: Configure Alertmanager
   ansible.builtin.copy:
     dest: /etc/one/alertmanager/alertmanager.yml
