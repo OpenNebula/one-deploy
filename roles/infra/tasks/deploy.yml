@@ -44,12 +44,15 @@
 
     - name: Create context ISO images
       ansible.builtin.command:
-        cmd: genisoimage --input-charset utf-8 -Jr -V CONTEXT
-             -o '{{ runtime_dir }}/{{ frontend }}.iso'
-             '{{ tempfile.results[item].path }}/context.sh'
+        cmd: >-
+          {{ _mkisofs }} -input-charset utf-8 -Jr -V CONTEXT
+          -o '{{ runtime_dir }}/{{ frontend }}.iso'
+          '{{ tempfile.results[item].path }}/context.sh'
       changed_when: true
       vars:
         frontend: "{{ tempfile.results[item].frontend }}"
+        _mkisofs: >-
+          {{ 'mkisofs' if ansible_os_family == 'Suse' else 'genisoimage' }}
       loop: "{{ range(tempfile.results | count) }}"
       when: template_context_sh is changed
 
