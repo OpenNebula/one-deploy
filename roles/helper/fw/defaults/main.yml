@@ -5,113 +5,113 @@ fw_default_ports:
   - name: OpenSSH
     ports: [22/tcp]
     groups:
-      local: [frontend, node]
+      local: ["{{ frontend_group | d('frontend') }}", "{{ node_group | d('node') }}"]
       peers: []
 
   - name: OneFlow
     ports: [2474/tcp]
     groups:
-      local: [frontend]
+      local: ["{{ frontend_group | d('frontend') }}"]
       peers: []
 
   - name: FireEdge
     ports: [2616/tcp]
     groups:
-      local: [frontend]
+      local: ["{{ frontend_group | d('frontend') }}"]
       peers: []
 
   - name: OneXmlRpc
     ports: [2633/tcp]
     groups:
-      local: [frontend]
+      local: ["{{ frontend_group | d('frontend') }}"]
       peers: []
 
   - name: Grafana
     ports: [3000/tcp]
     groups:
-      local: [grafana]
+      local: ["{{ grafana_group | d('grafana') }}"]
       peers: []
 
   - name: OneMonitor
     ports: [4124/tcp, 4124/udp]
     groups:
-      local: [frontend]
-      peers: [node]
+      local: ["{{ frontend_group | d('frontend') }}"]
+      peers: ["{{ node_group | d('node') }}"]
 
   - name: OneGate
     ports: [5030/tcp]
     groups:
-      local: [frontend]
-      peers: [node]
+      local: ["{{ frontend_group | d('frontend') }}"]
+      peers: ["{{ node_group | d('node') }}"]
 
   - name: VncPorts
     ports: [5900-65535/tcp]
     groups:
-      local: [node]
-      peers: [frontend]
+      local: ["{{ node_group | d('node') }}"]
+      peers: ["{{ frontend_group | d('frontend') }}"]
 
   - name: Prometheus
     ports: [9090/tcp]
     groups:
-      local: [frontend]
+      local: ["{{ frontend_group | d('frontend') }}"]
       peers: []
 
   - name: Alertmanager
     ports: [9093/tcp]
     groups:
-      local: [frontend]
+      local: ["{{ frontend_group | d('frontend') }}"]
       peers: []
 
   - name: NodeExporter
     ports: [9100/tcp]
     groups:
-      local: [frontend, node]
-      peers: [frontend]
+      local: ["{{ frontend_group | d('frontend') }}", "{{ node_group | d('node') }}"]
+      peers: ["{{ frontend_group | d('frontend') }}"]
 
   - name: DbExporter
     ports: [9104/tcp]
     groups:
-      local: [frontend]
-      peers: [frontend]
+      local: ["{{ frontend_group | d('frontend') }}"]
+      peers: ["{{ frontend_group | d('frontend') }}"]
 
   - name: OvsExporter
     ports: [9475/tcp]
     groups:
-      local: [frontend, node]
-      peers: [frontend]
+      local: ["{{ frontend_group | d('frontend') }}", "{{ node_group | d('node') }}"]
+      peers: ["{{ frontend_group | d('frontend') }}"]
 
   - name: SmartExporter
     ports: [9633/tcp]
     groups:
-      local: [frontend, node]
-      peers: [frontend]
+      local: ["{{ frontend_group | d('frontend') }}", "{{ node_group | d('node') }}"]
+      peers: ["{{ frontend_group | d('frontend') }}"]
 
   - name: LvmExporter
     ports: [9845/tcp]
     groups:
-      local: [node]
-      peers: [frontend]
+      local: ["{{ node_group | d('node') }}"]
+      peers: ["{{ frontend_group | d('frontend') }}"]
 
   - name: OneExporter
     ports: [9925/tcp]
     groups:
-      local: [frontend]
-      peers: [frontend]
+      local: ["{{ frontend_group | d('frontend') }}"]
+      peers: ["{{ frontend_group | d('frontend') }}"]
 
   - name: LibvirtExporter
     ports: [9926/tcp]
     groups:
-      local: [node]
-      peers: [frontend]
+      local: ["{{ node_group | d('node') }}"]
+      peers: ["{{ frontend_group | d('frontend') }}"]
 
   - name: NoVncProxy
     ports: [29876/tcp]
     groups:
-      local: [frontend]
+      local: ["{{ frontend_group | d('frontend') }}"]
       peers: []
 
   - name: LiveMigrations
     ports: [49152-49215/tcp]
     groups:
-      local: [node]
-      peers: [node]
+      local: ["{{ node_group | d('node') }}"]
+      peers: ["{{ node_group | d('node') }}"]
