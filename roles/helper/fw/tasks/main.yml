@@ -1,0 +1,204 @@
+---
+- when:
+    - fw_ports is defined
+    - fw_ports is sequence
+  vars:
+    _fw_dict: >-
+      {{
+        {} | combine(
+          fw_default_ports | map(attribute='name')
+                           | zip(fw_default_ports)
+                           | items2dict(key_name=0, value_name=1),
+
+          fw_ports | map(attribute='name')
+                   | zip(fw_ports)
+                   | items2dict(key_name=0, value_name=1),
+
+          recursive=true
+        ) | dict2items
+          | rejectattr('value.groups.peers', 'none')
+          | items2dict
+      }}
+
+    _supported:
+      firewalld:
+        Debian: firewalld.service
+        RedHat: firewalld.service
+        Suse: firewalld.service
+      ufw:
+        Debian: ufw.service
+        RedHat: ufw.service
+        Suse: ufw.service
+
+    _enabled: >-
+      {{ systemd_fw_services.results | selectattr('status.LoadState', 'defined')
+                                     | rejectattr('status.LoadState', 'in', ['masked', 'not-found'])
+                                     | selectattr('status.UnitFileState', 'defined')
+                                     | selectattr('status.UnitFileState', 'in', ['enabled'])
+                                     | map(attribute='item') }}
+
+    _detected: >-
+      {{ _enabled | first | d('') }}
+  block:
+    - name: Detect FW services (query raw status)
+      ansible.builtin.systemd_service:
+        name: "{{ _supported[item][ansible_os_family] }}"
+      loop: "{{ _supported.keys() }}"
+      register: systemd_fw_services
+      no_log: true
+
+    - name: Assert a single FW-managing service is enabled
+      ansible.builtin.assert:
+        that: (_enabled | count) < 2 and _detected is truthy
+        fail_msg: More than one or none enabled FW-managing services detected, aborting..
+
+    - name: Open requested FW ports
+      ansible.builtin.shell:
+        cmd: "{{ _shell[_detected].cmd }}"
+        executable: /bin/bash
+      vars:
+        _shell:
+          firewalld:
+            cmd: |
+              set -o errexit -o pipefail
+
+              BEFORE="$(firewall-cmd --permanent --zone=public --list-all | sort | cksum)"
+
+              {% for v in _fw_dict.values() %}
+
+              {%- set local = v.groups.local | map('extract', groups)
+                                             | map('d')
+                                             | flatten
+                                             | select -%}
+              {%- set peers = v.groups.peers | map('extract', groups)
+                                             | map('d')
+                                             | flatten
+                                             | select
+                                             | reject('==', inventory_hostname) -%}
+              {%- set ipv4s = peers | map('extract', hostvars, ['ansible_facts',
+                                                                'default_ipv4',
+                                                                'address'])
+                                    | map('d')
+                                    | flatten
+                                    | select -%}
+              {%- set ipv6s = peers | map('extract', hostvars, ['ansible_facts',
+                                                                'default_ipv6',
+                                                                'address'])
+                                    | map('d')
+                                    | flatten
+                                    | select -%}
+
+              {% if inventory_hostname in local %}
+
+              {% for p in v.ports %}
+
+              {% if v.groups.peers | count > 0 %}
+              {% for h in ipv4s %}
+              firewall-cmd --permanent --zone=public \
+                           --add-rich-rule="rule family='ipv4' \
+                                            source address='{{ h }}' \
+                                            port port='{{ p.split('/')[0].replace(':', '-') }}' \
+                                            protocol='{{ p.split('/')[1] }}' \
+                                            accept"
+              {% endfor %}
+              {% for h in ipv6s %}
+              firewall-cmd --permanent --zone=public \
+                           --add-rich-rule="rule family='ipv6' \
+                                            source address='{{ h }}' \
+                                            port port='{{ p.split('/')[0].replace(':', '-') }}' \
+                                            protocol='{{ p.split('/')[1] }}' \
+                                            accept"
+              {% endfor %}
+              {% else %}
+              firewall-cmd --permanent --zone=public \
+                           --add-rich-rule="rule family='ipv4' \
+                                            port port='{{ p.split('/')[0].replace(':', '-') }}' \
+                                            protocol='{{ p.split('/')[1] }}' \
+                                            accept"
+              firewall-cmd --permanent --zone=public \
+                           --add-rich-rule="rule family='ipv6' \
+                                            port port='{{ p.split('/')[0].replace(':', '-') }}' \
+                                            protocol='{{ p.split('/')[1] }}' \
+                                            accept"
+              {% endif %}
+
+              {% endfor %}
+
+              {% endif %}
+
+              {% endfor %}
+
+              AFTER="$(firewall-cmd --permanent --zone=public --list-all | sort | cksum)"
+
+              if [[ "$AFTER" == "$BEFORE" ]]; then
+                exit 0
+              else
+                firewall-cmd --reload
+                exit 78 # EREMCHG
+              fi
+          ufw:
+            cmd: |
+              set -o errexit -o pipefail
+
+              BEFORE="$(ufw show added | sort | cksum)"
+
+              {% for v in _fw_dict.values() %}
+
+              {%- set local = v.groups.local | map('extract', groups)
+                                             | map('d')
+                                             | flatten
+                                             | select -%}
+              {%- set peers = v.groups.peers | map('extract', groups)
+                                             | map('d')
+                                             | flatten
+                                             | select
+                                             | reject('==', inventory_hostname) -%}
+              {%- set ipv4s = peers | map('extract', hostvars, ['ansible_facts',
+                                                                'default_ipv4',
+                                                                'address'])
+                                    | map('d')
+                                    | flatten
+                                    | select -%}
+              {%- set ipv6s = peers | map('extract', hostvars, ['ansible_facts',
+                                                                'default_ipv6',
+                                                                'address'])
+                                    | map('d')
+                                    | flatten
+                                    | select -%}
+
+              {% if inventory_hostname in local %}
+
+              {% for p in v.ports %}
+
+              {% if v.groups.peers | count > 0 %}
+              {% for h in ipv4s + ipv6s %}
+              ufw allow from '{{ h }}' \
+                        to any \
+                        port '{{ p.split('/')[0].replace('-', ':') }}' \
+                        proto '{{ p.split('/')[1] }}'
+              {% endfor %}
+              {% else %}
+              ufw allow from any \
+                        to any \
+                        port '{{ p.split('/')[0].replace('-', ':') }}' \
+                        proto '{{ p.split('/')[1] }}'
+              {% endif %}
+
+              {% endfor %}
+
+              {% endif %}
+
+              {% endfor %}
+
+              AFTER="$(ufw show added | sort | cksum)"
+
+              if [[ "$AFTER" == "$BEFORE" ]]; then
+                exit 0
+              else
+                exit 78 # EREMCHG
+              fi
+      register: shell_open_fw_ports
+      changed_when:
+        - shell_open_fw_ports.rc in [78]
+      failed_when:
+        - shell_open_fw_ports.rc not in [0, 78]

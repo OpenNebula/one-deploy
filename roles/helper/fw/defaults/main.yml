@@ -1,0 +1,117 @@
+---
+fw_ports: null # disabled, set it at least to [] to enable
+
+fw_default_ports:
+  - name: OpenSSH
+    ports: [22/tcp]
+    groups:
+      local: [frontend, node]
+      peers: []
+
+  - name: OneFlow
+    ports: [2474/tcp]
+    groups:
+      local: [frontend]
+      peers: []
+
+  - name: FireEdge
+    ports: [2616/tcp]
+    groups:
+      local: [frontend]
+      peers: []
+
+  - name: OneXmlRpc
+    ports: [2633/tcp]
+    groups:
+      local: [frontend]
+      peers: []
+
+  - name: Grafana
+    ports: [3000/tcp]
+    groups:
+      local: [grafana]
+      peers: []
+
+  - name: OneMonitor
+    ports: [4124/tcp, 4124/udp]
+    groups:
+      local: [frontend]
+      peers: [node]
+
+  - name: OneGate
+    ports: [5030/tcp]
+    groups:
+      local: [frontend]
+      peers: [node]
+
+  - name: VncPorts
+    ports: [5900-65535/tcp]
+    groups:
+      local: [node]
+      peers: [frontend]
+
+  - name: Prometheus
+    ports: [9090/tcp]
+    groups:
+      local: [frontend]
+      peers: []
+
+  - name: Alertmanager
+    ports: [9093/tcp]
+    groups:
+      local: [frontend]
+      peers: []
+
+  - name: NodeExporter
+    ports: [9100/tcp]
+    groups:
+      local: [frontend, node]
+      peers: [frontend]
+
+  - name: DbExporter
+    ports: [9104/tcp]
+    groups:
+      local: [frontend]
+      peers: [frontend]
+
+  - name: OvsExporter
+    ports: [9475/tcp]
+    groups:
+      local: [frontend, node]
+      peers: [frontend]
+
+  - name: SmartExporter
+    ports: [9633/tcp]
+    groups:
+      local: [frontend, node]
+      peers: [frontend]
+
+  - name: LvmExporter
+    ports: [9845/tcp]
+    groups:
+      local: [node]
+      peers: [frontend]
+
+  - name: OneExporter
+    ports: [9925/tcp]
+    groups:
+      local: [frontend]
+      peers: [frontend]
+
+  - name: LibvirtExporter
+    ports: [9926/tcp]
+    groups:
+      local: [node]
+      peers: [frontend]
+
+  - name: NoVncProxy
+    ports: [29876/tcp]
+    groups:
+      local: [frontend]
+      peers: []
+
+  - name: LiveMigrations
+    ports: [49152-49215/tcp]
+    groups:
+      local: [node]
+      peers: [node]
