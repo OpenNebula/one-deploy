@@ -3,6 +3,16 @@
 # Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 
 
+# EXAMPLES:
+# '10.11.12.13' -> '02:01:0a:0b:0c:0d'
+def ipv4_mac(ipv4, fmt='02:01:%02x:%02x:%02x:%02x'):
+    """Converts IPv4 (string) into MAC."""
+
+    import ipaddress
+
+    return fmt % tuple(ipaddress.IPv4Address(ipv4).packed)
+
+
 # NOTE: It does not validate character classes or character count!
 # EXAMPLES:
 # pci -> match_address('0000:0*:00.*', sep='[:.]')
