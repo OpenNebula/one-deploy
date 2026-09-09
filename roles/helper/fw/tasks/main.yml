@@ -3,6 +3,8 @@
     - fw_ports is defined
     - fw_ports is sequence
   vars:
+    # NOTE: Amazingly 'sameas' does not raise error when LHS is undefined.
+    #       Also, it seems that the 'bool' filter is not needed in this particular case.
     _fw_dict: >-
       {{
         {} | combine(
@@ -16,7 +18,7 @@
 
           recursive=true
         ) | dict2items
-          | rejectattr('value.groups.peers', 'none')
+          | rejectattr('value.skip', 'sameas', true)
           | items2dict
       }}
 

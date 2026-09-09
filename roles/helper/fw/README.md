@@ -14,10 +14,11 @@ Role Variables
 | Name                      | Type   | Default           | Description                          |
 |---------------------------|--------|-------------------|--------------------------------------|
 | `fw_ports`                | `list` | `null` (disabled) | FW configuration to apply.           |
-| `fw_ports[].name`         | `str`  | undefined         | Unique name of the rule (required).  |
-| `fw_ports[].ports`        | `list` | undefined         | List of ports to open.               |
-| `fw_ports[].groups.local` | `list` | undefined         | List of groups to open FW ports on.  |
-| `fw_ports[].groups.peers` | `list` | undefined         | List of groups to open FW ports for. |
+| `fw_ports[].skip`         | `bool` | `false`           | Decide to skip the rule.             |
+| `fw_ports[].name`         | `str`  |                   | Unique name of the rule.             |
+| `fw_ports[].ports`        | `list` |                   | List of ports to open.               |
+| `fw_ports[].groups.local` | `list` |                   | List of groups to open FW ports on.  |
+| `fw_ports[].groups.peers` | `list` |                   | List of groups to open FW ports for. |
 
 Dependencies
 ------------
@@ -40,10 +41,7 @@ Example Playbook
       vars:
         fw_ports:
           - name: OneXmlRpc
-            ports: [2633/tcp]
-            groups:
-              local: [frontend]
-              peers: null # `null` skips the rule
+            skip: true
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.helper.fw
