@@ -7,7 +7,7 @@
     - role: helper/online
 
     # This installs the interpreter only.
-    # Extra OS/PyPI packages should not required by this playbook.
+    # Extra OS/PyPI packages should not be required by this playbook.
     - role: helper/python3
 
     - role: helper/facts

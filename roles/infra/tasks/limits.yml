@@ -1,0 +1,86 @@
+---
+- when: infra_xml_variant in ['default', 'openvswitch']
+  vars:
+    _frontends: >-
+      {{ infra_to_frontends[inventory_hostname] }}
+
+    _memory_min: >-
+      {{ (_frontends | count) * (memory_KiB * 1.10 + 150 * 1024) }}
+
+    _memory_low: >-
+      {{ (_frontends | count) * (memory_KiB * 1.15 + 250 * 1024) }}
+
+    _cpu_weight: >-
+      {{ vcpu_shares if (vcpu_shares | int) < 10000 else 10000 }}
+  block:
+    - name: Update MemoryMin / MemoryMin / CPUWeight on infra slice
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit -o pipefail
+          BEFORE="$(systemctl show infra.slice -p MemoryMin -p MemoryLow -p CPUWeight | sort)"
+          systemctl set-property infra.slice 'MemoryMin={{ _memory_min | int }}K' \
+                                             'MemoryLow={{ _memory_low | int }}K' \
+                                             'CPUWeight={{ _cpu_weight | int }}'
+          AFTER="$(systemctl show infra.slice -p MemoryMin -p MemoryLow -p CPUWeight | sort)"
+          if [[ "$AFTER" == "$BEFORE" ]]; then
+            exit 0
+          else
+            exit 78 # EREMCHG
+          fi
+        executable: /bin/bash
+      register: shell
+      changed_when:
+        - shell.rc in [78]
+      failed_when:
+        - shell.rc not in [0, 78]
+
+- when: infra_xml_variant in ['pinned', 'openvswitch_dpdk']
+  vars:
+    _parsed:
+      machine: >-
+        {{ shell_allowed_cpus.stdout_lines.0 | d() | opennebula.deploy.explode_ranges(split=true) }}
+      infra: >-
+        {{ shell_allowed_cpus.stdout_lines.1 | d() | opennebula.deploy.explode_ranges(split=true) }}
+
+    _required:
+      machine: >-
+        {{ numa_query.cpus.system }}
+      infra: >-
+        {{ vcpu_pinned | opennebula.deploy.explode_ranges(split=true) }}
+  block:
+    - name: Assert that vcpu_pinned is defined
+      ansible.builtin.assert:
+        that:
+          - vcpu_pinned is string
+          - vcpu_pinned | length > 0
+        fail_msg: Please ensure vcpu_pinned is a string following the isolcpus= syntax (i.e. '1-2,4').
+
+    - ansible.builtin.include_role:
+        name: helper/numa
+
+    - name: Assert that vcpu_pinned refers to isolated cores
+      ansible.builtin.assert:
+        that: _required.infra | intersect(numa_query.cpus.isolated) | count > 0
+        fail_msg: Please ensure vcpu_pinned cores exist and are properly isolated.
+
+    - name: Query AllowedCPUs on machine and infra slices
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit
+          systemctl show machine.slice -p AllowedCPUs --value
+          systemctl show infra.slice -p AllowedCPUs --value
+        executable: /bin/bash
+      register: shell_allowed_cpus
+      changed_when: false
+
+    # NOTE: OpenNebula places VMs inside machine.slice, we exclude isolated cores
+    #       from that slice so libvirt is not allowed to use them.
+    - name: Update AllowedCPUs on machine and infra slices
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit
+          systemctl set-property machine.slice 'AllowedCPUs={{ _required.machine | join(',') }}'
+          systemctl set-property infra.slice 'AllowedCPUs={{ _required.infra | join(',') }}'
+        executable: /bin/bash
+      changed_when: true
+      when: _parsed != _required

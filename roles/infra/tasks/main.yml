@@ -3,7 +3,7 @@
   ansible.builtin.package:
     name: "{{ _common + _specific[ansible_os_family] }}"
   vars:
-    _common: [acl, genisoimage, python3-libvirt, python3-lxml]
+    _common: [acl, gawk, genisoimage, python3-libvirt, python3-lxml]
     _specific:
       Debian: [qemu-utils]
       RedHat: [qemu-img]

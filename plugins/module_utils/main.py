@@ -3,6 +3,69 @@
 # Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 
 
+# EXAMPLES:
+# '10.11.12.13' -> '02:01:0a:0b:0c:0d'
+def ipv4_mac(ipv4, fmt='02:01:%02x:%02x:%02x:%02x'):
+    """Converts IPv4 (string) into MAC."""
+
+    import ipaddress
+
+    return fmt % tuple(ipaddress.IPv4Address(ipv4).packed)
+
+
+# EXAMPLES:
+# '0-2,3,5-7' -> '0,1,2,3,5,6,7'
+def explode_ranges(ranges, split=False):
+    """Converts ranges to indices."""
+
+    import re
+
+    if not ranges:
+        return [] if split else ''
+
+    def g():
+        for z in re.split('[, ]', ranges):
+            y = z.split('-')
+
+            if len(y) > 0:
+                if len(y) == 1:
+                    yield str(y[0])
+                else:
+                    for x in range(int(y[0]), int(y[1]) + 1):
+                        yield str(x)
+
+    return list(g()) if split else ','.join(g())
+
+
+# EXAMPLES:
+# '0,1,2,3,5,6,7' -> '0-3,5-7'
+def implode_ranges(indices, split=False):
+    """Converts indices to ranges."""
+
+    import re
+
+    if not indices:
+        return [] if split else ''
+
+    def index_or_range(y):
+        return str(y[0]) if len(y) == 1 else str(y[0]) + '-' + str(y[-1])
+
+    def g():
+        y = []
+
+        for x in re.split('[, ]', indices):
+            if len(y) > 0:
+                if y[-1] + 1 != int(x):
+                    yield index_or_range(y)
+                    y.clear()
+
+            y.append(int(x))
+
+        yield index_or_range(y)
+
+    return list(g()) if split else ','.join(g())
+
+
 # NOTE: It does not validate character classes or character count!
 # EXAMPLES:
 # pci -> match_address('0000:0*:00.*', sep='[:.]')

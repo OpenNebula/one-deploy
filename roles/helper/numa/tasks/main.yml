@@ -1,0 +1,82 @@
+---
+- vars:
+    _query: >-
+      {{ shell_cpus_numa.stdout | split(_sep1)
+                                | select('truthy')
+                                | map('split', _sep2)
+                                | map('map', 'split', _sep3) }}
+    _sep1: "\n\n"
+    _sep2: "\n"
+    _sep3: ":\t" # noqa no-tabs
+
+    _cpus: >-
+      {%- set output = {} -%}
+      {%- for k, v in _query.0 -%}
+        {{-
+          output.update({
+            k: (output.get(k, []) + [v | opennebula.deploy.explode_ranges(split=true)]) | flatten | unique,
+          })
+        -}}
+      {%- endfor -%}
+      {{-
+        output | combine({
+          "system": output.present | difference(output.isolated),
+
+          "free": output.isolated | difference(output.allowed)
+                                  | intersect(output.present),
+        })
+      -}}
+
+    _numa: >-
+      {%- set output = {} -%}
+      {%- for k, v in _query.1 -%}
+        {{-
+          output.update({
+            k: {
+              "cpus": {
+                "free": v.split(';').0 | opennebula.deploy.explode_ranges(split=true)
+                                       | intersect(_cpus.free),
+              },
+              "pages1g": { "free": v.split(';').1 },
+              "pages2m": { "free": v.split(';').2 },
+            },
+          })
+        -}}
+      {%- endfor -%}
+      {{- output -}}
+  block:
+    - name: Query CPU and NUMA resources
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit; shopt -s nullglob
+          # Query CPU availability and affinity.
+          PRESENT="$(head -1 '/sys/devices/system/cpu/present')"
+          echo -e "present:\t$PRESENT"
+          ISOLATED="$(head -1 '/sys/devices/system/cpu/isolated')"
+          echo -e "isolated:\t$ISOLATED"
+          find '/proc' -maxdepth 4 -path '/proc/[0-9]*/task/[0-9]*/status' -exec gawk "$AWK_CPUS_ALLOWED" {} +
+          echo
+          # Query NUMA topology.
+          for DIR in '/sys/devices/system/node/node'*; do
+            NODE="$(basename "$DIR")"
+            CPUS="$(head -1 "$DIR/cpulist")"
+            HP1G="$(head -1 "$DIR/hugepages/hugepages-1048576kB/free_hugepages")"
+            HP2M="$(head -1 "$DIR/hugepages/hugepages-2048kB/free_hugepages")"
+            echo -e "${NODE#node}:\t$CPUS;$HP1G;$HP2M"
+          done
+          echo
+        executable: /bin/bash
+      environment:
+        AWK_CPUS_ALLOWED: |
+          BEGINFILE { if (ERRNO) nextfile }
+          $1 == "Kthread:" { Kthread=$2; if (Kthread) nextfile }
+          $1 == "Cpus_allowed_list:" { Cpus_allowed_list=$2 }
+          ENDFILE { if (!Kthread) print "allowed:\t" Cpus_allowed_list }
+      register: shell_cpus_numa
+      changed_when: false
+
+    - name: Store query results in the numa_query fact
+      ansible.builtin.set_fact:
+        numa_query:
+          cpus: "{{ _cpus }}"
+          numa: "{{ _numa }}"
