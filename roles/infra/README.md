@@ -11,40 +11,40 @@ Pre-installed Libvirt software (in the case of `infra` and `node` groups share h
 Role Variables
 --------------
 
-| Name                                 | Type   | Default            | Example             | Description                                                       |
-|--------------------------------------|--------|--------------------|---------------------|-------------------------------------------------------------------|
-| `frontend_group`                     | `str`  | `frontend`         |                     | Custom name of the Frontend group in the inventory.               |
-| `infra_group`                        | `str`  | `infra`            |                     | Custom name of the Infra group in the inventory.                  |
-|                                      |        |                    |                     |                                                                   |
-| `runtime_dir`                        | `str`  | `/var/one-deploy/` |                     | Directory used to store QCOW2 and ISO images.                     |
-| `os_image_url`                       | `str`  |                    |                     | HTTP(S) link to Debian/RedHat-like image running `one-contextd`.  |
-| `os_image_size`                      | `str`  | `20G`              |                     | The size to which one-deploy will **try** to adjust the OS image. |
-| `memory_KiB`                         | `str`  | `2097152`          |                     | Memory amount to be set in XML in Libvirt.                        |
-| `vnc_max_port`                       | `str`  | `65535`            |                     | Upper limit for VNC ports to start counting-down from.            |
-| `passthrough_fs`                     | `list` | `[]`               | (check below)       | Shared HV filesystems to attach to the Front-end VMs.             |
-|                                      |        |                    |                     |                                                                   |
-| `vcpu_static`                        | `str`  | `1`                |                     | VCPU amount to be set in XML in Libvirt.                          |
-| `vcpu_shares`                        | `str`  | `200`              |                     | The proportional weighted share (PWS) for the domain.             |
-|                                      |        |                    |                     |                                                                   |
-| `infra_bridge`                       | `str`  | `br0`              |                     | Pre-defined bridge interface to insert VM NICs to.                |
-| `infra_vlan_id`                      | `str`  |                    |                     | Optionally set the VLAN ID for the bridge.                        |
-| `dpdk_socket_path`                   | `str`  | `null`             |                     | Path for existing socket when using OVS with DPDK.                |
-|                                      |        |                    |                     |                                                                   |
-| `infra_hostname`                     | `str`  |                    | `n1a1`              | Defines on which HV machine the Front-end VM should be deployed.  |
-| `infra_xml_variant`                  | `str`  | undefined          | `default`           | Defined which domain XML variant will be used in Libvirt.         |
-|                                      |        |                    |                     |                                                                   |
-| `context.ETH0_DNS`                   | `str`  |                    | `1.1.1.1`           | DNS server.                                                       |
-| `context.ETH0_SEARCH_DOMAIN`         | `str`  |                    | `1.1.1.1`           | DNS search domain.                                                |
-| `context.ETH0_GATEWAY`               | `str`  |                    | `10.2.50.1`         | Gateway.                                                          |
-| `context.ETH0_IP`                    | `str`  |                    | `10.2.50.100`       | IPv4 address to be set on eth0.                                   |
-| `context.ETH0_MAC`                   | `str`  |                    | `02:01:0a:02:32:64` | MAC address to be set on eth0 (**MUST** match MAC set in XML.)    |
-| `context.ETH0_MASK`                  | `str`  |                    | `255.255.255.0`     | Network mask.                                                     |
-| `context.ETH0_NETWORK`               | `str`  |                    | `10.2.50.0`         | Network address.                                                  |
-| `context.GROW_FS`                    | `str`  | `/`                |                     | Filesystems to grow.                                              |
-| `context.PASSWORD`                   | `str`  | `opennebula`       |                     | Root's password.                                                  |
-| `context.SET_HOSTNAME`               | `str`  | name of the FE VM  |                     | Hostname.                                                         |
-| `context.SSH_PUBLIC_KEY`             | `str`  |                    | (check below)       | Root's extra authorized keys.                                     |
-| `context.START_SCRIPT_BASE64`        | `str`  |                    |                     | Start script (base64-encoded).                                    |
+| Name                                 | Type   | Default                                  | Example             | Description                                                       |
+|--------------------------------------|--------|------------------------------------------|---------------------|-------------------------------------------------------------------|
+| `frontend_group`                     | `str`  | `frontend`                               |                     | Custom name of the Frontend group in the inventory.               |
+| `infra_group`                        | `str`  | `infra`                                  |                     | Custom name of the Infra group in the inventory.                  |
+|                                      |        |                                          |                     |                                                                   |
+| `runtime_dir`                        | `str`  | `/var/one-deploy/`                       |                     | Directory used to store QCOW2 and ISO images.                     |
+| `os_image_url`                       | `str`  |                                          |                     | HTTP(S) link to Debian/RedHat-like image running `one-contextd`.  |
+| `os_image_size`                      | `str`  | `20G`                                    |                     | The size to which one-deploy will **try** to adjust the OS image. |
+| `memory_KiB`                         | `str`  | `2097152`                                |                     | Memory amount to be set in XML in Libvirt.                        |
+| `vnc_max_port`                       | `str`  | `65535`                                  |                     | Upper limit for VNC ports to start counting-down from.            |
+| `passthrough_fs`                     | `list` | `[]`                                     | (check below)       | Shared HV filesystems to attach to the Front-end VMs.             |
+|                                      |        |                                          |                     |                                                                   |
+| `vcpu_static`                        | `str`  | `1`                                      |                     | VCPU amount to be set in XML in Libvirt.                          |
+| `vcpu_shares`                        | `str`  | `200`                                    |                     | The total CPU share for the domain.                               |
+|                                      |        |                                          |                     |                                                                   |
+| `infra_bridge`                       | `str`  | `br0`                                    |                     | Pre-defined bridge interface to insert VM NICs to.                |
+| `infra_vlan_id`                      | `str`  |                                          |                     | Optionally set the VLAN ID for the bridge.                        |
+| `dpdk_socket_path`                   | `str`  | `/var/run/one/vhost-socks/frontend.sock` |                     | Path for existing socket when using OVS with DPDK.                |
+|                                      |        |                                          |                     |                                                                   |
+| `infra_hostname`                     | `str`  |                                          | `n1a1`              | Defines on which HV machine the Front-end VM should be deployed.  |
+| `infra_xml_variant`                  | `str`  | `default`                                |                     | Defined which domain XML variant will be used in Libvirt.         |
+|                                      |        |                                          |                     |                                                                   |
+| `context.ETH0_DNS`                   | `str`  |                                          | `1.1.1.1`           | DNS server.                                                       |
+| `context.ETH0_SEARCH_DOMAIN`         | `str`  |                                          | `1.1.1.1`           | DNS search domain.                                                |
+| `context.ETH0_GATEWAY`               | `str`  |                                          | `10.2.50.1`         | Gateway.                                                          |
+| `context.ETH0_IP`                    | `str`  |                                          | `10.2.50.100`       | IPv4 address to be set on eth0.                                   |
+| `context.ETH0_MAC`                   | `str`  |                                          | `02:01:0a:02:32:64` | MAC address to be set on eth0 (**MUST** match MAC set in XML.)    |
+| `context.ETH0_MASK`                  | `str`  |                                          | `255.255.255.0`     | Network mask.                                                     |
+| `context.ETH0_NETWORK`               | `str`  |                                          | `10.2.50.0`         | Network address.                                                  |
+| `context.GROW_FS`                    | `str`  | `/`                                      |                     | Filesystems to grow.                                              |
+| `context.PASSWORD`                   | `str`  | `opennebula`                             |                     | Root's password.                                                  |
+| `context.SET_HOSTNAME`               | `str`  | name of the FE VM                        |                     | Hostname.                                                         |
+| `context.SSH_PUBLIC_KEY`             | `str`  |                                          | (check below)       | Root's extra authorized keys.                                     |
+| `context.START_SCRIPT_BASE64`        | `str`  |                                          |                     | Start script (base64-encoded automatically).                      |
 
 **NOTE**: The `infra_hostname` and `context` dictionary should be set for members of the `frontend` group (please check the `inventory/infra.yml` example).
 
@@ -53,6 +53,20 @@ Dependencies
 
 - `community.libvirt`
 - `ansible.posix`
+
+Example Playbook
+----------------
+
+    - hosts: infra
+      vars:
+        os_image_url: https://d24fmfybwxpuhu.cloudfront.net/ubuntu2404-7.4.0-0-20260714.qcow2
+        passthrough_fs:
+          - driver_type: virtiofs
+            source_dir: /var/lib/one/datastores
+            target_dir: /var/lib/one/datastores
+      roles:
+        - role: opennebula.deploy.helper.facts
+        - role: opennebula.deploy.infra
 
 Example Inventory
 -----------------
@@ -64,7 +78,6 @@ Example Inventory
         os_image_url: http://10.2.11.1/images/ubuntu2404-7.4.0-0-20260714.qcow2
         os_image_size: 20G
         memory_KiB: 2097152 # 2 GiB
-        infra_xml_variant: default
       hosts:
         u1q20: { ansible_host: 10.3.10.20 }
         u1q30: { ansible_host: 10.3.10.30 }
@@ -163,7 +176,7 @@ Example Inventory
         kernel_modules:
           - load: vfio-pci
           - load: vfio_iommu_type1
-            options: ["allow_unsafe_interrupts=1"]
+            options: ['allow_unsafe_interrupts=1']
 
         pci_devices:
           - address: '0000:40:00.0'

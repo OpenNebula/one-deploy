@@ -11,12 +11,12 @@ PASSWORD='{{ context.PASSWORD | d("opennebula") }}'
 SET_HOSTNAME='{{ context.SET_HOSTNAME | d(frontend) }}'
 SSH_PUBLIC_KEY='{{ context.SSH_PUBLIC_KEY | d("") }}'
 TARGET='hda'
-{% if context.ETH0_DNS is defined %}
+{% if context.ETH0_DNS | d('') %}
 ETH0_DNS='{{ context.ETH0_DNS }}'
 {% endif %}
-{% if context.ETH0_SEARCH_DOMAIN %}
+{% if context.ETH0_SEARCH_DOMAIN | d('') %}
 ETH0_SEARCH_DOMAIN='{{ context.ETH0_SEARCH_DOMAIN }}'
 {% endif %}
-{% if context.START_SCRIPT_BASE64 is defined %}
+{% if context.START_SCRIPT_BASE64 | d('') %}
 START_SCRIPT_BASE64='{{ context.START_SCRIPT_BASE64 | b64encode }}'
 {% endif %}
