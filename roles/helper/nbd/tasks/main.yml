@@ -18,6 +18,23 @@
       retries: 12
       delay: 5
 
+    # NOTE: nbd-client does not load the nbd module itself and only kernels >= 6.12
+    #       autoload it (netlink family alias), e.g. Debian 12 needs it loaded explicitly.
+    - name: Persist nbd module loading
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/nbd.conf
+        mode: u=rw,go=r
+        owner: 0
+        group: 0
+        content: |
+          # managed by one-deploy
+          nbd
+
+    - name: Load nbd module now
+      community.general.modprobe:
+        name: nbd
+        state: present
+
     - name: Create / Populate /etc/nbdtab
       ansible.builtin.lineinfile:
         path: /etc/nbdtab
