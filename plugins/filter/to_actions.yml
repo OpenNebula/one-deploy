@@ -1,0 +1,37 @@
+---
+# Copyright: OpenNebula Project, OpenNebula Systems
+# Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+DOCUMENTATION:
+  name: to_actions
+  short_description: Convert dictionary to cfgtool actions
+  description:
+    - Convert a flat dictionary whose keys are "/"-separated config paths
+      into a list of actions for the M(opennebula.deploy.cfgtool) module,
+      a V(null) value drops the attribute (or the whole vector) instead of setting it.
+  options:
+    _input:
+      description:
+        - Dictionary to convert, values are inserted verbatim.
+      type: dict
+      required: true
+  author:
+    - OpenNebula Systems
+
+EXAMPLES: |
+  - name: Override some oned.conf settings
+    opennebula.deploy.cfgtool:
+      dest: /etc/one/oned.conf
+      parser: One
+      actions: "{{ _conf | opennebula.deploy.to_actions }}"
+    vars:
+      _conf:
+        MANAGER_TIMER: 10
+        HOOK_LOG_CONF/LOG_RETENTION: 200
+        LOG_CALL_FORMAT: '"Req:%i UID:%u IP:%A %m invoked %l20"'
+        DEFAULT_COST: null # drop
+
+RETURN:
+  _value:
+    description: List of put/drop actions.
+    type: list

@@ -65,6 +65,26 @@ def to_one(to_render):
     return '\n'.join(recurse(to_render))
 
 
+def to_actions(config):
+    """Converts {'A/B': value} dictionary to cfgtool actions (None value = drop)."""
+
+    actions = []
+
+    for key, value in dict(config).items():
+        path = str(key).split('/')
+
+        if value is None:
+            actions.append({'drop': {'path': path}})
+            # NOTE: The parser drops attributes only, a whole vector is removed
+            #       once emptied (KEY/*), both are no-ops when nothing matches.
+            if len(path) == 1:
+                actions.append({'drop': {'path': path + ['*']}})
+        else:
+            actions.append({'put': {'path': path, 'value': value}})
+
+    return actions
+
+
 def get_one(params):
     """Establishes a connection to OpenNebula."""
 
