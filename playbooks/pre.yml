@@ -62,6 +62,9 @@
   collections:
     - opennebula.deploy
   roles:
+    - role: helper/kernel
+      tags: [kernel]
+
     - role: helper/keys
       tags: [keys]
 
@@ -82,9 +85,6 @@
 
     - role: helper/fstab
       tags: [fstab]
-
-    - role: helper/kernel
-      tags: [kernel]
 
     - role: precheck/post_reboot
 
