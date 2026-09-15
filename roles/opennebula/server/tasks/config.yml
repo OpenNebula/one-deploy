@@ -196,6 +196,57 @@
     - Sync Remotes
   when: unsafe_migrations | bool is true
 
+# Generic overrides: oned_conf/kvm_conf keys are "/"-separated paths (e.g. "HOOK_LOG_CONF/LOG_RETENTION")
+# with values inserted verbatim (quote strings: '"value"'), kvmrc keys are plain shell variable names;
+# null drops the key.
+- name: Make sure custom overrides do not touch settings managed by one-deploy
+  ansible.builtin.assert:
+    that: _clashes | count == 0
+    fail_msg: >-
+      Settings {{ _clashes }} are managed by one-deploy (DB, ONEGATE_ENDPOINT, FEDERATION, RAFT hooks,
+      AUTH_MAD, MIGRATE_OPTIONS), please use the dedicated variables instead of oned_conf/kvmrc.
+  vars:
+    _managed:
+      oned_conf: [DB, ONEGATE_ENDPOINT, FEDERATION, RAFT_LEADER_HOOK, RAFT_FOLLOWER_HOOK, AUTH_MAD]
+      kvmrc: [MIGRATE_OPTIONS]
+    _clashes: >-
+      {%- set out = [] -%}
+      {%- for var, prefixes in _managed.items() -%}
+        {%- for key in (lookup('vars', var, default={}) or {}).keys() -%}
+          {%- if (key | string | split('/') | first) in prefixes -%}
+            {%- set _ = out.append(var ~ ':' ~ key) -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ out }}
+
+- name: Configure oned (custom oned_conf)
+  opennebula.deploy.cfgtool:
+    dest: /etc/one/oned.conf
+    parser: One
+    actions: "{{ oned_conf | d({}) | opennebula.deploy.to_actions }}"
+  when: oned_conf | d({}) | count > 0
+  notify:
+    - Restart OpenNebula
+
+- name: Configure KVM driver defaults (custom kvm_conf)
+  opennebula.deploy.cfgtool:
+    dest: /etc/one/vmm_exec/vmm_exec_kvm.conf
+    parser: One
+    actions: "{{ kvm_conf | d({}) | opennebula.deploy.to_actions }}"
+  when: kvm_conf | d({}) | count > 0
+  notify:
+    - Restart OpenNebula
+
+- name: Configure KVM remotes (custom kvmrc)
+  opennebula.deploy.cfgtool:
+    dest: /var/lib/one/remotes/etc/vmm/kvm/kvmrc
+    parser: Rc
+    actions: "{{ kvmrc | d({}) | opennebula.deploy.to_actions }}"
+  when: kvmrc | d({}) | count > 0
+  notify:
+    - Sync Remotes
+
 - name: Handle the keep_empty_bridge VNM setting
   opennebula.deploy.cfgtool:
     dest: /var/lib/one/remotes/etc/vnm/OpenNebulaNetwork.conf
