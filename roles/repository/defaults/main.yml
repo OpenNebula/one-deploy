@@ -201,7 +201,7 @@ opennebula_repo_pre_enable_defaults:
     extra_repos:
       '16':
         - alias: science
-          uri: https://download.opensuse.org/repositories/science/openSUSE_Leap_16.0/
+          uri: https://download.opensuse.org/repositories/science/{{ ansible_distribution_version }}/
         - alias: multimedia
           uri: https://download.opensuse.org/repositories/multimedia:/apps/16.0/
         - alias: devel_languages_go
