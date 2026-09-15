@@ -52,7 +52,7 @@
       block:
         - name: Create a bridge using NetworkManager's CLI
           ansible.builtin.command:
-            cmd: nmcli con add type bridge ifname '{{ _bridge }}'
+            cmd: nmcli con add type bridge ifname '{{ _bridge }}' stp no
           changed_when: true
 
     - *collect
