@@ -243,3 +243,17 @@
             sslverify=0
             {% endif %}
       register: opennebula_repo
+
+    # NOTE: Ubuntu 26.04 ships Node.js 22 in its base repos, but FireEdge requires
+    #       Node.js 20 from the OpenNebula repo, pin it so APT prefers ours.
+    - name: Pin nodejs to OpenNebula package source
+      ansible.builtin.copy:
+        dest: /etc/apt/preferences.d/opennebula-nodejs
+        mode: u=rw,go=r
+        content: |
+          Package: nodejs
+          Pin: release o=OpenNebula
+          Pin-Priority: 600
+      when:
+        - ansible_distribution == 'Ubuntu'
+        - ansible_distribution_version == '26.04'
