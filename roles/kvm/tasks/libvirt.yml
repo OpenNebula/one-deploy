@@ -115,9 +115,9 @@
             - /var/run/libvirt/virtqemud-sock-ro
           when: shell is failed
 
-# --- AppArmor exceptions ---
+# --- AppArmor ---
 
-- when: ansible_os_family in ['Debian']
+- when: ansible_facts.apparmor.status | d('disabled') == 'enabled'
   block:
     - name: Check if AppArmor configuration exists
       ansible.builtin.stat:
@@ -148,3 +148,37 @@
             - result.msg is not contains("find")
             - result.msg is not contains("found")
           when: lineinfile is changed
+
+    # Before libvirt 12.1.0, virt-aa-helper adds a "deny <backing-file> w," rule to the
+    # per-VM AppArmor profile, which makes blockcommit (live VM backups) fail with
+    # "Permission denied". Disable the security driver on affected nodes instead.
+    # https://gitlab.com/libvirt/libvirt/-/work_items/806
+
+    - name: Get libvirt version
+      ansible.builtin.shell:
+        cmd: virsh --version
+        executable: /bin/bash
+      changed_when: false
+      register: virsh_version
+
+    - name: Disable AppArmor confinement of QEMU domains (libvirt < 12.1.0)
+      ansible.builtin.lineinfile:
+        path: /etc/libvirt/qemu.conf
+        regexp: '^[#\s]*security_driver\s*=.*$'
+        line: 'security_driver = "none"'
+      register: lineinfile_qemu
+      when: virsh_version.stdout | trim is version('12.1.0', '<')
+
+    - name: Restore AppArmor confinement of QEMU domains (libvirt >= 12.1.0)
+      ansible.builtin.lineinfile:
+        path: /etc/libvirt/qemu.conf
+        regexp: '^security_driver\s*=\s*"none"\s*$'
+        state: absent
+      register: lineinfile_qemu_revert
+      when: virsh_version.stdout | trim is version('12.1.0', '>=')
+
+    - name: Restart libvirt (NOW)
+      ansible.builtin.service:
+        name: "{{ 'virtqemud' if ansible_os_family in ['Suse'] else 'libvirtd' }}"
+        state: restarted
+      when: lineinfile_qemu is changed or lineinfile_qemu_revert is changed
