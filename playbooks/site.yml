@@ -49,6 +49,9 @@
       when:
         - features.gui | bool # enabled by default
 
+    - role: users
+      tags: [users]
+
 - hosts: "{{ router_group | d('router') }}"
   tags: [network]
   collections:
