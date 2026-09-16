@@ -1,23 +1,4 @@
 ---
-- name: Patch Prometheus datasources
-  ansible.builtin.shell:
-    cmd: |
-      set -o errexit
-      BEFORE=$(cksum /etc/one/prometheus/prometheus.yml)
-      /usr/share/one/prometheus/patch_datasources.rb
-      AFTER=$(cksum /etc/one/prometheus/prometheus.yml)
-      if [[ "$AFTER" == "$BEFORE" ]]; then
-        exit 0
-      else
-        exit 78 # EREMCHG
-      fi
-    executable: /bin/bash
-  register: shell_patch_datasources
-  changed_when:
-    - shell_patch_datasources.rc in [78]
-  failed_when:
-    - shell_patch_datasources.rc not in [0, 78]
-
 - vars:
     _loop:
       - when: "{{ true }}"
@@ -89,7 +70,7 @@
       loop: "{{ _loop }}"
       register: template_override_units
 
-    - name: Enable / Start / Restart Prometheus service and exporters (NOW)
+    - name: Enable / Start / Restart Prometheus exporters (NOW)
       ansible.builtin.systemd_service:
         name: "{{ item.name }}"
         enabled: true
@@ -97,8 +78,42 @@
           {{ 'restarted' if _changed else 'started' }}
         daemon_reload: >-
           {{ _changed }}
-      when: item.when
+      when:
+        - item.when
+        - item.name != 'opennebula-prometheus.service'
       loop: "{{ _loop }}"
       vars:
         _changed: >-
-          {{ shell_patch_datasources is changed or template_override_units is changed }}
+          {{ template_override_units is changed }}
+
+# NOTE: patch_datasources.rb only adds extra exporters that are reachable, run it after they start.
+- name: Patch Prometheus datasources
+  ansible.builtin.shell:
+    cmd: |
+      set -o errexit
+      BEFORE=$(cksum /etc/one/prometheus/prometheus.yml)
+      /usr/share/one/prometheus/patch_datasources.rb
+      AFTER=$(cksum /etc/one/prometheus/prometheus.yml)
+      if [[ "$AFTER" == "$BEFORE" ]]; then
+        exit 0
+      else
+        exit 78 # EREMCHG
+      fi
+    executable: /bin/bash
+  register: shell_patch_datasources
+  changed_when:
+    - shell_patch_datasources.rc in [78]
+  failed_when:
+    - shell_patch_datasources.rc not in [0, 78]
+
+- name: Enable / Start / Restart Prometheus service (NOW)
+  ansible.builtin.systemd_service:
+    name: opennebula-prometheus.service
+    enabled: true
+    state: >-
+      {{ 'restarted' if _changed else 'started' }}
+    daemon_reload: >-
+      {{ _changed }}
+  vars:
+    _changed: >-
+      {{ shell_patch_datasources is changed or template_override_units is changed }}
