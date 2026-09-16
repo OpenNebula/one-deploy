@@ -11,10 +11,11 @@ N/A
 Role Variables
 --------------
 
-| Name           | Type   | Default               | Example       | Description                              |
-|----------------|--------|-----------------------|---------------|------------------------------------------|
-| `ovs`          | `dict` | (check role defaults) | (check below) | OVS/DPDK config.                         |
-| `ovs_packages` | `dict` | (check role defaults) |               | OVS/DPDK packages grouped per OS distro. |
+| Name                   | Type   | Default               | Example       | Description                                                       |
+|------------------------|--------|-----------------------|---------------|-------------------------------------------------------------------|
+| `ovs`                  | `dict` | (check role defaults) | (check below) | OVS/DPDK config.                                                  |
+| `ovs_packages`         | `dict` | (check role defaults) |               | OVS/DPDK packages grouped per OS distro.                          |
+| `ovs_packages_selinux` | `dict` | (check role defaults) |               | SELinux policy tools (installed only on SELinux distros/KVM nodes). |
 
 Dependencies
 ------------
