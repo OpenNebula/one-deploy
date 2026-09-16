@@ -32,6 +32,15 @@
         _has_openvswitch_user: >-
           {{ ansible_facts.getent_passwd.openvswitch is not none }}
       block:
+        - name: Install SELinux policy tools (checkmodule, semodule, semanage)
+          ansible.builtin.package:
+            name: "{{ ovs_packages_selinux[ansible_distribution] | d(ovs_packages_selinux[ansible_os_family]) }}"
+          register: package
+          until: package is success
+          retries: 12
+          delay: 5
+          when: _has_selinux
+
         - name: Create custom SELinux policy for DPDK / Libvirt shared sockets
           ansible.builtin.shell:
             cmd: |

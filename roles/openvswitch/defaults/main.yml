@@ -59,3 +59,15 @@ ovs_packages_dpdk:
     - iputils
     - openvswitch
     - systemd-resolved
+
+# SELinux userspace tools required to build/load the custom "dpdk_virt" policy module:
+# checkmodule (checkpolicy), semodule/semodule_package (policycoreutils), semanage (policycoreutils-python-utils).
+ovs_packages_selinux:
+  RedHat:
+    - checkpolicy
+    - policycoreutils
+    - policycoreutils-python-utils
+  Suse:
+    - checkpolicy
+    - policycoreutils
+    - policycoreutils-python-utils
