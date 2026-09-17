@@ -83,6 +83,17 @@
 
     - when: inventory_hostname == _mon.0
       block:
+        - name: Detect Ceph version installed on the host
+          ansible.builtin.command:
+            cmd: ceph --version
+          register: command_ceph_version
+          changed_when: false
+
+        - name: Set cephadm_host_version fact
+          ansible.builtin.set_fact:
+            cephadm_host_version: >-
+              {{ command_ceph_version.stdout | regex_search('^ceph version ([0-9]+[.][0-9]+[.][0-9]+)', '\1') | first }}
+
         - name: Apply bootstrap spec
           ansible.builtin.command:
             cmd: bash -s
@@ -98,7 +109,8 @@
                 TO_APPLY="$(mktemp)"; trap "rm -f $TO_APPLY" ERR EXIT
                 tee "$TO_APPLY" <<<"$SPEC"
 
-                cephadm bootstrap --mon-ip '{{ ansible_host }}' \
+                cephadm {{ "--image '%s'" | format(cephadm_image) if cephadm_image is truthy else '' }} \
+                        bootstrap --mon-ip '{{ ansible_host }}' \
                                   --allow-fqdn-hostname \
                                   --skip-monitoring-stack \
                                   --skip-dashboard \
