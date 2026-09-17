@@ -90,7 +90,7 @@
 
 - name: Compute VNC ports
   ansible.builtin.set_fact:
-    frontends_to_vnc_ports: >-
+    frontend_vnc_ports: >-
       {{ dict(_frontends | zip(_ports)) }}
   vars:
     _ports: >-
@@ -103,9 +103,20 @@
 - name: Define Front-end VMs
   community.libvirt.virt:
     command: define
-    xml: "{{ lookup('template', 'frontend.xml.jinja') }}"
+    xml: >-
+      {{ _variant | map('ansible.utils.from_xml')
+                  | map('combine', _fixup, recursive=true)
+                  | combine(recursive=true)
+                  | ansible.utils.to_xml(full_document=false) }}
     autostart: true
   vars:
+    _variant: >-
+      {{ infra_xml.get(infra_xml_variant, undef(hint='Unknown variant "{}"'.format(infra_xml_variant))) }}
+    # NOTE: This is required because (for example) '<devices></devices>' produces '{"devices": null}'
+    #       which cannot be merged correctly.
+    _fixup:
+      domain:
+        devices: {}
     context: "{{ hostvars[frontend].context }}"
   loop_control: { loop_var: frontend }
   loop: "{{ infra_to_frontends[inventory_hostname] }}"

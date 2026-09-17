@@ -1,13 +1,229 @@
 ---
 runtime_dir: /var/one-deploy/
-os_image_url: https://d24fmfybwxpuhu.cloudfront.net/ubuntu2204-6.8.1-1-20240131.qcow2
+os_image_url: https://d24fmfybwxpuhu.cloudfront.net/ubuntu2404-7.4.0-0-20260714.qcow2
 os_image_size: 20G
-memory_KiB: 2097152 # 2 GiB
-vcpu_static: 1
 vnc_max_port: 65535
-infra_bridge: br0
-infra_bridge_type: bridge
 passthrough_fs: []
-cputune_shares_base: 200 # twice the OpenNebula's default (for CGv2)
-cputune_shares_max: 10000
-cputune_shares: "{{ ((vcpu_static | int) * (cputune_shares_base | int)) | round(0, 'ceil') }}"
+
+infra_bridge: br0
+
+# NOTE: We assume that no more than a single FE VM is deployed on a HV
+#       (which should be considered a regular / default setup).
+#       More FE VMs can be deployed on a HV of course, but in such a case,
+#       please handle it directly in your inventory.
+dpdk_socket_path: /var/run/one/vhost-socks/frontend.sock
+
+memory_KiB: 2097152 # 2 GiB
+
+vcpu_static: 1
+vcpu_shares: "{{ ((vcpu_static | int) * 200) | int }}"
+
+infra_xml_variant: default
+
+infra_xml:
+  default:
+    - "{{ infra_xml_base.default }}"
+    - "{{ infra_xml_cputune.default }}"
+    - "{{ infra_xml_memoryBacking.default }}"
+    - "{{ infra_xml_interfaces.default }}"
+    - "{{ infra_xml_filesystems.default }}"
+  openvswitch:
+    - "{{ infra_xml_base.default }}"
+    - "{{ infra_xml_cputune.default }}"
+    - "{{ infra_xml_memoryBacking.default }}"
+    - "{{ infra_xml_interfaces.openvswitch }}"
+    - "{{ infra_xml_filesystems.default }}"
+  openvswitch_dpdk:
+    - "{{ infra_xml_base.default }}"
+    - "{{ infra_xml_cputune.default }}"
+    - "{{ infra_xml_memoryBacking.hugepages }}"
+    - "{{ infra_xml_interfaces.openvswitch_dpdk }}"
+    - "{{ infra_xml_filesystems.default }}"
+
+infra_xml_cputune:
+  default: |
+    <domain type='kvm'>
+      <cputune>
+        <shares>{{ [vcpu_shares | int, 10000] | min }}</shares>
+      </cputune>
+    </domain>
+
+infra_xml_memoryBacking:
+  default: |
+    <domain type='kvm'>
+      <memoryBacking>
+        <access mode='shared'/>
+      </memoryBacking>
+    </domain>
+  hugepages: |
+    <domain type='kvm'>
+      <memoryBacking>
+        <hugepages/>
+        <access mode='shared'/>
+      </memoryBacking>
+    </domain>
+
+infra_xml_interfaces:
+  default: |
+    <domain type='kvm'>
+      <devices>
+        <interface type='bridge'>
+          <source bridge='{{ infra_bridge }}'/>
+          <mac address='{{ context.ETH0_MAC | d(context.ETH0_IP | opennebula.deploy.ipv4_mac) }}'/>
+    {% if infra_vlan_id is defined %}
+          <vlan>
+            <tag id='{{ infra_vlan_id }}'/>
+          </vlan>
+    {% endif %}
+          <model type='virtio'/>
+          <alias name='net0'/>
+        </interface>
+      </devices>
+    </domain>
+  openvswitch: |
+    <domain type='kvm'>
+      <devices>
+        <interface type='bridge'>
+          <source bridge='{{ infra_bridge }}'/>
+          <mac address='{{ context.ETH0_MAC | d(context.ETH0_IP | opennebula.deploy.ipv4_mac) }}'/>
+          <virtualport type='openvswitch' />
+    {% if infra_vlan_id is defined %}
+          <vlan>
+            <tag id='{{ infra_vlan_id }}'/>
+          </vlan>
+    {% endif %}
+          <model type='virtio'/>
+          <alias name='net0'/>
+        </interface>
+      </devices>
+    </domain>
+  openvswitch_dpdk: |
+    <domain type='kvm'>
+      <devices>
+        <interface type='vhostuser'>
+          <source type='unix' path='{{ dpdk_socket_path }}' mode='server'/>
+          <driver name='vhost' queues='{{ vcpu_static }}'/>
+          <mac address='{{ context.ETH0_MAC | d(context.ETH0_IP | opennebula.deploy.ipv4_mac) }}'/>
+    {% if infra_vlan_id is defined %}
+          <vlan>
+            <tag id='{{ infra_vlan_id }}'/>
+          </vlan>
+    {% endif %}
+          <model type='virtio'/>
+          <alias name='net0'/>
+        </interface>
+      </devices>
+    </domain>
+
+infra_xml_filesystems:
+  default: |
+    <domain type='kvm'>
+      <devices>
+    {% for fs in passthrough_fs %}
+        <filesystem type='mount' accessmode='passthrough'>
+    {% if fs.driver_type is defined %}
+          <driver type='{{ fs.driver_type }}'/>
+    {% endif %}
+          <source dir='{{ fs.source_dir }}'/>
+          <target dir='{{ fs.target_dir }}'/>
+        </filesystem>
+    {% endfor %}
+      </devices>
+    </domain>
+
+infra_xml_base:
+  default: |
+    <domain type='kvm'>
+      <name>{{ frontend }}</name>
+      <title>{{ frontend }}</title>
+
+      <memory unit='KiB'>{{ memory_KiB }}</memory>
+      <vcpu placement='static'>{{ vcpu_static }}</vcpu>
+      <cpu mode='host-passthrough' check='none' migratable='on'/>
+
+      <resource>
+        <partition>/machine</partition>
+      </resource>
+      <os firmware='efi'>
+        <type arch='x86_64' machine='q35'>hvm</type>
+        <firmware>
+          <feature enabled='no' name='enrolled-keys'/>
+          <feature enabled='no' name='secure-boot'/>
+        </firmware>
+        <boot dev='hd'/>
+      </os>
+      <features>
+        <acpi/>
+      </features>
+      <clock offset='utc'/>
+
+      <on_poweroff>destroy</on_poweroff>
+      <on_reboot>restart</on_reboot>
+      <on_crash>destroy</on_crash>
+
+      <devices>
+        <disk type='file' device='cdrom'>
+          <driver name='qemu' type='raw'/>
+          <source file='{{ runtime_dir }}/{{ frontend }}.iso' index='1'/>
+          <backingStore/>
+          <target dev='sda' bus='sata'/>
+          <readonly/>
+          <alias name='sata0-0-0'/>
+        </disk>
+
+        <disk type='file' device='disk'>
+          <driver name='qemu' type='qcow2' cache='none' discard='unmap'/>
+          <source file='{{ runtime_dir }}/{{ frontend }}.qcow2' index='2'/>
+          <backingStore/>
+          <target dev='vda' bus='virtio'/>
+          <alias name='virtio-disk0'/>
+        </disk>
+
+        <controller type='pci' index='0' model='pcie-root'>
+          <alias name='pcie.0'/>
+        </controller>
+
+        <controller type='pci' index='1' model='pcie-root-port'>
+          <model name='pcie-root-port'/>
+          <target chassis='1' port='0x10'/>
+          <alias name='pcie-root-port-1'/>
+        </controller>
+
+        <controller type='sata' index='0'>
+          <alias name='sata'/>
+        </controller>
+
+        <controller type='usb' index='0' model='qemu-xhci'>
+          <alias name='usb'/>
+        </controller>
+
+        <controller type='virtio-serial' index='0'>
+          <alias name='virtio-serial0'/>
+        </controller>
+
+        <channel type='unix'>
+          <source mode='bind'/>
+          <target type='virtio' name='org.qemu.guest_agent.0'/>
+          <alias name='channel0'/>
+        </channel>
+
+        <input type='mouse' bus='usb'>
+          <alias name='input0'/>
+        </input>
+
+        <input type='keyboard' bus='usb'>
+          <alias name='input1'/>
+        </input>
+
+        <graphics type='vnc' port='{{ frontend_vnc_ports[frontend] }}' listen='0.0.0.0'>
+          <listen type='address' address='0.0.0.0'/>
+        </graphics>
+
+        <audio id='1' type='none'/>
+
+        <video>
+          <model type='virtio' vram='16384' heads='1' primary='yes'/>
+          <alias name='video0'/>
+        </video>
+      </devices>
+    </domain>
