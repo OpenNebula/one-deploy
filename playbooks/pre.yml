@@ -74,18 +74,6 @@
     - role: helper/logs
       tags: [logs]
 
-    - role: helper/nbd
-      tags: [nbd]
-
-    - role: helper/iscsi
-      tags: [iscsi]
-
-    - role: helper/mkfs
-      tags: [mkfs]
-
-    - role: helper/fstab
-      tags: [fstab]
-
     - role: precheck/post_reboot
 
 # Early PCI/SR-IOV + OVS/DPDK management.
@@ -111,3 +99,15 @@
 
     - role: openvswitch
       tags: [openvswitch]
+
+    - role: helper/nbd
+      tags: [nbd]
+
+    - role: helper/iscsi
+      tags: [iscsi]
+
+    - role: helper/mkfs
+      tags: [mkfs]
+
+    - role: helper/fstab
+      tags: [fstab]
