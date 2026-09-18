@@ -1,16 +1,14 @@
 [Unit]
 Description=OVS Bridge Interface Network configuration
-{% if ansible_os_family == 'Debian' %}
-After=openvswitch-switch.service network-pre.target
-Wants=network-pre.target
-Before=network.target
-Requires=openvswitch-switch.service
+{% if ansible_os_family in ['Debian'] %}
+After=openvswitch-switch.service network-online.target
+Requires=openvswitch-switch.service network-online.target
+PartOf=network.target
 {% endif %}
 {% if ansible_os_family in ['RedHat', 'Suse'] %}
-After=openvswitch.service network-pre.target
-Wants=network-pre.target
-Before=network.target
-Requires=openvswitch.service
+After=openvswitch.service network-online.target
+Requires=openvswitch.service network-online.target
+PartOf=network.target
 {% endif %}
 
 [Service]

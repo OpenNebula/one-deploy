@@ -27,6 +27,7 @@ Role Variables
 | `pci_devices[].set_name`      | `str`  | `omit`    | Rename device in udev (unless "omit").                                              |
 | `pci_devices[].set_numvfs`    | `str`  | `0`       | Enable Virtual Functions for SR-IOV capable devices (integer >= 0 or "max").        |
 | `pci_devices[].set_switchdev` | `bool` | `false`   | Toggle legacy/switchdev modes for SR-IOV capable devices.                           |
+| `pci_devices[].set_unmanaged` | `bool` | `true`    | Force Netplan / NetworkManager to unmanage matching PCI devices.                    |
 
 Dependencies
 ------------
