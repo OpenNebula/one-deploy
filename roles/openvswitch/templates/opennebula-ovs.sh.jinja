@@ -88,7 +88,9 @@ if type -p nmcli systemctl &>/dev/null && systemctl is-active --quiet NetworkMan
     : '{{ iface }}'
     if [[ -d '/sys/class/net/{{ iface }}' ]]; then
         log 'Unmanaging/Deleting {{ iface }}'
-        nmcli device delete '{{ iface }}' || log 'WARNING: Failed to unmanage/delete {{ iface }}'
+        if CON="$(nmcli -g GENERAL.CONNECTION device show '{{ iface }}')"; then
+            nmcli connection delete "$CON" || log 'WARNING: Failed to unmanage/delete {{ iface }}'
+        fi
     fi
 {% endfor %}
 {% for iface in ovs.iface.keys() %}
