@@ -26,6 +26,13 @@ cephadm_bootstrap_spec_host_defaults: |
 cephadm_conf: {}
 
 
+# NOTE: Pinned to the Ceph version installed on the host (`ceph --version`), so the cluster never runs
+#       a newer release than the host-side clients. Set to `null` to use cephadm's default image.
+cephadm_image: "{{ cephadm_image_defaults }}"
+
+cephadm_image_defaults: "quay.io/ceph/ceph:v{{ cephadm_host_version }}"
+
+
 cephadm_modules: "{{ cephadm_modules_defaults }}"
 
 cephadm_modules_defaults:

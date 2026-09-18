@@ -18,6 +18,7 @@ Role Variables
 | `osd_group`                            | `str`  | `osd`                 | Custom name of the OSD group in the inventory.                         |
 | `cephadm_conf`                         | `dict` | `{}`                  | A dictionary of key/value pairs to set/rm in Ceph.                     |
 | `cephadm_extra_labels`                 | `list` | `[]`                  | A list of labels to additionally apply to hosts in Ceph.               |
+| `cephadm_image`                        | `str`  | (check role defaults) | Ceph container image used to bootstrap the cluster (pinned to the host's Ceph version by default). |
 | `cephadm_modules`                      | `dict` | (check role defaults) | A structure describing modules (currently only "enable" is supported). |
 | `cephadm_bootstrap_spec`               | `str`  | (check role defaults) | Cephadm service spec (yaml) apllied during boostrap.                   |
 | `cephadm_bootstrap_spec_host_defaults` | `str`  | (check role defaults) | Default boostrap host spec.                                            |
