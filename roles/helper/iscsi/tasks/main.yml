@@ -26,7 +26,7 @@
       loop: "{{ _specific[ansible_os_family] }}"
       vars:
         _specific:
-          Debian: [iscsid.service, multipath-tools.service]
+          Debian: [iscsid.service, multipathd.service]
           RedHat: [iscsid.service, multipathd.service]
           Suse: [iscsid.service, multipathd.service]
 
