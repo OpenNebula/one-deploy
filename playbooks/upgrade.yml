@@ -1,0 +1,14 @@
+---
+- hosts:
+    - "{{ frontend_group | d('frontend') }}"
+    - "{{ node_group | d('node') }}"
+  collections:
+    - opennebula.deploy
+  roles:
+    - role: helper/online
+
+    - role: helper/facts
+      tags: [always]
+
+    - role: opennebula/upgrade
+      tags: [upgrade]

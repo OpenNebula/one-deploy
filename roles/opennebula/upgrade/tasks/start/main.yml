@@ -1,0 +1,77 @@
+---
+- when: inventory_hostname == leader
+  block: &Enable_FEs
+    - name: Enable FEs
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit -o pipefail
+
+          BEFORE="$(systemctl list-units {{ _units }} --state=active --no-legend --no-pager | sort)"
+
+          systemctl start opennebula.service # "dependency fix"
+          systemctl start {{ _units }}
+
+          AFTER="$(systemctl list-units {{ _units }} --state=active --no-legend --no-pager | sort)"
+
+          if [[ "$AFTER" == "$BEFORE" ]]; then
+            exit 0
+          else
+            exit 78 # EREMCHG
+          fi
+        executable: /bin/bash
+      vars:
+        _units: >-
+          {{ opennebula_upgrade_systemd_units.frontend | select
+                                                       | unique
+                                                       | join(' ') }}
+      register: shell_enable_fe_services
+      changed_when:
+        - shell_enable_fe_services.rc in [78]
+      failed_when:
+        - shell_enable_fe_services.rc not in [0, 78]
+
+- when:
+    - inventory_hostname in federation.groups.frontend
+    - inventory_hostname != leader
+  block: *Enable_FEs
+
+- when: inventory_hostname == leader
+  become_user: oneadmin
+  block:
+    - name: Sync HVs
+      ansible.builtin.command:
+        cmd: onehost sync
+      register: command_sync
+      until: command_sync is success
+      retries: 12
+      delay: 5
+      changed_when: true
+
+- when: inventory_hostname in federation.groups.node
+  delegate_to: "{{ leader }}"
+  block:
+    - name: Enable HVs
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit -o pipefail
+
+          BEFORE="$(onehost list --list ID,NAME,STAT --csv --no-header | sort)"
+
+          onehost enable {{ _this }}
+
+          AFTER="$(onehost list --list ID,NAME,STAT --csv --no-header | sort)"
+
+          if [[ "$AFTER" == "$BEFORE" ]]; then
+            exit 0
+          else
+            exit 78 # EREMCHG
+          fi
+        executable: /bin/bash
+      vars:
+        _this: >-
+          {{ ansible_host | d(inventory_hostname) }}
+      register: shell_enable_hv
+      changed_when:
+        - shell_enable_hv.rc in [78]
+      failed_when:
+        - shell_enable_hv.rc not in [0, 78]
