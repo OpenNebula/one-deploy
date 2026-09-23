@@ -1,0 +1,72 @@
+---
+- ansible.builtin.include_role:
+    name: opennebula/leader
+  when: leader is undefined
+
+- when: inventory_hostname == leader and (usergroups|d(None)) != None
+  block:
+    - when: usergroups.groups|d(None) != None
+      block:
+        - name: Get groups
+          no_log: true
+          ansible.builtin.shell:
+            cmd: onegroup list --json
+            executable: /bin/bash
+          changed_when: false
+          register: shell
+
+        - name: Parse groups
+          no_log: true
+          ansible.builtin.set_fact:
+            onegroups: >-
+              {{ shell.stdout | from_json }}
+
+        - name: Create groups
+          ansible.builtin.shell:
+            executable: /bin/bash
+            cmd: |
+              onegroup create {{ item }} \
+              {{ '--resources ' + usergroups.groups[item].resources if (usergroups.groups[item].resources|d(None)) }} \
+              {{ '--admin_user ' + usergroups.groups[item].admin_user + ' --admin_password ' + usergroups.groups[item].admin_password if (usergroups.groups[item].admin_user|d(None) and usergroups.groups[item].admin_password|d(None)) }} \
+              {{ '--admin_driver ' + usergroups.groups[item].admin_driver if (usergroups.groups[item].admin_driver|d(None)) }}
+          loop: >-
+            {{ _defined_groups | reject ('in', _existing_groups) }}
+          vars:
+            _defined_groups: >-
+              {{ usergroups.groups.keys() | list }}
+            _existing_groups: >- 
+              {{ onegroups.GROUP_POOL.GROUP | map(attribute='NAME') | list }}
+
+    - when: (usergroups.users|d(None)) != None
+      block:
+        - name: Get users
+          no_log: true
+          ansible.builtin.shell:
+            cmd: oneuser list --json
+            executable: /bin/bash
+          changed_when: false
+          register: shell
+
+        - name: Parse users
+          no_log: true
+          ansible.builtin.set_fact:
+            oneusers: >-
+              {{ shell.stdout | from_json }}
+
+        - name: Create users
+          ansible.builtin.shell:
+            executable: /bin/bash
+            cmd: |
+              oneuser create {{ item }} {{ usergroups.users[item].password|d(None) }} \
+              {{ '--group ' + usergroups.users[item].groups if (usergroups.users[item].groups|d(None)) }} \
+              {{ '--driver ' + usergroups.users[item].driver if (usergroups.users[item].driver|d(None)) }}
+          loop: >-
+            {{ _defined_users | reject ('in', _existing_users) }}
+          when:
+            - (usergroups.users[item].password|d(None) != None) or (usergroups.users[item].driver|d(None) != None and (usergroups.users[item].driver|d(None) != "core"))
+          vars:
+            _defined_users: >-
+              {{ usergroups.users.keys() | list }}
+            _existing_users: >-
+              {{ oneusers.USER_POOL.USER | map(attribute='NAME') | list }}
+
