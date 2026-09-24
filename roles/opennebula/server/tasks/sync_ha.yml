@@ -127,10 +127,11 @@
         - name: Create DB backup (ha)
           ansible.builtin.shell:
             cmd: |
-              onedb backup -f -t '{{ db_backend_types[db_backend] }}' \
-                              -u '{{ db_owner }}' \
-                              -p '{{ db_password }}' \
-                              -d '{{ db_name }}' /var/tmp/db_leader.sql
+              onedb backup -f \
+                           -t '{{ db_backend_types[db_backend] }}' \
+                           -u '{{ db_owner }}' \
+                           -p '{{ db_password }}' \
+                           -d '{{ db_name }}' /var/tmp/db_leader.sql
             executable: /bin/bash
           changed_when: true
 
@@ -163,7 +164,8 @@
           ansible.builtin.shell:
             cmd: |
               set -o errexit -o pipefail
-              zcat '{{ _db_leader_sql_gz }}' | onedb restore -t '{{ db_backend_types[db_backend] }}' \
+              zcat '{{ _db_leader_sql_gz }}' | onedb restore {{ '-f' if _force is sameas true else '' }} \
+                                                             -t '{{ db_backend_types[db_backend] }}' \
                                                              -u '{{ db_owner }}' \
                                                              -p '{{ db_password }}' \
                                                              -d '{{ db_name }}' /dev/fd/0

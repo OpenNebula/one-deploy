@@ -1,0 +1,30 @@
+---
+- when: inventory_hostname in federation.groups.all
+  vars:
+    _remotes_dir: >-
+      {{ '/var/lib/one/remotes/'
+         if (inventory_hostname in federation.groups.frontend) else
+         '/var/tmp/one/' }}
+  block:
+    - name: Slurp OpenNebula version
+      ansible.builtin.slurp:
+        path: "{{ _remotes_dir }}/VERSION"
+      register: slurp_one_version
+
+    - when: one_version is version(_version, '>')
+      vars:
+        _version: >-
+          {{ slurp_one_version.content | b64decode | trim }}
+      block:
+        - ansible.builtin.include_role:
+            name: opennebula/leader
+          when: leader is undefined
+
+        - ansible.builtin.include_tasks:
+            file: "{{ role_path }}/tasks/stop/main.yml"
+
+        - ansible.builtin.include_tasks:
+            file: "{{ role_path }}/tasks/apply/main.yml"
+
+        - ansible.builtin.include_tasks:
+            file: "{{ role_path }}/tasks/start/main.yml"

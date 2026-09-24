@@ -1,0 +1,73 @@
+---
+- when: inventory_hostname in federation.groups.node
+  delegate_to: "{{ leader }}"
+  block:
+    - name: Disable HVs
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit -o pipefail
+
+          BEFORE="$(onehost list --list ID,NAME,STAT --csv --no-header | sort)"
+
+          onehost disable {{ _this }}
+
+          AFTER="$(onehost list --list ID,NAME,STAT --csv --no-header | sort)"
+
+          if [[ "$AFTER" == "$BEFORE" ]]; then
+            exit 0
+          else
+            exit 78 # EREMCHG
+          fi
+        executable: /bin/bash
+      vars:
+        _this: >-
+          {{ ansible_host | d(inventory_hostname) }}
+      register: shell_disable_hv
+      changed_when:
+        - shell_disable_hv.rc in [78]
+      failed_when:
+        - shell_disable_hv.rc not in [0, 78]
+
+- when:
+    - inventory_hostname in federation.groups.frontend
+    - inventory_hostname != leader
+  block: &Disable_FEs
+    - name: Disable FEs
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit -o pipefail
+
+          BEFORE="$(systemctl list-units {{ _units }} --state=active --no-legend --no-pager | sort)"
+
+          if [[ -z "$BEFORE" ]]; then
+            exit 0
+          fi
+
+          systemctl stop {{ _units }}
+
+          AFTER="$(systemctl list-units {{ _units }} --state=active --no-legend --no-pager | sort)"
+
+          if [[ -n "$AFTER" ]]; then
+            echo 'FATAL: OpenNebula services still active' >&2
+            exit 1
+          fi
+
+          if [[ "$AFTER" == "$BEFORE" ]]; then
+            exit 0
+          else
+            exit 78 # EREMCHG
+          fi
+        executable: /bin/bash
+      vars:
+        _units: >-
+          {{ opennebula_upgrade_systemd_units.frontend | select
+                                                       | unique
+                                                       | join(' ') }}
+      register: shell_disable_fe_services
+      changed_when:
+        - shell_disable_fe_services.rc in [78]
+      failed_when:
+        - shell_disable_fe_services.rc not in [0, 78]
+
+- when: inventory_hostname == leader
+  block: *Disable_FEs

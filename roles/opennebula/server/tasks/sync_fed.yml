@@ -110,6 +110,7 @@
           changed_when: true
           become: true
           become_user: oneadmin
+          ignore_errors: "{{ _force is sameas true }}"
 
         - delegate_to: "{{ federation.master }}"
           always: # noqa key-order[task]
@@ -118,11 +119,12 @@
             - name: Create DB backup (fed)
               ansible.builtin.shell:
                 cmd: |
-                  onedb backup -f --federated \
-                                  -t '{{ db_backend_types[db_backend] }}' \
-                                  -u '{{ db_owner }}' \
-                                  -p '{{ db_password }}' \
-                                  -d '{{ db_name }}' '/var/tmp/db_master-{{ inventory_hostname }}.sql'
+                  onedb backup -f \
+                               --federated \
+                               -t '{{ db_backend_types[db_backend] }}' \
+                               -u '{{ db_owner }}' \
+                               -p '{{ db_password }}' \
+                               -d '{{ db_name }}' '/var/tmp/db_master-{{ inventory_hostname }}.sql'
                 executable: /bin/bash
               changed_when: true
 
@@ -150,7 +152,8 @@
           ansible.builtin.shell:
             cmd: |
               set -o errexit -o pipefail
-              zcat '{{ _db_master_sql_gz }}' | onedb restore --federated \
+              zcat '{{ _db_master_sql_gz }}' | onedb restore {{ '-f' if _force is sameas true else '' }} \
+                                                             --federated \
                                                              -t '{{ db_backend_types[db_backend] }}' \
                                                              -u '{{ db_owner }}' \
                                                              -p '{{ db_password }}' \

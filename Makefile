@@ -29,19 +29,19 @@ unexport $(filter ANSIBLE_%,$(.VARIABLES))
 
 all: main
 
-.PHONY: infra pre ceph site main
+.PHONY: infra pre ceph site main upgrade
 
-infra pre ceph site main: _TAGS      := $(if $(TAGS),-t $(TAGS),)
-infra pre ceph site main: _SKIP_TAGS := $(if $(SKIP_TAGS),--skip-tags $(SKIP_TAGS),)
-infra pre ceph site main: _VERBOSE   := $(if $(VERBOSE),-$(VERBOSE),)
-infra pre ceph site main: _ASK_VAULT := $(if $(findstring $$ANSIBLE_VAULT;,$(file < $(INVENTORY))),--ask-vault-pass,)
+infra pre ceph site main upgrade: _TAGS      := $(if $(TAGS),-t $(TAGS),)
+infra pre ceph site main upgrade: _SKIP_TAGS := $(if $(SKIP_TAGS),--skip-tags $(SKIP_TAGS),)
+infra pre ceph site main upgrade: _VERBOSE   := $(if $(VERBOSE),-$(VERBOSE),)
+infra pre ceph site main upgrade: _ASK_VAULT := $(if $(findstring $$ANSIBLE_VAULT;,$(file < $(INVENTORY))),--ask-vault-pass,)
 
 ifdef ENV_DEFAULT
 $(ENV_DEFAULT):
 	$(HATCH_BIN) env create default
 endif
 
-infra pre ceph site main: $(ENV_DEFAULT)
+infra pre ceph site main upgrade: $(ENV_DEFAULT)
 	cd $(SELF)/ && \
 	$(call ENV_RUN,default) ansible-playbook $(_VERBOSE) -i $(INVENTORY) $(_ASK_VAULT) $(_TAGS) $(_SKIP_TAGS) opennebula.deploy.$@
 

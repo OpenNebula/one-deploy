@@ -1,0 +1,80 @@
+---
+- when: inventory_hostname in federation.groups.all
+  block:
+    - ansible.builtin.include_role:
+        name: repository
+      vars:
+        repos_enabled_defaults: [opennebula]
+
+- when: inventory_hostname in federation.groups.frontend
+  block:
+    - name: Upgrade OpenNebula OS packages (fe)
+      ansible.builtin.package:
+        name: "{{ opennebula_upgrade_os_packages.frontend | select | unique }}"
+        state: latest
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
+    - name: Backup and upgrade OpenNebula config
+      ansible.builtin.shell:
+        cmd: "{{ item.cmd }}"
+        executable: /bin/bash
+      loop:
+        - cmd: cp -raT /etc/one /etc/one.$(date +'%Y-%m-%d')
+        - cmd: cp -raT /var/lib/one/remotes/etc /var/lib/one/remotes/etc.$(date +'%Y-%m-%d')
+        - cmd: onecfg upgrade
+      changed_when: true
+
+    - when: inventory_hostname == leader
+      block:
+        - name: Backup and upgrade OpenNebula database
+          ansible.builtin.shell:
+            cmd: "{{ item.cmd }}"
+            executable: /bin/bash
+          loop:
+            - cmd: onedb upgrade -v
+            - cmd: sleep 2
+            - cmd: onedb fsck
+          changed_when: true
+
+    - name: Load defaults from the database role
+      ansible.builtin.include_role:
+        name: database
+        tasks_from: empty.yml
+        public: true
+      run_once: true
+
+    - when: federation.role in ['SLAVE']
+      block:
+        - ansible.builtin.include_role:
+            name: opennebula/server
+            tasks_from: sync_fed.yml
+          vars: { _force: true }
+
+    - when: federation.groups.frontend | count > 1
+      block:
+        - ansible.builtin.include_role:
+            name: opennebula/server
+            tasks_from: sync_ha.yml
+          vars: { _force: true }
+
+- when: inventory_hostname in federation.groups.node
+  block:
+    - name: Upgrade OpenNebula OS packages (hv)
+      ansible.builtin.package:
+        name: "{{ opennebula_upgrade_os_packages.node | select | unique }}"
+        state: latest
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
