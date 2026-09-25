@@ -8,7 +8,12 @@ opennebula_upgrade_os_packages:
     - "{{ 'opennebula-guacd' if features.gui | bool else none }}"
     - opennebula-migration
     - opennebula
-    - "{{ ansible_python_interpreter | d('/usr/bin/python3') | basename | replace('.', '') }}-pyone"
+    # NOTE: On SLES 16 python313-pyone requires python313-grpcio from the SUSE HA Extension
+    #       (extra regcode), so the bindings are not upgraded there unless overridden.
+    - >-
+      {{ ((ansible_python_interpreter | d('/usr/bin/python3') | basename | replace('.', '')) ~ '-pyone')
+         if ansible_os_family != 'Suse' else
+         none }}
   node:
     - opennebula-node-kvm
 

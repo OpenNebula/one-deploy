@@ -80,9 +80,7 @@
     that:
       (form_bind_addr is undefined)
       or
-      ((one_version is version('7.1.80', '>='))
-       and
-       (not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15')))
+      (one_version is version('7.1.80', '>='))
     fail_msg: OneForm is unsupported for this OS / OpenNebula combination, please remove 'form_bind_addr' from inventory.
 
 - name: Check if OneProvision has been requested
@@ -90,19 +88,3 @@
     that: features.provision is undefined
     fail_msg: OneProvision has been removed from one-deploy, please undefine 'features.provision'.
   run_once: true
-
-- name: Check if PCI / SR-IOV management is supported for the current distro
-  ansible.builtin.assert:
-    that:
-      (pci_devices | d([]) | count == 0)
-      or
-      (not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15'))
-    fail_msg: PCI / SR-IOV management is unsupported for this OS / OpenNebula combination, please disable it.
-
-- name: Check if OVS / DPDK management is supported for the current distro
-  ansible.builtin.assert:
-    that:
-      (ovs | d({}) | count == 0)
-      or
-      (not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15'))
-    fail_msg: OVS / DPDK management is unsupported for this OS / OpenNebula combination, please disable it.
