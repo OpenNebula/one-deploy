@@ -31,14 +31,12 @@ Example Playbook
         ansible_python_interpreter: /usr/bin/python3.13
         python3_os_packages:
           Debian: []
-          openSUSE Leap: []
           RedHat: []
-          Suse: [python313-pip]
+          Suse: [python313-ruamel.yaml]
         python3_pip_packages:
           Debian: []
-          openSUSE Leap: []
           RedHat: []
-          Suse: [ruamel.yaml]
+          Suse: []
       roles:
         - role: opennebula.deploy.helper.python3 # install interpreter only
         - role: opennebula.deploy.helper.facts   # provide the 'setup' fact
