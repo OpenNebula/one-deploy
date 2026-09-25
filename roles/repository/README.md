@@ -41,12 +41,22 @@ Role Variables
 | `opennebula_repo_key_url`       | `dict` |               |                     | OpenNebula GPG key urls for Debian/RedHat distros.                    |
 | `opennebula_repo_path`          | `dict` |               |                     | OpenNebula repo definition paths for Debian/RedHat distros.           |
 | `opennebula_repo_url`           | `dict` |               | (check below)       | OpenNebula repo url for Debian/RedHat distros.                        |
-| `opennebula_repo_pre_enable`    | `dict` |               | (check below)       | Definition of DNF repos to pre-enable in RedHat-like distros.         |
+| `opennebula_repo_pre_enable`    | `dict` |               | (check below)       | Definition of DNF repos / SUSE extensions to pre-enable in RPM-based distros. |
 
 Dependencies
 ------------
 
 N/A
+
+Notes
+-----
+
+In SLES 16 only the SUSE Package Hub extension is registered by default (`PackageHub/16.0/<arch>`).
+The optional `python313-pyone` bindings additionally require `python313-grpcio`, which is only
+available in the SUSE HA Extension (`sle-ha/16.0/<arch>`, extra registration code). If you need
+them, register the extension manually before running one-deploy:
+
+    SUSEConnect -p sle-ha/16.0/x86_64 -r <regcode>
 
 Example Playbook
 ----------------

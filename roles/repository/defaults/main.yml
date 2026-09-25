@@ -228,12 +228,14 @@ opennebula_repo_pre_enable_defaults:
       '9': [https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm]
       '10': [https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm]
   SLES:
+    # NOTE: Only the SUSE Package Hub extension is required (python313-scipy, nodejs).
+    #       The python313-pyone bindings additionally require python313-grpcio, which is
+    #       only available in the SUSE HA Extension (sle-ha/16.0/<arch>, extra regcode).
+    #       It is optional, register it manually (with the regcode) if needed.
     suse_connect:
-      '15':
-        - sle-module-desktop-applications/15.{{ ansible_distribution_release }}/{{ ansible_architecture }}
-        - sle-module-public-cloud/15.{{ ansible_distribution_release }}/{{ ansible_architecture }}
-        - PackageHub/15.{{ ansible_distribution_release }}/{{ ansible_architecture }}
+      '16':
+        - PackageHub/{{ ansible_distribution_version }}/{{ ansible_architecture }}
     extra_repos:
-      '15': []
+      '16': []
     extra_rpms:
-      '15': []
+      '16': []

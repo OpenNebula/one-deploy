@@ -3,8 +3,7 @@
     _selinux_os:
       Debian: false
       RedHat: true
-      openSUSE Leap: true
-      SLES: false
+      Suse: true
     _has_selinux: >-
       {{ _selinux_os[ansible_distribution] | d(_selinux_os[ansible_os_family]) }}
   block:
