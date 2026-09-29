@@ -78,3 +78,9 @@
     - name: Reload systemd
       ansible.builtin.systemd_service:
         daemon_reload: true
+
+    # The new opennebula-node-kvm package may switch the Libvirt mode
+    # (e.g. stand-alone -> modular on RHEL/Alma since 7.4), re-apply the setup.
+    - ansible.builtin.include_role:
+        name: kvm
+        tasks_from: libvirt.yml
