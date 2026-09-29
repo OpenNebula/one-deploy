@@ -2,15 +2,14 @@
 # Modular (socket-activated) libvirt is what the opennebula-node-kvm package
 # sets up on RHEL/Alma 9+ since OpenNebula 7.4 (OpenNebula/one#7567) and on SUSE.
 # Everywhere else the stand-alone (monolithic) libvirtd is used.
-- name: Decide Libvirt mode (modular / stand-alone)
+- name: Decide Libvirt mode (modular / stand-alone) and service name
   ansible.builtin.set_fact:
-    libvirt_modular: >-
+    libvirt_modular: "{{ _libvirt_modular }}"
+    libvirt_service: "{{ 'virtqemud' if _libvirt_modular else 'libvirtd' }}"
+  vars:
+    _libvirt_modular: >-
       {{ ansible_os_family in ['Suse']
          or (ansible_os_family in ['RedHat'] and one_version is version('7.4', '>=')) }}
-
-- name: Decide Libvirt service name
-  ansible.builtin.set_fact:
-    libvirt_service: "{{ 'virtqemud' if libvirt_modular else 'libvirtd' }}"
 
 # --- Socket-activated Libvirt -> https://github.com/OpenNebula/one/issues/7567 ---
 
