@@ -1,7 +1,77 @@
 ---
-- name: Configure libvirtd (UUID + logging)
+# Modular (socket-activated) libvirt is what the opennebula-node-kvm package
+# sets up on RHEL/Alma 9+ since OpenNebula 7.4 (OpenNebula/one#7567) and on SUSE.
+# Everywhere else the stand-alone (monolithic) libvirtd is used.
+- name: Decide Libvirt mode (modular / stand-alone)
+  ansible.builtin.set_fact:
+    libvirt_modular: >-
+      {{ ansible_os_family in ['Suse']
+         or (ansible_os_family in ['RedHat'] and one_version is version('7.4', '>=')) }}
+
+- name: Decide Libvirt service name
+  ansible.builtin.set_fact:
+    libvirt_service: "{{ 'virtqemud' if libvirt_modular | bool else 'libvirtd' }}"
+
+# --- Socket-activated Libvirt -> https://github.com/OpenNebula/one/issues/7567 ---
+
+- when: libvirt_modular | bool
+  block:
+    - name: Unmask virtqemud*/virtproxyd* units (socket-activation)
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        masked: false
+      register: result
+      failed_when:
+        - result is failed
+        - result.status.LoadState is defined and result.status.LoadState != 'not-found'
+      loop:
+        - virtqemud.service
+        - virtqemud.socket
+        - virtqemud-admin.socket
+        - virtqemud-ro.socket
+        - virtproxyd.socket
+        - virtproxyd-admin.socket
+        - virtproxyd-ro.socket
+
+    - name: Remove libvirtd.service override (stand-alone leftover)
+      ansible.builtin.file:
+        path: /etc/systemd/system/libvirtd.service.d/override.conf
+        state: absent
+
+    - name: Disable libvirtd* units (stand-alone leftover)
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        enabled: false
+        state: stopped
+        daemon_reload: true
+      register: result
+      failed_when:
+        - result is failed
+        - result.status.LoadState is defined and result.status.LoadState != 'not-found'
+      loop:
+        - libvirtd.service
+        - libvirtd.socket
+        - libvirtd-admin.socket
+        - libvirtd-ro.socket
+
+    - name: Enable Libvirt sockets (socket-activation)
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop:
+        - virtqemud.socket
+        - virtqemud-ro.socket
+        - virtproxyd.socket
+        - virtproxyd-ro.socket
+        - virtnetworkd.socket
+        - virtnodedevd.socket
+        - virtsecretd.socket
+        - virtstoraged.socket
+
+- name: Configure libvirt (UUID + logging)
   ansible.builtin.lineinfile:
-    path: /etc/libvirt/libvirtd.conf
+    path: "/etc/libvirt/{{ libvirt_service }}.conf"
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
   loop:
@@ -10,12 +80,12 @@
     - regexp: '^[#\s]*log_filters\s*=.*$'
       line: 'log_filters = "3:libvirt 3:qemu"'
     - regexp: '^[#\s]*log_outputs\s*=.*$'
-      line: 'log_outputs = "2:syslog:libvirtd"'
+      line: 'log_outputs = "2:syslog:{{ libvirt_service }}"'
   register: lineinfile
 
-- name: Restart libvirtd (NOW)
+- name: Restart libvirt (NOW)
   ansible.builtin.service:
-    name: libvirtd
+    name: "{{ libvirt_service }}"
     state: restarted
   when: lineinfile is changed
 
@@ -31,27 +101,28 @@
   changed_when: false
   when: disable_default_net | bool is true
 
-# --- Socket-activated Libvirt -> https://github.com/OpenNebula/one/issues/7567 ---
-
-- when: ansible_os_family in ['Suse']
-  block:
-    - name: Enable Libvirt sockets (socket-activation)
-      ansible.builtin.systemd_service:
-        name: "{{ item }}"
-        enabled: true
-        state: started
-      loop:
-        - virtqemud.socket
-        - virtqemud-ro.socket
-        - virtnetworkd.socket
-        - virtnodedevd.socket
-        - virtsecretd.socket
-        - virtstoraged.socket
-
 # --- Stand-alone Libvirt ---
 
-- when: ansible_os_family in ['Debian', 'RedHat']
+- when: not (libvirt_modular | bool)
   block:
+    # The modular virtproxyd.socket declares Conflicts=libvirtd.socket and listens on the
+    # same libvirt-sock, at boot it can win the race and proxy to the masked virtqemud
+    # -> https://github.com/OpenNebula/one-deploy/issues/304
+    - name: Mask virtproxyd* sockets (stand-alone)
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        enabled: false
+        masked: true
+        state: stopped
+      register: result
+      failed_when:
+        - result is failed
+        - result.status.LoadState is defined and result.status.LoadState != 'not-found'
+      loop:
+        - virtproxyd.socket
+        - virtproxyd-admin.socket
+        - virtproxyd-ro.socket
+
     - name: Query raw status of virtqemud.service
       ansible.builtin.systemd_service:
         name: virtqemud.service
@@ -61,7 +132,7 @@
     - when: systemd_virtqemud.status.LoadState not in ['masked', 'not-found']
       block:
         - name: Mask virtqemud* units and libvirtd* sockets (stand-alone)
-          ansible.builtin.systemd:
+          ansible.builtin.systemd_service:
             name: "{{ item }}"
             enabled: false
             masked: true
@@ -90,7 +161,7 @@
           register: copy
 
         - name: Restart libvirtd (NOW)
-          ansible.builtin.systemd:
+          ansible.builtin.systemd_service:
             name: libvirtd
             daemon_reload: true
             enabled: true
@@ -179,6 +250,6 @@
 
     - name: Restart libvirt (NOW)
       ansible.builtin.service:
-        name: "{{ 'virtqemud' if ansible_os_family in ['Suse'] else 'libvirtd' }}"
+        name: "{{ libvirt_service }}"
         state: restarted
       when: lineinfile_qemu is changed or lineinfile_qemu_revert is changed
