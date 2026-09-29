@@ -10,11 +10,11 @@
 
 - name: Decide Libvirt service name
   ansible.builtin.set_fact:
-    libvirt_service: "{{ 'virtqemud' if libvirt_modular | bool else 'libvirtd' }}"
+    libvirt_service: "{{ 'virtqemud' if libvirt_modular else 'libvirtd' }}"
 
 # --- Socket-activated Libvirt -> https://github.com/OpenNebula/one/issues/7567 ---
 
-- when: libvirt_modular | bool
+- when: libvirt_modular
   block:
     - name: Unmask virtqemud*/virtproxyd* units (socket-activation)
       ansible.builtin.systemd_service:
@@ -101,7 +101,7 @@
 
 # --- Stand-alone Libvirt ---
 
-- when: not (libvirt_modular | bool)
+- when: not libvirt_modular
   block:
     # The modular virtproxyd.socket declares Conflicts=libvirtd.socket and listens on the
     # same libvirt-sock, at boot it can win the race and proxy to the masked virtqemud
