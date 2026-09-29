@@ -62,8 +62,6 @@
       loop:
         - virtqemud.socket
         - virtqemud-ro.socket
-        - virtproxyd.socket
-        - virtproxyd-ro.socket
         - virtnetworkd.socket
         - virtnodedevd.socket
         - virtsecretd.socket
