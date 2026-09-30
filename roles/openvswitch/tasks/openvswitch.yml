@@ -1,15 +1,20 @@
 ---
 - vars:
     # helpers
+
     _pci_addr_regex: >-
       ^[0-9a-fA-F]{4}[:][0-9a-fA-F]{2}[:][0-9a-fA-F]{2}[.][0-9a-fA-F]{1,2}$
+
     # general
+
     _dpdk_enabled: >-
       {{ ovs.set | d([])
                  | selectattr('other_config:dpdk-init', 'defined')
                  | selectattr('other_config:dpdk-init', 'in', ['true'])
                  | count > 0 }}
+
     # iface
+
     _dpdk_iface: >-
       {%- set output = [] -%}
       {%- for k, v in ovs.iface.items() -%}
@@ -20,6 +25,7 @@
         {%- endfor -%}
       {%- endfor -%}
       {{- dict(output) -}}
+
     _dpdk_pci_addrs_raw: >-
       {%- set output = [] -%}
       {%- for k, v in _dpdk_iface.items() -%}
@@ -33,14 +39,18 @@
         {%- endfor -%}
       {%- endfor -%}
       {{- output -}}
+
     _dpdk_pci_addrs_items: >-
       {{ _dpdk_pci_addrs_raw | select | unique }}
+
     _dpdk_pci_addrs: >-
       {{ dict(_dpdk_pci_addrs_items) }}
+
     _internal_iface: >-
       {{ ovs.iface | dict2items
                    | selectattr('key', 'in', ovs.br.keys())
                    | items2dict }}
+
     _system_iface: >-
       {%- set output = [] -%}
       {%- for k, v in ovs.iface.items() | rejectattr(0, 'in', _internal_iface.keys()) -%}
@@ -53,32 +63,40 @@
         {%- endif -%}
       {%- endfor -%}
       {{- dict(output) -}}
+
     _iface: >-
       {{ ovs.iface | dict2items
                    | rejectattr('key', 'in', _dpdk_iface.keys())
                    | rejectattr('key', 'in', _internal_iface.keys())
                    | items2dict }}
+
     _pci_addrs: >-
       {{ command_udevadm_pci_addresses.stdout_lines | d([])
                                                     | select
                                                     | map('regex_replace', '^pci-', '') }}
+
     # bond
+
     _dpdk_bond: >-
       {{ ovs.bond | dict2items
                   | selectattr('value.ifaces', 'defined')
                   | selectattr('value.ifaces', 'subset', _dpdk_iface.keys())
                   | items2dict }}
+
     _bond: >-
       {{ ovs.bond | dict2items
                   | selectattr('value.ifaces', 'defined')
                   | selectattr('value.ifaces', 'subset', _iface.keys())
                   | items2dict }}
+
     _bond_ifaces: >-
       {{ ovs.bond | dict2items
                   | selectattr('value.ifaces', 'defined')
                   | map(attribute='value.ifaces')
                   | flatten }}
+
     # br
+
     _dpdk_br: >-
       {%- set output = [] -%}
       {%- for k, v in ovs.br.items() -%}
@@ -89,15 +107,38 @@
         {%- endfor -%}
       {%- endfor -%}
       {{- dict(output) -}}
+
     _br: >-
       {{ ovs.br | dict2items
                 | rejectattr('key', 'in', _dpdk_br.keys())
                 | items2dict }}
+
     _br_ports: >-
       {{ ovs.br | dict2items
                 | selectattr('value.ports', 'defined')
                 | map(attribute='value.ports')
                 | flatten }}
+
+    # vlans
+
+    _vlan_tags: >-
+      {{ ovs.port | dict2items
+                  | selectattr('value.set', 'defined')
+                  | selectattr('value.set', 'sequence')
+                  | selectattr('value.set', 'truthy')
+                  | map(attribute='value.set')
+                  | flatten
+                  | selectattr('tag', 'defined')
+                  | selectattr('tag', 'truthy')
+                  | map(attribute='tag')
+                  | unique }}
+
+    # NOTE: The 'product' filter used here seems to be a bit excessive, but
+    #       at least it should cover all possible cases.
+    _vlan_ifaces_to_cleanup: >-
+      {{ _iface.keys() | product(_vlan_tags)
+                       | map('join', '.') }}
+
   block:
     - name: Assert DPDK is enabled when DPDK resources are defined
       ansible.builtin.assert:

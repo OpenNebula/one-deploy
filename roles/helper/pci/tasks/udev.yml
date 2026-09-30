@@ -22,7 +22,8 @@
                         | selectattr('Slot', 'defined') }}
 
     _to_unmanage: >-
-      {{ _all | selectattr('Class', 'in', ['0200'])
+      {{ _all | selectattr('Set_unmanaged', '==', 'yes')
+              | selectattr('Class', 'in', ['0200'])
               | rejectattr('Driver', 'in', ['vfio-pci']) }}
 
     _to_rename: >-
@@ -144,7 +145,7 @@
                   /usr/bin/nmcli device set %E{ID_NET_NAME} managed no"
             SUBSYSTEM=="net", ENV{ID_PATH}=="pci-{{ v.Slot }}", ENV{FORCE_NM_UNMANAGED}=="1", TEST=="/usr/sbin/netplan", \
             RUN+="/usr/bin/systemd-run --no-block --property=ConditionPathExists=/sys%E{DEVPATH} \
-                  /usr/sbin/netplan set network.ethernets.%E{ID_NET_NAME_PATH}=null"
+                  /usr/sbin/netplan set network.ethernets.%E{ID_NET_NAME}=null"
             SUBSYSTEM=="net", ACTION=="add|move", ENV{ID_PATH}=="pci-{{ v.Slot }}", TEST=="/usr/sbin/ip", \
             RUN+="/usr/bin/systemd-run --no-block --property=ConditionPathExists=/sys%E{DEVPATH} \
                   /usr/sbin/ip link set dev %E{INTERFACE} up"
