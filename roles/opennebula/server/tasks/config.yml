@@ -258,7 +258,9 @@
   notify:
     - Sync Remotes
 
-- when: use_ha is true
+- when:
+    - use_ha is true
+    - one_vip is defined
   block:
     - when: _hooks is contains('raft/failover.sh')
       vars:
@@ -302,16 +304,16 @@
       notify:
         - Restart OpenNebula
 
-    - name: Configure monitord
-      opennebula.deploy.cfgtool:
-        dest: /etc/one/monitord.conf
-        parser: One
-        actions:
-          - put:
-              path: [NETWORK, MONITOR_ADDRESS]
-              value: '"{{ one_vip }}"'
-      notify:
-        - Restart OpenNebula
+- name: Configure monitord
+  opennebula.deploy.cfgtool:
+    dest: /etc/one/monitord.conf
+    parser: One
+    actions:
+      - put:
+          path: [NETWORK, MONITOR_ADDRESS]
+          value: '"{{ monitor_address }}"'
+  notify:
+    - Restart OpenNebula
 
 - when:
     - sched_drs is defined

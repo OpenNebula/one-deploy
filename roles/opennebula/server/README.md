@@ -22,6 +22,7 @@ Role Variables
 | `one_vip_cidr`      | `int`  | undefined     | `24`          | CIDR prefix of the subnet `one_vip` is allocated in.                                                            |
 | `leader_hook`       | `str`  | `raft/vip.sh` |               | Define RAFT leader VIP handler.                                                                                 |
 | `follower_hook`     | `str`  | `raft/vip.sh` |               | Define RAFT follower VIP handler.                                                                               |
+| `monitor_address`   | `str`  | `auto`        | `10.11.12.13` | Override MONITOR_ADDRESS property.                                                                              |
 | `db_backend`        | `str`  | `MariaDB`     |               |`MariaDB` or `SQLite`.                                                                                           |
 | `db_name`           | `str`  | `opennebula`  |               | Name of the database/schema used by OpenNebula.                                                                 |
 | `db_owner`          | `str`  | `oneadmin`    |               | User used by OpenNebula to access the database.                                                                 |
@@ -29,9 +30,9 @@ Role Variables
 | `gate_endpoint`     | `str`  | conditional   | (check below) | An URL used to reach the OneGate endpoint (HTTP).                                                               |
 | `admin_pubkey`      | `str`  | loaded        | (check below) | SSH pubkey loaded from `/var/lib/one/.ssh/id_rsa.pub`, provided by the user (as string) or ignored when `null`. |
 | `sched_rank`        | `dict` | undefined     | (check below) | Rank scheduler configuration.                                                                                   |
-| `oned_conf`         | `dict` | undefined     | (check below) | Extra `/etc/one/oned.conf` settings, keys are "/"-separated paths, values inserted verbatim (quote strings).  |
-| `kvm_conf`          | `dict` | undefined     | (check below) | Extra `/etc/one/vmm_exec/vmm_exec_kvm.conf` settings (same format as `oned_conf`).                             |
-| `kvmrc`             | `dict` | undefined     | (check below) | Extra `/var/lib/one/remotes/etc/vmm/kvm/kvmrc` shell variables (flat `NAME: value`, `null` unsets).            |
+| `oned_conf`         | `dict` | undefined     | (check below) | Extra `/etc/one/oned.conf` settings, keys are "/"-separated paths, values inserted verbatim (quote strings).    |
+| `kvm_conf`          | `dict` | undefined     | (check below) | Extra `/etc/one/vmm_exec/vmm_exec_kvm.conf` settings (same format as `oned_conf`).                              |
+| `kvmrc`             | `dict` | undefined     | (check below) | Extra `/var/lib/one/remotes/etc/vmm/kvm/kvmrc` shell variables (flat `NAME: value`, `null` unsets).             |
 | `sched_drs`         | `dict` | undefined     | (check below) | OpenNebula Distributed Resource Scheduler configuration.                                                        |
 | `auth.default`      | `str`  | `null`        |               | Pick default auth mechanism (currently only `ldap` is supported in one-deploy).                                 |
 | `auth.ldap.config`  | `dict` | `{}`          | (check below) | LDAP authentication config (/etc/one/auth/ldap_auth.conf).                                                      |
@@ -57,24 +58,24 @@ Example Playbook
         gate_endpoint: "http://10.11.12.13:5030"
         admin_pubkey: null  # ignore it
 
-      # LDAP authentication with manually defined group mappings.
-      auth:
-        default: ldap
-        ldap:
-          config:
-            :order: [dirsrv]
-            dirsrv:
-              :user: cn=admin,dc=sk4zuzu,dc=eu
-              :password: asd123
-              :host: 10.3.10.1
-              :base: dc=sk4zuzu,dc=eu
-              :rfc2307bis: true
-              :group_field: memberOf
-              :mapping_generate: false
-              :mapping_filename: dirsrv.yaml
-          mapping:
-            dirsrv:
-              cn=users,ou=groups,dc=sk4zuzu,dc=eu: 1
+        # LDAP authentication with manually defined group mappings.
+        auth:
+          default: ldap
+          ldap:
+            config:
+              :order: [dirsrv]
+              dirsrv:
+                :user: cn=admin,dc=sk4zuzu,dc=eu
+                :password: asd123
+                :host: 10.3.10.1
+                :base: dc=sk4zuzu,dc=eu
+                :rfc2307bis: true
+                :group_field: memberOf
+                :mapping_generate: false
+                :mapping_filename: dirsrv.yaml
+            mapping:
+              dirsrv:
+                cn=users,ou=groups,dc=sk4zuzu,dc=eu: 1
 
         oned_conf:
           MANAGER_TIMER: 10

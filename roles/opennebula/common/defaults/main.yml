@@ -9,3 +9,4 @@ zone_name: "{{ ('OpenNebula' if (federation.role != 'SLAVE') else undef()) | man
 auth: { default: null }
 leader_hook: raft/vip.sh
 follower_hook: raft/vip.sh
+monitor_address: "{{ one_vip | d('auto') }}" # NOTE: 'auto' is not suitable for HA environments.
