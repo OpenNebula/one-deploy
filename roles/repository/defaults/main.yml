@@ -203,11 +203,11 @@ opennebula_repo_pre_enable_defaults:
         - alias: science
           uri: https://download.opensuse.org/repositories/science/{{ ansible_distribution_version }}/
         - alias: multimedia
-          uri: https://download.opensuse.org/repositories/multimedia:/apps/16.0/
+          uri: https://download.opensuse.org/repositories/multimedia:/apps/{{ ansible_distribution_version }}/
         - alias: devel_languages_go
-          uri: https://download.opensuse.org/repositories/devel:/languages:/go/16.0/
+          uri: https://download.opensuse.org/repositories/devel:/languages:/go/{{ ansible_distribution_version }}/
         - alias: nodejs20-16
-          uri: https://download.opensuse.org/repositories/home:/one-infra:/nodejs:/16.0/16.0/
+          uri: https://download.opensuse.org/repositories/home:/one-infra:/nodejs:/{{ ansible_distribution_version }}/{{ ansible_distribution_version }}/
     extra_rpms:
       '16': []
   RedHat:
