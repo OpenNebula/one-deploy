@@ -11,6 +11,9 @@ features_defaults:
 ceph_defaults:
   pool: one
   user: libvirt
+  # Optional erasure coded data pool (EC_POOL_NAME), the replicated pool keeps the metadata.
+  ec_pool: null
+  ec_profile: { k: 2, m: 1 }
   host: >-
     {{ groups[mon_group | d('mon')] | map('extract', hostvars, ['ansible_host']) | join(' ')
        if groups[mon_group | d('mon')] is defined else
