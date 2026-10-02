@@ -44,10 +44,13 @@ def flatten(to_flatten, extract=False):
 
 
 def to_one(to_render):
-    """Converts dictionary to OpenNebula template."""
+    """Converts dictionary to OpenNebula template (None value = drop)."""
 
     def recurse(to_render):
         for key, value in sorted(to_render.items()):
+            if value is None:
+                continue
+
             if isinstance(value, dict):
                 yield '{0:}=[{1:}]'.format(key, ','.join(recurse(value)))
                 continue
