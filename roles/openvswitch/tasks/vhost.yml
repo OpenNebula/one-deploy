@@ -7,18 +7,34 @@
     _has_selinux: >-
       {{ _selinux_os[ansible_distribution] | d(_selinux_os[ansible_os_family]) }}
   block:
-    - name: Ensure /var/run/one/vhost-socks/ exists
-      ansible.builtin.file:
-        path: "{{ item.path }}"
-        state: directory
-        owner: 9869
-        group: 9869
-        mode: ug=rwx,o=
-        setype: "{{ item.setype | d(omit) }}"
+    - name: Ensure /run/one/vhost-socks/ exists (copy)
+      ansible.builtin.copy:
+        dest: /etc/tmpfiles.d/10-one-vhost-socks.conf
+        owner: 0
+        group: 0
+        mode: u=rwx,go=rx
+        content: |
+          # managed by one-deploy
+          # Type Path                 Mode User Group Age Argument
+          d      /run/one             0770 9869 9869  -   -
+          Z      /run/one             -    -    -     -   ~
+          d      /run/one/vhost-socks 0770 9869 9869  -   -
+          Z      /run/one/vhost-socks -    -    -     -   ~
+      register: copy_vhost_socks_conf
+
+    - name: Ensure /run/one/vhost-socks/ exists (command)
+      ansible.builtin.command:
+        cmd: "{{ item.cmd }}"
+      changed_when: true
+      when:
+        - copy_vhost_socks_conf is changed
+        - item.when
       loop:
-        - path: /var/run/one/
-        - path: /var/run/one/vhost-socks/
-          setype: "{{ 'virt_var_run_t' if _has_selinux else none }}"
+        - when: "{{ _has_selinux }}"
+          cmd: semanage fcontext -a -t virt_var_run_t '/run/one/vhost-socks(/.*)?'
+
+        - when: "{{ true }}"
+          cmd: systemd-tmpfiles --create /etc/tmpfiles.d/10-one-vhost-socks.conf
 
     - name: Check if user 'openvswitch' exists
       ansible.builtin.getent:
@@ -83,22 +99,27 @@
             - shell_dpdk_virt.rc not in [0, 78]
           when: _has_selinux
 
-        - name: Add ACLs for /var/run/one/vhost-socks/
-          ansible.posix.acl:
-            path: "{{ item.path }}"
-            state: present
-            etype: user
-            entity: "{{ item.entity }}"
-            permissions: "{{ item.permissions }}"
-            default: "{{ item.default | d(omit) }}"
+        - name: Add ACLs for /run/one/vhost-socks/ (copy)
+          ansible.builtin.copy:
+            dest: /etc/tmpfiles.d/11-one-vhost-socks-acls.conf
+            owner: 0
+            group: 0
+            mode: u=rwx,go=rx
+            content: |
+              # managed by one-deploy
+              # Type Path                 Mode User Group Age Argument
+              a      /run/one/            -    -    -     -   u:openvswitch:r-x
+              a      /run/one/vhost-socks -    -    -     -   u:openvswitch:rwx
+              A      /run/one/vhost-socks -    -    -     -   u:openvswitch:rwx
+          register: copy_vhost_socks_acls_conf
+
+        - name: Add ACLs for /run/one/vhost-socks/ (command)
+          ansible.builtin.command:
+            cmd: "{{ item.cmd }}"
+          changed_when: true
+          when:
+            - copy_vhost_socks_acls_conf is changed
+            - item.when
           loop:
-            - path: /var/run/one/
-              entity: openvswitch
-              permissions: rx
-            - path: /var/run/one/vhost-socks/
-              entity: openvswitch
-              permissions: rx
-            - path: /var/run/one/vhost-socks/
-              entity: openvswitch
-              permissions: rwX
-              default: true
+            - when: "{{ true }}"
+              cmd: systemd-tmpfiles --create /etc/tmpfiles.d/11-one-vhost-socks-acls.conf
