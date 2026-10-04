@@ -27,15 +27,24 @@
                   | list }}
 
     # Collect possible new hostnames.
-    _new_hostnames: >-
+    _new_hostnames_fqdn: >-
       {{ federation.groups.all | reject('in', _words) }}
+
+    _new_hostnames_short: >-
+      {{ _new_hostnames_fqdn | map('split', '.')
+                             | map('first') }}
+
+    _new_hostnames: >-
+      {{ _new_hostnames_fqdn | zip(_new_hostnames_short)
+                             | map('unique')
+                             | map('join', ' ') }}
 
     # Extract addresses for possible hostnames.
     _new_addresses: >-
-      {{ _new_hostnames | map('extract', hostvars, ['ansible_host'])
-                        | map('d') }}
+      {{ _new_hostnames_fqdn | map('extract', hostvars, ['ansible_host'])
+                             | map('d') }}
 
-    # Assemble a list of valid address/hostname pairs.
+    # Assemble a list of valid address/hostname tuples.
     _new_items: >-
       {{ _new_addresses | zip(_new_hostnames)
                         | selectattr(0, 'truthy') }}
