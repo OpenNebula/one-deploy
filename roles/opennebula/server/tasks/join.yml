@@ -17,11 +17,16 @@
 
     - name: Add this Front-end to current Zone
       ansible.builtin.shell:
-        cmd: onezone server-add '{{ zone_name }}' --name '{{ _this }}' --rpc 'http://{{ _this }}:2633/RPC2'
+        cmd: >-
+          onezone server-add '{{ zone_name }}' --name '{{ _this }}' --rpc 'http://{{ _this }}:2633/RPC2' {{ _grpc }}
         executable: /bin/bash
       changed_when: true
       when: (_server_pool is falsy) or (_this not in _node_names)
       vars: &vars
+        # NOTE: Followers forward leader-only gRPC calls to the leader's ENDPOINT_GRPC,
+        #       the gRPC API (and the --grpc-endpoint option) exists since OpenNebula 7.2.
+        _grpc: >-
+          {{ "--grpc-endpoint '" ~ _this ~ ":2634'" if one_version is version('7.2', '>=') else '' }}
         _document: >-
           {{ shell.stdout | from_json }}
         _server_pool: >-
