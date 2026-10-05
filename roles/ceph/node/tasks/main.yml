@@ -54,6 +54,33 @@
           failed_when:
             - command_ensure_pool.rc not in [0, 78]
 
+        - name: Ensure EC pool exists
+          ansible.builtin.command:
+            cmd: cephadm shell -- bash -s
+            stdin: "{{ _stdin.cmd }}"
+          vars:
+            _stdin:
+              cmd: |
+                set -o errexit
+
+                if ceph osd pool get '{{ ceph.ec_pool }}' all; then
+                  exit 0
+                fi
+
+                ceph osd erasure-code-profile set '{{ ceph.ec_pool }}'{% for k, v in ceph.ec_profile.items() %} {{ k }}={{ v }}{% endfor %}
+
+                ceph osd pool create '{{ ceph.ec_pool }}' 64 erasure '{{ ceph.ec_pool }}'
+                ceph osd pool set '{{ ceph.ec_pool }}' allow_ec_overwrites true
+                ceph osd pool application enable '{{ ceph.ec_pool }}' rbd
+
+                exit 78 # EREMCHG
+          register: command_ensure_ec_pool
+          changed_when:
+            - command_ensure_ec_pool.rc in [78]
+          failed_when:
+            - command_ensure_ec_pool.rc not in [0, 78]
+          when: ceph.ec_pool is truthy
+
         - name: Ensure user exists
           ansible.builtin.command:
             cmd: cephadm shell -- bash -s
@@ -64,12 +91,20 @@
                 set -o errexit
 
                 if ceph auth get 'client.{{ ceph.user }}'; then
-                  exit 0
+                  # Update the caps when the pools changed (e.g. EC pool added later).
+                  if ceph auth get 'client.{{ ceph.user }}' | grep -qF 'caps osd = "{{ _osd_caps }}"'; then
+                    exit 0
+                  fi
+
+                  ceph auth caps 'client.{{ ceph.user }}' mon 'profile rbd' osd '{{ _osd_caps }}'
+                else
+                  ceph auth add 'client.{{ ceph.user }}' mon 'profile rbd' osd '{{ _osd_caps }}'
                 fi
 
-                ceph auth add 'client.{{ ceph.user }}' mon 'profile rbd' osd 'profile rbd pool={{ ceph.pool }}'
-
                 exit 78 # EREMCHG
+            _osd_caps: >-
+              {{ (['profile rbd pool=' ~ ceph.pool]
+                  + (['profile rbd pool=' ~ ceph.ec_pool] if ceph.ec_pool is truthy else [])) | join(', ') }}
           register: command_ensure_user
           changed_when:
             - command_ensure_user.rc in [78]

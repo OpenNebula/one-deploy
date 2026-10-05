@@ -36,6 +36,7 @@ ds_defaults:
         TM_MAD: ceph
         DISK_TYPE: RBD
         POOL_NAME: "{{ ceph.pool if features.ceph is true else None }}"
+        EC_POOL_NAME: "{{ ceph.ec_pool if features.ceph is true else None }}"
         CEPH_HOST: "{{ ceph.host if features.ceph is true else None }}"
         CEPH_USER: "{{ ceph.user if features.ceph is true else None }}"
         CEPH_SECRET: "{{ ceph.uuid if features.ceph is true else None }}"
@@ -46,6 +47,7 @@ ds_defaults:
         DS_MAD: ceph
         DISK_TYPE: RBD
         POOL_NAME: "{{ ceph.pool if features.ceph is true else None }}"
+        EC_POOL_NAME: "{{ ceph.ec_pool if features.ceph is true else None }}"
         CEPH_HOST: "{{ ceph.host if features.ceph is true else None }}"
         CEPH_USER: "{{ ceph.user if features.ceph is true else None }}"
         CEPH_SECRET: "{{ ceph.uuid if features.ceph is true else None }}"
