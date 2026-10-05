@@ -23,7 +23,10 @@
       loop: "{{ _items }}"
       vars:
         _results: >-
-          {{ federation.groups.frontend | map('extract', hostvars, ['keypair', 'results']) | flatten }}
+          {{ federation.groups.frontend | map('extract', hostvars)
+                                        | map(attribute='keypair.results')
+                                        | map('d', [])
+                                        | flatten }}
         _items: >-
           {{ _results | map('dict2items')
                       | map('selectattr', 'key', 'in', ['item', 'public_key'])
