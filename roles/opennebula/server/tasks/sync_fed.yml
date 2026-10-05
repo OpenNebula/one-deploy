@@ -110,7 +110,7 @@
           changed_when: true
           become: true
           become_user: oneadmin
-          ignore_errors: "{{ _force is sameas true }}"
+          ignore_errors: "{{ _force is sameas true }}" # noqa ignore-errors
 
         - delegate_to: "{{ federation.master }}"
           always: # noqa key-order[task]

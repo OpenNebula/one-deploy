@@ -21,10 +21,10 @@
           when: leader is undefined
 
         - ansible.builtin.include_tasks:
-            file: "{{ role_path }}/tasks/stop/main.yml"
+            file: "{{ role_path }}/tasks/stop.yml"
 
         - ansible.builtin.include_tasks:
-            file: "{{ role_path }}/tasks/apply/main.yml"
+            file: "{{ role_path }}/tasks/apply.yml"
 
         - ansible.builtin.include_tasks:
-            file: "{{ role_path }}/tasks/start/main.yml"
+            file: "{{ role_path }}/tasks/start.yml"
