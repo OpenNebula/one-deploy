@@ -36,6 +36,7 @@
   block: *Enable_FEs
 
 - when: inventory_hostname == leader
+  become: true
   become_user: oneadmin
   block:
     - name: Sync HVs

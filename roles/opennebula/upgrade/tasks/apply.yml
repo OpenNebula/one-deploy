@@ -11,7 +11,7 @@
     - name: Upgrade OpenNebula OS packages (fe)
       ansible.builtin.package:
         name: "{{ opennebula_upgrade_os_packages.frontend | select | unique }}"
-        state: latest
+        state: latest # noqa package-latest
       register: package
       until: package is success
       retries: 12
@@ -69,7 +69,7 @@
     - name: Upgrade OpenNebula OS packages (hv)
       ansible.builtin.package:
         name: "{{ opennebula_upgrade_os_packages.node | select | unique }}"
-        state: latest
+        state: latest # noqa package-latest
       register: package
       until: package is success
       retries: 12
