@@ -22,7 +22,7 @@ Role Variables
 | `one_vip_cidr`      | `int`  | undefined     | `24`          | CIDR prefix of the subnet `one_vip` is allocated in.                                                            |
 | `leader_hook`       | `str`  | `raft/vip.sh` |               | Define RAFT leader VIP handler.                                                                                 |
 | `follower_hook`     | `str`  | `raft/vip.sh` |               | Define RAFT follower VIP handler.                                                                               |
-| `monitor_address`   | `str`  | `auto`        | `10.11.12.13` | Override MONITOR_ADDRESS property.                                                                              |
+| `monitor_address`   | `str`  | undefined     | `10.11.12.13` | Override MONITOR_ADDRESS property.                                                                              |
 | `db_backend`        | `str`  | `MariaDB`     |               |`MariaDB` or `SQLite`.                                                                                           |
 | `db_name`           | `str`  | `opennebula`  |               | Name of the database/schema used by OpenNebula.                                                                 |
 | `db_owner`          | `str`  | `oneadmin`    |               | User used by OpenNebula to access the database.                                                                 |

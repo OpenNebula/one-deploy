@@ -311,7 +311,13 @@
     actions:
       - put:
           path: [NETWORK, MONITOR_ADDRESS]
-          value: '"{{ monitor_address }}"'
+          value: '"{{ _monitor_address }}"'
+  when:
+    - _monitor_address is defined
+    - _monitor_address is string
+  vars:
+    _monitor_address: >-
+      {{ one_vip if monitor_address is undefined and one_vip is defined else monitor_address }}
   notify:
     - Restart OpenNebula
 
