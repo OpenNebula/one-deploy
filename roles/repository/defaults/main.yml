@@ -212,9 +212,15 @@ opennebula_repo_pre_enable_defaults:
       '16': []
   RedHat:
     subscription_manager:
-      '8': [codeready-builder-for-rhel-8-x86_64-rpms, rhel-8-for-x86_64-highavailability-rpms]
-      '9': [codeready-builder-for-rhel-9-x86_64-rpms, rhel-9-for-x86_64-highavailability-rpms]
-      '10': [codeready-builder-for-rhel-10-x86_64-rpms, rhel-10-for-x86_64-highavailability-rpms]
+      '8':
+        - codeready-builder-for-rhel-8-{{ ansible_architecture }}-rpms
+        - rhel-8-for-{{ ansible_architecture }}-highavailability-rpms
+      '9':
+        - codeready-builder-for-rhel-9-{{ ansible_architecture }}-rpms
+        - rhel-9-for-{{ ansible_architecture }}-highavailability-rpms
+      '10':
+        - codeready-builder-for-rhel-10-{{ ansible_architecture }}-rpms
+        - rhel-10-for-{{ ansible_architecture }}-highavailability-rpms
     config_manager:
       '8': [epel]
       '9': [epel]
