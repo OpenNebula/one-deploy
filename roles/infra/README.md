@@ -102,6 +102,41 @@ Example Inventory
         u1q20: { ansible_host: 10.3.10.20 }
         u1q30: { ansible_host: 10.3.10.30 }
 
+    # --- VARIANT: default (with distinct images) ---
+
+    infra:
+      vars:
+        memory_KiB: 2097152 # 2 GiB
+      hosts:
+        u1q20: { ansible_host: 10.3.10.20 }
+        u1q30: { ansible_host: 10.3.10.30 }
+
+    frontend:
+      vars:
+        context:
+          ETH0_DNS: 10.3.10.1
+          ETH0_GATEWAY: 10.3.10.1
+          ETH0_MASK: 255.255.255.0
+          ETH0_NETWORK: 10.3.10.0
+          ETH0_IP: "{{ ansible_host }}"
+          PASSWORD: asd
+          SSH_PUBLIC_KEY: |-
+            ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF5ndznuZTNZ8u7FCYKgv6Q3/HUVxnaha3tPDUXPfIIw
+      # NOTE: Please make sure source images are not named identically to FE inventory hostnames
+      #       (hence the 'img-' prefix in the example below).
+      hosts:
+        u1q40:
+          ansible_host: 10.3.10.40
+          infra_hostname: u1q20
+          os_image_url: http://10.2.11.1/images/img-u1q40.qcow2
+          os_image_size: 20G
+
+        u1q50:
+          ansible_host: 10.3.10.50
+          infra_hostname: u1q30
+          os_image_url: http://10.2.11.1/images/img-u1q50.qcow2
+          os_image_size: 20G
+
     # --- VARIANT: openvswitch ---
 
     infra:
