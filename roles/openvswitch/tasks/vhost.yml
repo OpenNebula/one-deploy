@@ -20,16 +20,20 @@
           d      /var/run/one/vhost-socks/ 0770 9869 9869  -   -
       register: copy_vhost_socks_conf
 
-    - name: Ensure /var/run/one/vhost-socks/ exists (command)
-      ansible.builtin.command:
+    - name: Ensure /var/run/one/vhost-socks/ exists (shell)
+      ansible.builtin.shell:
         cmd: "{{ item.cmd }}"
+        executable: /bin/bash
       changed_when: true
       when:
         - copy_vhost_socks_conf is changed
         - item.when
       loop:
         - when: "{{ _has_selinux }}"
-          cmd: semanage fcontext -a -t virt_var_run_t '/var/run/one/vhost-socks(/.*)?'
+          cmd: >-
+            semanage fcontext -a -t virt_var_run_t '/run/one/vhost-socks(/.*)?'
+            ||
+            semanage fcontext -a -t virt_var_run_t '/var/run/one/vhost-socks(/.*)?'
 
         - when: "{{ true }}"
           cmd: systemd-tmpfiles --create /etc/tmpfiles.d/10-one-vhost-socks.conf
