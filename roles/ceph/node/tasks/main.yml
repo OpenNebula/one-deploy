@@ -4,9 +4,11 @@
 
 - name: Install extra Ceph dependencies
   ansible.builtin.package:
-    name: "{{ _common + _specific[ansible_os_family] }}"
+    name: "{{ (_common + _specific[ansible_os_family]) | select }}"
   vars:
-    _common: [ceph-common]
+    _common:
+      - ceph-common
+      - "{{ 'rbd-nbd' if node_hv in ['lxc'] else none }}"
     _specific:
       Debian: [qemu-utils]
       RedHat: [qemu-img]
@@ -223,45 +225,47 @@
       {%- endfor -%}
       {{- output | join(',') -}}
 
-- name: Create Libvirt secret XML
-  ansible.builtin.copy:
-    dest: "/etc/ceph/client.{{ ceph.user }}.secret.xml"
-    owner: 9869
-    group: 9869
-    mode: u=rw,g=r,o=
-    content: |
-      <secret ephemeral='no' private='no'>
-        <uuid>{{ ceph.uuid }}</uuid>
-        <usage type='ceph'>
-          <name>client.{{ ceph.user }} secret</name>
-        </usage>
-      </secret>
+- when: node_hv in ['kvm', 'qemu']
+  block:
+    - name: Create Libvirt secret XML
+      ansible.builtin.copy:
+        dest: "/etc/ceph/client.{{ ceph.user }}.secret.xml"
+        owner: 9869
+        group: 9869
+        mode: u=rw,g=r,o=
+        content: |
+          <secret ephemeral='no' private='no'>
+            <uuid>{{ ceph.uuid }}</uuid>
+            <usage type='ceph'>
+              <name>client.{{ ceph.user }} secret</name>
+            </usage>
+          </secret>
 
-- name: Create Ceph secret in Libvirt
-  ansible.builtin.command:
-    cmd: bash -s
-    stdin: "{{ _stdin.cmd }}"
-  vars:
-    _stdin:
-      cmd: |
-        set -o errexit
+    - name: Create Ceph secret in Libvirt
+      ansible.builtin.command:
+        cmd: bash -s
+        stdin: "{{ _stdin.cmd }}"
+      vars:
+        _stdin:
+          cmd: |
+            set -o errexit
 
-        if virsh -c 'qemu:///system' secret-dumpxml '{{ ceph.uuid }}'; then
-          exit 0
-        fi
+            if virsh -c 'qemu:///system' secret-dumpxml '{{ ceph.uuid }}'; then
+              exit 0
+            fi
 
-        virsh -c 'qemu:///system' secret-define \
-          '/etc/ceph/client.{{ ceph.user }}.secret.xml'
+            virsh -c 'qemu:///system' secret-define \
+              '/etc/ceph/client.{{ ceph.user }}.secret.xml'
 
-        virsh -c 'qemu:///system' secret-set-value \
-          --secret '{{ ceph.uuid }}' \
-          --base64 '{{ command_key.stdout | trim }}'
+            virsh -c 'qemu:///system' secret-set-value \
+              --secret '{{ ceph.uuid }}' \
+              --base64 '{{ command_key.stdout | trim }}'
 
-        exit 78 # EREMCHG
-  register: command_libvirt_secret
-  changed_when:
-    - command_libvirt_secret.rc in [78]
-  failed_when:
-    - command_libvirt_secret.rc not in [0, 78]
-  become: true
-  become_user: oneadmin
+            exit 78 # EREMCHG
+      register: command_libvirt_secret
+      changed_when:
+        - command_libvirt_secret.rc in [78]
+      failed_when:
+        - command_libvirt_secret.rc not in [0, 78]
+      become: true
+      become_user: oneadmin

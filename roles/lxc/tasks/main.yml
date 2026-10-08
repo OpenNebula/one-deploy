@@ -1,0 +1,70 @@
+---
+- when: node_hv is defined and node_hv in hv_types
+  block:
+    - tags: [preinstall]
+      block:
+        - ansible.builtin.include_role:
+            name: repository
+          vars:
+            repos_enabled_defaults: [opennebula]
+          when: opennebula_repo is undefined
+
+        - name: Install OpenNebula LXC packages
+          ansible.builtin.package:
+            name: "{{ _common + _specific[ansible_os_family] }}"
+          vars:
+            _common: [opennebula-node-lxc]
+            _specific:
+              Debian: []
+              RedHat: []
+              Suse: []
+          register: package
+          until: package is success
+          retries: 12
+          delay: 5
+
+    - ansible.builtin.include_role:
+        name: opennebula/leader
+      when: leader is undefined
+
+    - name: Slurp oneadmin's pubkey
+      ansible.builtin.slurp:
+        path: /var/lib/one/.ssh/id_rsa.pub
+      register: slurp
+      delegate_to: "{{ leader }}"
+
+    - name: Add oneadmin's pubkey to authorized keys
+      ansible.posix.authorized_key:
+        user: oneadmin
+        key: "{{ slurp.content | b64decode }}"
+
+    - delegate_to: "{{ leader }}"
+      block:
+        - name: Get Nodes
+          ansible.builtin.shell:
+            cmd: onehost list --json
+            executable: /bin/bash
+          changed_when: false
+          register: shell
+
+        - name: Add this LXC Node to OpenNebula
+          ansible.builtin.shell:
+            cmd: onehost create '{{ _this }}' -i '{{ hv_types[_hv].im_mad }}' -v '{{ hv_types[_hv].vmm_mad }}'
+            executable: /bin/bash
+          changed_when: true
+          when: _host_pool is falsy or _this not in _node_names
+          vars:
+            _document: >-
+              {{ shell.stdout | from_json }}
+            _host_pool: >-
+              {{ _document.HOST_POOL }}
+            _node_names: >-
+              {{ [_host_pool.HOST] | flatten | map(attribute='NAME') | list }}
+            _this: >-
+              {{ ansible_host | d(inventory_hostname) }}
+            _hv: >-
+              {{ node_hv | lower }}
+          register: shell
+          until: shell is success
+          retries: 12
+          delay: 5
