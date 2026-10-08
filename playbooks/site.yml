@@ -64,6 +64,7 @@
   collections:
     - opennebula.deploy
   roles:
+    - role: lxc
     - role: kvm
 
     - role: ceph/node
