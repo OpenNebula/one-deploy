@@ -83,6 +83,14 @@
             - shell_dpdk_virt.rc not in [0, 78]
           when: _has_selinux
 
+        - name: Install ACL tools (setfacl)
+          ansible.builtin.package:
+            name: acl
+          register: package
+          until: package is success
+          retries: 12
+          delay: 5
+
         - name: Add ACLs for /var/run/one/vhost-socks/
           ansible.posix.acl:
             path: "{{ item.path }}"
