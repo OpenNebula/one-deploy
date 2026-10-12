@@ -59,6 +59,7 @@
   vars:
     _supported:
       - kvm
+      - lxc
       - qemu
 
 - name: Check if Apache Passenger has been requested
