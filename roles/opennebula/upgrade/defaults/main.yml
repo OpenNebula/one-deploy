@@ -15,7 +15,7 @@ opennebula_upgrade_os_packages:
          if ansible_os_family != 'Suse' else
          none }}
   node:
-    - opennebula-node-kvm
+    - "opennebula-node-{{ node_hv | d('kvm') }}"
 
 opennebula_upgrade_systemd_units:
   frontend:
