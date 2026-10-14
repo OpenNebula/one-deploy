@@ -1,10 +1,16 @@
 ---
 - when: inventory_hostname in federation.groups.all
   vars:
-    _remotes_dir: >-
-      {{ '/var/lib/one/remotes/'
-         if (inventory_hostname in federation.groups.frontend) else
+    _fe_remotes_dir: >-
+      /var/lib/one/remotes/
+    _hv_remotes_dir: >-
+      {{ '/var/lib/one-remotes/'
+         if one_version is version('7.5.80', '>=') else
          '/var/tmp/one/' }}
+    _remotes_dir: >-
+      {{ _fe_remotes_dir
+         if (inventory_hostname in federation.groups.frontend) else
+         _hv_remotes_dir }}
   block:
     - name: Slurp OpenNebula version
       ansible.builtin.slurp:
