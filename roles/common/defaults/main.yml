@@ -4,6 +4,7 @@ features_defaults:
   flow: true
   form: true
   gui: true
+  ks: false
   prometheus: false
   ceph: false
   evpn: false

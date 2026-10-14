@@ -1,0 +1,12 @@
+---
+- name: Configure OneKS Server (:server/:bind)
+  opennebula.deploy.cfgtool:
+    dest: /etc/one/oneks-server.conf
+    parser: Yaml
+    actions:
+      - put:
+          path: [':server', ':bind']
+          value: >-
+            {{ ks_bind_addr }}
+  notify:
+    - Restart OneKS Server
