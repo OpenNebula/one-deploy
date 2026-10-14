@@ -1,11 +1,15 @@
 ---
-- name: Configure OneForm Server (:host)
+- name: Configure OneForm Server (:server/:bind)
   opennebula.deploy.cfgtool:
     dest: /etc/one/oneform-server.conf
     parser: Yaml
     actions:
       - put:
-          path: [":host"]
-          value: "{{ form_bind_addr }}"
+          path: >-
+            {{ [':server', ':bind']
+               if one_version is version('7.5.80', '>=') else
+               [':host'] }}
+          value: >-
+            {{ form_bind_addr }}
   notify:
     - Restart OneForm Server
