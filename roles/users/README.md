@@ -1,5 +1,5 @@
 Role: opennebula.deploy.users
-========================================
+=============================
 
 A role that manages OpenNebula users and groups (to be run on Frontends).
 
@@ -17,10 +17,10 @@ N/A
 Role Variables
 --------------
 
-| Name                | Type   | Default   | Example       | Description                                            |
-|---------------------|--------|-----------|---------------|--------------------------------------------------------|
-| `usergroups.groups` | `dict` | `{}`      | (check below) | OpenNebula group list.                                 |
-| `usergroups.users`  | `dict` | `{}`      | (check below) | OpenNebula user list.                                  |
+| Name                | Type   | Default | Example       | Description            |
+|---------------------|--------|---------|---------------|------------------------|
+| `usergroups.groups` | `dict` | `{}`    | (check below) | OpenNebula group list. |
+| `usergroups.users`  | `dict` | `{}`    | (check below) | OpenNebula user list.  |
 
 Dependencies
 ------------
