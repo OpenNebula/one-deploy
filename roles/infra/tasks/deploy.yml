@@ -63,30 +63,44 @@
         state: absent
       loop: "{{ tempfile.results | map(attribute='path') }}"
 
-- name: Download OS image
-  ansible.builtin.get_url:
-    url: "{{ os_image_url }}"
-    dest: "{{ runtime_dir }}/{{ os_image_url | basename }}"
-    mode: ug=rw,o=
+- vars:
+    _os_image_urls: >-
+      {{ _frontends | zip(_frontends | map('extract', hostvars, ['os_image_url'])
+                                     | map('d', os_image_url, true))
+                    | items2dict(key_name=0, value_name=1) }}
+    _os_image_sizes: >-
+      {{ _frontends | zip(_frontends | map('extract', hostvars, ['os_image_size'])
+                                     | map('d', os_image_size, true))
+                    | items2dict(key_name=0, value_name=1) }}
+    _frontends: >-
+      {{ infra_to_frontends[inventory_hostname] }}
+  block:
+    - name: Download OS images
+      ansible.builtin.get_url:
+        url: "{{ url }}"
+        dest: "{{ runtime_dir }}/{{ url | basename }}"
+        mode: ug=rw,o=
+      loop_control: { loop_var: url }
+      loop: "{{ _os_image_urls.values() | unique }}"
 
-- name: Clone OS image
-  ansible.builtin.copy:
-    dest: "{{ runtime_dir }}/{{ frontend }}.qcow2"
-    src: "{{ runtime_dir }}/{{ os_image_url | basename }}"
-    remote_src: true
-    force: false
-    mode: ug=rw,o=
-  loop_control: { loop_var: frontend }
-  loop: "{{ infra_to_frontends[inventory_hostname] }}"
+    - name: Clone OS images
+      ansible.builtin.copy:
+        dest: "{{ runtime_dir }}/{{ frontend }}.qcow2"
+        src: "{{ runtime_dir }}/{{ _os_image_urls[frontend] | basename }}"
+        remote_src: true
+        force: false
+        mode: ug=rw,o=
+      loop_control: { loop_var: frontend }
+      loop: "{{ infra_to_frontends[inventory_hostname] }}"
 
-- name: Try to resize cloned OS images
-  ansible.builtin.command:
-    cmd: qemu-img resize '{{ runtime_dir }}/{{ frontend }}.qcow2' '{{ os_image_size }}'
-  changed_when: true
-  loop_control: { loop_var: frontend }
-  loop: "{{ infra_to_frontends[inventory_hostname] }}"
-  # NOTE: This is a best effort operation.
-  ignore_errors: true # noqa ignore-errors
+    - name: Try to resize cloned OS images
+      ansible.builtin.command:
+        cmd: qemu-img resize '{{ runtime_dir }}/{{ frontend }}.qcow2' '{{ _os_image_sizes[frontend] }}'
+      changed_when: true
+      loop_control: { loop_var: frontend }
+      loop: "{{ infra_to_frontends[inventory_hostname] }}"
+      # NOTE: This is a best effort operation.
+      ignore_errors: true # noqa ignore-errors
 
 - name: Compute VNC ports
   ansible.builtin.set_fact:
@@ -96,9 +110,7 @@
     _ports: >-
       {{ range(vnc_max_port, vnc_max_port - (_frontends | count), -1) }}
     _frontends: >-
-      {{ groups[_frontend_group] }}
-    _frontend_group: >-
-      {{ frontend_group | d('frontend') }}
+      {{ groups[frontend_group | d('frontend')] }}
 
 - name: Define Front-end VMs
   community.libvirt.virt:
