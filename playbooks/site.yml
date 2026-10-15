@@ -42,6 +42,13 @@
         - features.form | bool # enabled by default
         - one_version is version('7.1.80', '>=')
 
+    - role: ks
+      tags: [ks]
+      when:
+        - features.ks | bool # disabled by default
+        - features.gate | bool # enabled by default
+        - one_version is version('7.2.1', '>=')
+
     - role: gui
       tags: [gui]
       when:

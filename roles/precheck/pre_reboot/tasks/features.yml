@@ -89,3 +89,19 @@
     that: features.provision is undefined
     fail_msg: OneProvision has been removed from one-deploy, please undefine 'features.provision'.
   run_once: true
+
+- name: Check if OneKS is supported for the current distro
+  ansible.builtin.assert:
+    that:
+      (features.ks | bool is false)
+      or
+      (one_version is version('7.2.1', '>='))
+    fail_msg: OneKS is unsupported for this OS / OpenNebula combination.
+
+- name: Check if OneGate / TProxy is enabled together with OneKS
+  ansible.builtin.assert:
+    that:
+      (features.ks | bool is false)
+      or
+      (features.gate | bool is true and gate_tproxy is defined and gate_tproxy is truthy)
+    fail_msg: OneKS strictly requires OneGate / TProxy to be enabled.
