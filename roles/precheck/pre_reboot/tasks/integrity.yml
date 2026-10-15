@@ -28,10 +28,10 @@
 
 - name: Check if one_vip/force_ha settings are valid
   ansible.builtin.assert:
-    that: ((one_vip is defined) and ((_frontend_count | int > 1) or (_force_ha is true)))
+    that: (one_vip is undefined)
           or
-          ((one_vip is undefined) and ((_frontend_count | int == 1) and (_force_ha is false)))
-    fail_msg: Please either define one_vip in the inventory, add more Front-ends or enable force_ha.
+          ((_frontend_count | int > 1) or (_force_ha is true))
+    fail_msg: Please undefine one_vip or add more Front-ends / enable force_ha.
   vars:
     _frontend_count: >-
       {{ federation.groups.frontend | count }}
