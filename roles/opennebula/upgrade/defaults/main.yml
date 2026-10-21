@@ -12,7 +12,7 @@ opennebula_upgrade_os_packages:
     #       (extra regcode), so the bindings are not upgraded there unless overridden.
     - >-
       {{ ((ansible_python_interpreter | d('/usr/bin/python3') | basename | replace('.', '')) ~ '-pyone')
-         if ansible_os_family != 'Suse' else
+         if not (ansible_os_family == 'Suse' and ansible_distribution_major_version is version('16', '>=')) else
          none }}
   node:
     - "opennebula-node-{{ 'kvm' if (node_hv | d('kvm') in ['kvm', 'qemu']) else node_hv | d('kvm') }}"
