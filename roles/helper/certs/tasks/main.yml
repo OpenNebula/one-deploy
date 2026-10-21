@@ -5,7 +5,7 @@
 
 - name: Compute facts
   ansible.builtin.set_fact:
-    subject_alt_name: "{{ _subject_alt_name | select }}"
+    subject_alt_name: "{{ _subject_alt_name | flatten | select | unique }}"
     ca_key: "{{ pki.base }}/{{ pki.dirs.key }}/{{ pki.ca.key }}"
     ca_csr: "{{ pki.base }}/{{ pki.dirs.csr }}/{{ pki.ca.csr }}"
     ca_crt: "{{ pki.base }}/{{ pki.dirs.crt }}/{{ pki.ca.crt }}"
@@ -16,7 +16,26 @@
   vars:
     _subject_alt_name:
       - "{{ ('DNS:' ~ one_fqdn) if (one_fqdn is defined) else '' }}"
-      - "{{ ('IP:' ~ one_vip) if (one_vip is defined) else ('IP:' ~ hostvars[leader].ansible_host) }}"
+      - >-
+        {%- set address = one_vip | d((one_vips[0].address
+                                       if (one_vips[0] is mapping)
+                                       else one_vips[0])
+                                      if (one_vips is defined and one_vips | count > 0)
+                                      else hostvars[leader].ansible_host) -%}
+        {%- set is_ip = (address | string | regex_search('^([0-9]{1,3}\.){3}[0-9]{1,3}$'))
+                         or
+                         (address | string | regex_search(':')) -%}
+        {{- (is_ip | ternary('IP:', 'DNS:')) ~ address -}}
+      - >-
+        {%- set output = [] -%}
+        {%- for item in one_vips | d([]) -%}
+        {%- set address = item.address if (item is mapping) else item -%}
+        {%- set is_ip = (address | string | regex_search('^([0-9]{1,3}\.){3}[0-9]{1,3}$'))
+                         or
+                         (address | string | regex_search(':')) -%}
+        {{- output.append((is_ip | ternary('IP:', 'DNS:')) ~ address) -}}
+        {%- endfor -%}
+        {{- output -}}
 
 - name: Install required system packages
   ansible.builtin.package:

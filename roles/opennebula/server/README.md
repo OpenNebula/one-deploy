@@ -11,32 +11,33 @@ N/A
 Role Variables
 --------------
 
-| Name                | Type   | Default       | Example       | Description                                                                                                     |
-|---------------------|--------|---------------|---------------|-----------------------------------------------------------------------------------------------------------------|
-| `one_pass`          | `str`  | `null`        | `asd123`      | Use specific password for the `oneadmin` user.                                                                  |
-| `force_ha`          | `bool` | `false`       |               | Deploy OpenNebula in HA mode even with a single Frontend.                                                       |
-| `unsafe_migrations` | `bool` | `true`        |               | Disable LibVirt's NFS/mountpoint checks.                                                                        |
-| `keep_empty_bridge` | `bool` | `true`        |               | Make sure empty network bridges are never removed (from Nodes).                                                 |
-| `one_vip`           | `str`  | undefined     | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader.                                                          |
-| `one_vip_if`        | `str`  | undefined     | `eth0`        | NIC device to assign the `one_vip` address to (on Frontends).                                                   |
-| `one_vip_cidr`      | `int`  | undefined     | `24`          | CIDR prefix of the subnet `one_vip` is allocated in.                                                            |
-| `leader_hook`       | `str`  | `raft/vip.sh` |               | Define RAFT leader VIP handler.                                                                                 |
-| `follower_hook`     | `str`  | `raft/vip.sh` |               | Define RAFT follower VIP handler.                                                                               |
-| `monitor_address`   | `str`  | undefined     | `10.11.12.13` | Override MONITOR_ADDRESS property.                                                                              |
-| `db_backend`        | `str`  | `MariaDB`     |               |`MariaDB` or `SQLite`.                                                                                           |
-| `db_name`           | `str`  | `opennebula`  |               | Name of the database/schema used by OpenNebula.                                                                 |
-| `db_owner`          | `str`  | `oneadmin`    |               | User used by OpenNebula to access the database.                                                                 |
-| `db_password`       | `str`  | `opennebula`  |               | Password used by OpenNebula to authenticate the user.                                                           |
-| `gate_endpoint`     | `str`  | conditional   | (check below) | An URL used to reach the OneGate endpoint (HTTP).                                                               |
-| `admin_pubkey`      | `str`  | loaded        | (check below) | SSH pubkey loaded from `/var/lib/one/.ssh/id_rsa.pub`, provided by the user (as string) or ignored when `null`. |
-| `sched_rank`        | `dict` | undefined     | (check below) | Rank scheduler configuration.                                                                                   |
-| `oned_conf`         | `dict` | undefined     | (check below) | Extra `/etc/one/oned.conf` settings, keys are "/"-separated paths, values inserted verbatim (quote strings).    |
-| `kvm_conf`          | `dict` | undefined     | (check below) | Extra `/etc/one/vmm_exec/vmm_exec_kvm.conf` settings (same format as `oned_conf`).                              |
-| `kvmrc`             | `dict` | undefined     | (check below) | Extra `/var/lib/one/remotes/etc/vmm/kvm/kvmrc` shell variables (flat `NAME: value`, `null` unsets).             |
-| `sched_drs`         | `dict` | undefined     | (check below) | OpenNebula Distributed Resource Scheduler configuration.                                                        |
-| `auth.default`      | `str`  | `null`        |               | Pick default auth mechanism (currently only `ldap` is supported in one-deploy).                                 |
-| `auth.ldap.config`  | `dict` | `{}`          | (check below) | LDAP authentication config (/etc/one/auth/ldap_auth.conf).                                                      |
-| `auth.ldap.mapping` | `dict` | `{}`          | (check below) | LDAP authentication group mapping (manually defined).                                                           |
+| Name                | Type   | Default       | Example       | Description                                                                                                             |
+|---------------------|--------|---------------|---------------|-------------------------------------------------------------------------------------------------------------------------|
+| `one_pass`          | `str`  | `null`        | `asd123`      | Use specific password for the `oneadmin` user.                                                                          |
+| `force_ha`          | `bool` | `false`       |               | Deploy OpenNebula in HA mode even with a single Frontend.                                                               |
+| `unsafe_migrations` | `bool` | `true`        |               | Disable LibVirt's NFS/mountpoint checks.                                                                                |
+| `keep_empty_bridge` | `bool` | `true`        |               | Make sure empty network bridges are never removed (from Nodes).                                                         |
+| `one_vip`           | `str`  | undefined     | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader.                                                                  |
+| `one_vip_if`        | `str`  | undefined     | `eth0`        | NIC device to assign the `one_vip` address to (on Frontends).                                                           |
+| `one_vip_cidr`      | `int`  | undefined     | `24`          | CIDR prefix of the subnet `one_vip` is allocated in.                                                                    |
+| `one_vips`          | `list` | undefined     | see below     | List of VIPs to assign via OpenNebula's RAFT VIP hook. The first entry is used as primary VIP if `one_vip` is undefined. |
+| `leader_hook`       | `str`  | `raft/vip.sh` |               | Define RAFT leader VIP handler.                                                                                         |
+| `follower_hook`     | `str`  | `raft/vip.sh` |               | Define RAFT follower VIP handler.                                                                                       |
+| `monitor_address`   | `str`  | undefined     | `10.11.12.13` | Override MONITOR_ADDRESS property.                                                                                      |
+| `db_backend`        | `str`  | `MariaDB`     |               | `MariaDB` or `SQLite`.                                                                                                  |
+| `db_name`           | `str`  | `opennebula`  |               | Name of the database/schema used by OpenNebula.                                                                         |
+| `db_owner`          | `str`  | `oneadmin`    |               | User used by OpenNebula to access the database.                                                                         |
+| `db_password`       | `str`  | `opennebula`  |               | Password used by OpenNebula to authenticate the user.                                                                   |
+| `gate_endpoint`     | `str`  | conditional   | (check below) | An URL used to reach the OneGate endpoint (HTTP).                                                                       |
+| `admin_pubkey`      | `str`  | loaded        | (check below) | SSH pubkey loaded from `/var/lib/one/.ssh/id_rsa.pub`, provided by the user (as string) or ignored when `null`.         |
+| `sched_rank`        | `dict` | undefined     | (check below) | Rank scheduler configuration.                                                                                           |
+| `oned_conf`         | `dict` | undefined     | (check below) | Extra `/etc/one/oned.conf` settings, keys are "/"-separated paths, values inserted verbatim (quote strings).          |
+| `kvm_conf`          | `dict` | undefined     | (check below) | Extra `/etc/one/vmm_exec/vmm_exec_kvm.conf` settings (same format as `oned_conf`).                                       |
+| `kvmrc`             | `dict` | undefined     | (check below) | Extra `/var/lib/one/remotes/etc/vmm/kvm/kvmrc` shell variables (flat `NAME: value`, `null` unsets).                      |
+| `sched_drs`         | `dict` | undefined     | (check below) | OpenNebula Distributed Resource Scheduler configuration.                                                                |
+| `auth.default`      | `str`  | `null`        |               | Pick default auth mechanism (currently only `ldap` is supported in one-deploy).                                         |
+| `auth.ldap.config`  | `dict` | `{}`          | (check below) | LDAP authentication config (/etc/one/auth/ldap_auth.conf).                                                              |
+| `auth.ldap.mapping` | `dict` | `{}`          | (check below) | LDAP authentication group mapping (manually defined).                                                                   |
 
 > **Note:** Typed variables (`gate_endpoint`, `sched_rank`, `sched_drs`, `auth.*`, ...) are used where
 > one-deploy derives, validates or converts values. The generic `oned_conf`, `kvm_conf` and `kvmrc` dicts are
@@ -52,6 +53,24 @@ Dependencies
 
 Example Playbook
 ----------------
+
+Multiple VIPs can be configured with `one_vips`:
+
+    one_vips:
+      - address: 10.11.12.13
+        cidr: 24
+        interface: eth0
+      - address: 10.11.13.13
+        cidr: 24
+        interface: eth1
+
+Alternatively, if all VIPs use the same interface and CIDR prefix:
+
+    one_vip_if: eth0
+    one_vip_cidr: 24
+    one_vips:
+      - 10.11.12.13
+      - 10.11.12.14
 
     - hosts: frontend
       vars:
