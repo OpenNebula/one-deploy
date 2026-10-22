@@ -72,3 +72,37 @@
           until: shell is success
           retries: 12
           delay: 5
+
+        - when: host_template | length > 0
+          block:
+            - name: Get KVM host template
+              ansible.builtin.command:
+                cmd: onehost list --json
+              changed_when: false
+              register: host_list
+
+            - name: Update KVM host template attributes
+              ansible.builtin.shell:
+                cmd: |
+                  set +o errexit -o pipefail
+                  TEMPLATE="$(mktemp)"
+                  tee "$TEMPLATE"
+                  cat "$TEMPLATE" | onehost update '{{ _host_name }}' -a "$TEMPLATE"; RC="$?"
+                  rm -f "$TEMPLATE"
+                  exit "$RC"
+                stdin: |
+                  {{ host_template | opennebula.deploy.to_one }}
+                executable: /bin/bash
+              changed_when: true
+              when: _updated | opennebula.deploy.to_one
+                    !=
+                    _current | opennebula.deploy.to_one
+              vars:
+                _host_name: >-
+                  {{ ansible_host | d(inventory_hostname) }}
+                _hosts: >-
+                  {{ [(host_list.stdout | from_json).HOST_POOL.HOST | d([])] | flatten }}
+                _current: >-
+                  {{ (_hosts | selectattr('NAME', '==', _host_name) | first).TEMPLATE | d({}) }}
+                _updated: >-
+                  {{ _current | combine(host_template, recursive=true) }}
