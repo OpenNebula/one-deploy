@@ -247,6 +247,15 @@
   notify:
     - Sync Remotes
 
+- name: Configure QEMU Guest Agent monitoring (custom guestagent_conf)
+  opennebula.deploy.cfgtool:
+    dest: /var/lib/one/remotes/etc/im/kvm-probes.d/guestagent.conf
+    parser: Yaml
+    actions: "{{ guestagent_conf | d({}) | opennebula.deploy.to_actions }}"
+  when: guestagent_conf | d({}) | count > 0
+  notify:
+    - Sync Remotes
+
 - name: Handle the keep_empty_bridge VNM setting
   opennebula.deploy.cfgtool:
     dest: /var/lib/one/remotes/etc/vnm/OpenNebulaNetwork.conf
