@@ -19,8 +19,11 @@ python3_os_packages:
          if (python3_pip_packages.RedHat | select | count > 0) else
          None }}
   Suse:
+    # NOTE: SLES 15 does not ship pythonXYZ-ruamel.yaml, it is installed via pip instead.
     - >-
-      {{ (ansible_python_interpreter | basename | replace('.', '')) ~ '-ruamel.yaml' }}
+      {{ ((ansible_python_interpreter | basename | replace('.', '')) ~ '-ruamel.yaml')
+         if not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15') else
+         None }}
     - >-
       {{ ((ansible_python_interpreter | basename | replace('.', '')) ~ '-pip')
          if (python3_pip_packages.Suse | select | count > 0) else
@@ -37,4 +40,8 @@ python3_pip_packages:
       {{ 'ruamel.yaml'
          if (ansible_python_interpreter | basename) != 'python3' else
          None }}
-  Suse: []
+  Suse:
+    - >-
+      {{ 'ruamel.yaml'
+         if (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15') else
+         None }}

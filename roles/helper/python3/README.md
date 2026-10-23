@@ -32,11 +32,11 @@ Example Playbook
         python3_os_packages:
           Debian: []
           RedHat: []
-          Suse: [python313-ruamel.yaml]
+          Suse: [python313-ruamel.yaml] # SLES 15: [python311-pip]
         python3_pip_packages:
           Debian: []
           RedHat: []
-          Suse: []
+          Suse: [] # SLES 15: [ruamel.yaml]
       roles:
         - role: opennebula.deploy.helper.python3 # install interpreter only
         - role: opennebula.deploy.helper.facts   # provide the 'setup' fact

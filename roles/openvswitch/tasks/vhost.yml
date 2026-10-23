@@ -4,6 +4,7 @@
       Debian: false
       RedHat: true
       Suse: true
+      SLES: "{{ ansible_distribution_major_version != '15' }}"
     _has_selinux: >-
       {{ _selinux_os[ansible_distribution] | d(_selinux_os[ansible_os_family]) }}
   block:

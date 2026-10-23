@@ -51,6 +51,10 @@ N/A
 Notes
 -----
 
+In SLES 15 the Desktop Applications and Public Cloud modules and the SUSE Package Hub extension
+are registered by default (`sle-module-desktop-applications`, `sle-module-public-cloud`,
+`PackageHub`, all for `15.<SP>/<arch>`).
+
 In SLES 16 only the SUSE Package Hub extension is registered by default (`PackageHub/16.0/<arch>`).
 The optional `python313-pyone` bindings additionally require `python313-grpcio`, which is only
 available in the SUSE HA Extension (`sle-ha/16.0/<arch>`, extra registration code). If you need
