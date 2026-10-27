@@ -1,0 +1,19 @@
+---
+opennebula_default_hooks:
+  - NAME: autostart-host
+    TYPE: state
+    COMMAND: autostart/host
+    ARGUMENTS: $TEMPLATE
+    ARGUMENTS_STDIN: 'yes'
+    RESOURCE: HOST
+    STATE: MONITORED
+
+  - NAME: autostart-vm
+    TYPE: state
+    COMMAND: autostart/vm
+    ARGUMENTS: $TEMPLATE
+    ARGUMENTS_STDIN: 'yes'
+    RESOURCE: VM
+    STATE: POWEROFF
+    LCM_STATE: LCM_INIT
+    'ON': CUSTOM
