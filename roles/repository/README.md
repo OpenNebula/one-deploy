@@ -51,9 +51,11 @@ N/A
 Notes
 -----
 
-In SLES 15 the Desktop Applications and Public Cloud modules and the SUSE Package Hub extension
-are registered by default (`sle-module-desktop-applications`, `sle-module-public-cloud`,
-`PackageHub`, all for `15.<SP>/<arch>`).
+In SLES 15 the Desktop Applications, Public Cloud and Web and Scripting modules and the SUSE
+Package Hub extension are registered by default (`sle-module-desktop-applications`,
+`sle-module-public-cloud`, `sle-module-web-scripting`, `PackageHub`, all for `15.<SP>/<arch>`).
+The Web and Scripting Module provides `nodejs24` required by FireEdge (SLES 15 SP7 with
+maintenance updates applied).
 
 In SLES 16 only the SUSE Package Hub extension is registered by default (`PackageHub/16.0/<arch>`).
 The optional `python313-pyone` bindings additionally require `python313-grpcio`, which is only
