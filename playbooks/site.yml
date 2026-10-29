@@ -131,6 +131,9 @@
     - role: helper/vmdns
       tags: [vmdns]
 
+    - role: opennebula/hooks
+      tags: [hooks]
+
 - hosts: "{{ node_group | d('node') }}"
   tags: [node, stage2]
   collections:

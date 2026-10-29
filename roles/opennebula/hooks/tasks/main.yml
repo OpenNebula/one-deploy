@@ -1,0 +1,84 @@
+---
+- name: Validate hook names
+  ansible.builtin.assert:
+    that:
+      - opennebula_custom_hooks is sequence
+      - opennebula_custom_hooks is not string
+      - opennebula_custom_hooks | select('mapping') | list | length == opennebula_custom_hooks | length
+      - _hooks | map(attribute='NAME') | select('defined') | list | length == _hooks | length
+      - _hooks | map(attribute='NAME') | select('string') | list | length == _hooks | length
+      - _hooks | map(attribute='NAME') | reject('equalto', '') | list | length == _hooks | length
+      - _hooks | map(attribute='NAME') | list | unique | list | length == _hooks | length
+    fail_msg: Each hook must be a mapping with a nonempty, unique NAME.
+  vars:
+    _hooks: "{{ opennebula_default_hooks + opennebula_custom_hooks }}"
+
+- name: Validate custom hook script list
+  ansible.builtin.assert:
+    that:
+      - opennebula_hook_scripts is sequence
+      - opennebula_hook_scripts is not string
+    fail_msg: opennebula_hook_scripts must be a list.
+
+- name: Validate custom hook scripts
+  ansible.builtin.assert:
+    that:
+      - item is mapping
+      - item.src is defined
+      - item.src is string
+      - item.src | length > 0
+      - item.dest is defined
+      - item.dest is string
+      - item.dest | length > 0
+      - not item.dest.startswith('/')
+      - not item.dest.split('/') | intersect(['', '.', '..'])
+    fail_msg: Script entries need a src and a safe path relative to the hooks directory.
+  loop: "{{ opennebula_hook_scripts }}"
+  loop_control:
+    label: "{{ item.dest | default('<missing dest>') }}"
+
+- name: Create custom hook script directories
+  ansible.builtin.file:
+    path: "/var/lib/one/remotes/hooks/{{ item.dest | dirname }}"
+    state: directory
+    owner: 9869
+    group: 9869
+    mode: u=rwx,g=rx,o=
+  loop: "{{ opennebula_hook_scripts }}"
+  loop_control:
+    label: "{{ item.dest | dirname }}"
+  when: item.dest | dirname != '.'
+
+- name: Install custom hook scripts on each frontend
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "/var/lib/one/remotes/hooks/{{ item.dest }}"
+    owner: 9869
+    group: 9869
+    mode: u=rwx,g=rx,o=
+  loop: "{{ opennebula_hook_scripts }}"
+  loop_control:
+    label: "{{ item.dest }}"
+
+- name: Register hooks from one frontend
+  ansible.builtin.shell:
+    cmd: |
+      set -o errexit
+      if onehook show {{ item.NAME | quote }} >/dev/null 2>&1; then
+        exit 0
+      fi
+
+      template="$(mktemp)"
+      trap 'rm -f "$template"' EXIT
+      cat > "$template"
+      onehook create "$template"
+      exit 78
+    stdin: "{{ item | opennebula.deploy.to_one }}"
+    executable: /bin/bash
+  register: hook_result
+  changed_when: hook_result.rc == 78
+  failed_when: hook_result.rc not in [0, 78]
+  loop: "{{ opennebula_default_hooks + opennebula_custom_hooks }}"
+  loop_control:
+    label: "{{ item.NAME }}"
+  when: inventory_hostname == ansible_play_hosts_all[0]
