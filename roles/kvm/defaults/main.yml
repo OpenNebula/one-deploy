@@ -1,6 +1,7 @@
 ---
 disable_default_net: true
 libvirtd_args: ""
+host_template: {}
 
 hv_types:
   kvm:
