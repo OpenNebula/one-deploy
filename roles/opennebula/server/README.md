@@ -31,6 +31,7 @@ Role Variables
 | `admin_pubkey`      | `str`  | loaded        | (check below) | SSH pubkey loaded from `/var/lib/one/.ssh/id_rsa.pub`, provided by the user (as string) or ignored when `null`. |
 | `sched_rank`        | `dict` | undefined     | (check below) | Rank scheduler configuration.                                                                                   |
 | `oned_conf`         | `dict` | undefined     | (check below) | Extra `/etc/one/oned.conf` settings, keys are "/"-separated paths, values inserted verbatim (quote strings).    |
+| `monitord_conf`     | `dict` | undefined     | (check below) | Extra `/etc/one/monitord.conf` settings (same format as `oned_conf`).                                           |
 | `kvm_conf`          | `dict` | undefined     | (check below) | Extra `/etc/one/vmm_exec/vmm_exec_kvm.conf` settings (same format as `oned_conf`).                              |
 | `kvmrc`             | `dict` | undefined     | (check below) | Extra `/var/lib/one/remotes/etc/vmm/kvm/kvmrc` shell variables (flat `NAME: value`, `null` unsets).             |
 | `guestagent_conf`   | `dict` | undefined     | (check below) | QEMU Guest Agent monitoring settings in `/var/lib/one/remotes/etc/im/kvm-probes.d/guestagent.conf`.             |
@@ -40,13 +41,15 @@ Role Variables
 | `auth.ldap.mapping` | `dict` | `{}`          | (check below) | LDAP authentication group mapping (manually defined).                                                           |
 
 > **Note:** Typed variables (`gate_endpoint`, `sched_rank`, `sched_drs`, `auth.*`, ...) are used where
-> one-deploy derives, validates or converts values. The generic `oned_conf`, `kvm_conf`, `kvmrc` and
-> `guestagent_conf` dicts are a pass-through for other settings. For the OpenNebula-template style files
-> (`oned_conf`, `kvm_conf`), keys are "/"-separated paths and strings must carry their own quotes
-> (`LOG_CALL_FORMAT: '"Req:%i ..."'`). `kvmrc` uses plain shell variable names. `guestagent_conf` uses
-> "/"-separated paths into its YAML file and retains YAML value types. For `oned_conf`, `kvm_conf` and
-> `kvmrc`, a `null` value drops the attribute. Prefer a typed variable when one exists; settings managed
-> by typed variables are rejected in the generic dicts.
+> one-deploy derives, validates or converts values. The generic `oned_conf`, `monitord_conf`, `kvm_conf`,
+> `kvmrc` and `guestagent_conf` dicts are a pass-through for other settings. For the OpenNebula-template
+> style files (`oned_conf`, `monitord_conf`, `kvm_conf`), keys are "/"-separated paths and strings must carry
+> their own quotes (`LOG_CALL_FORMAT: '"Req:%i ..."'`). `kvmrc` uses plain shell variable names and values
+> are written as-is. `guestagent_conf` uses "/"-separated paths into its YAML file and retains YAML value
+> types. For `oned_conf`, `monitord_conf`, `kvm_conf` and `kvmrc`, a `null` value drops the attribute (or
+> the whole vector). Prefer a typed variable when one exists; settings it manages are rejected in the
+> generic dicts. In `monitord_conf`, use `monitor_address` for `NETWORK/MONITOR_ADDRESS`; the bare `NETWORK`
+> key is also reserved to protect it.
 
 To enable QEMU Guest Agent monitoring and add a command for Ubuntu 22.04 and 24.04 VMs, set:
 
@@ -103,6 +106,11 @@ Example Playbook
           RAFT/ELECTION_TIMEOUT_MS: 7000
           RAFT/BROADCAST_TIMEOUT_MS: 800
           DEFAULT_COST: null # drop the setting
+        monitord_conf:
+          NETWORK/ADDRESS: '"::"'
+          NETWORK/THREADS: 12
+          LOG/debug_level: 4
+          VM_MONITORING_EXPIRATION_TIME: null # drop the setting
         kvm_conf:
           DISK/DRIVER: '"qcow2"'
           DISK/CACHE: '"writethrough"'
