@@ -62,6 +62,55 @@ ovs-vsctl --no-headings --columns=name find Bridge 'external_ids:one-deploy-br!=
     fi
 done
 
+# --- Networking cleanup
+
+if type -p netplan &>/dev/null && netplan status -f json | jq -re '."netplan-global-state"."online"' &>/dev/null; then
+    log 'Unmanaging interfaces in Netplan'
+{% for iface in _vlan_ifaces_to_cleanup %}
+    : '{{ iface }}'
+    if [[ -d '/sys/class/net/{{ iface }}' ]]; then
+        log 'Unmanaging/Deleting {{ iface }}'
+        netplan set 'network.vlans.{{ iface.replace('.', '\.') }}=null' || log 'WARNING: Failed to unmanage/delete {{ iface }}'
+    fi
+{% endfor %}
+{% for iface in ovs.iface.keys() %}
+    : '{{ iface }}'
+    if [[ -d '/sys/class/net/{{ iface }}' ]]; then
+        log 'Unmanaging/Deleting {{ iface }}'
+        netplan set 'network.ethernets.{{ iface }}=null' || log 'WARNING: Failed to unmanage/delete {{ iface }}'
+    fi
+{% endfor %}
+fi
+
+if type -p nmcli systemctl &>/dev/null && systemctl is-active --quiet NetworkManager; then
+    log 'Unmanaging interfaces in NetworkManager'
+{% for iface in _vlan_ifaces_to_cleanup %}
+    : '{{ iface }}'
+    if [[ -d '/sys/class/net/{{ iface }}' ]]; then
+        log 'Unmanaging/Deleting {{ iface }}'
+        if CON="$(nmcli -g GENERAL.CONNECTION device show '{{ iface }}')"; then
+            nmcli connection delete "$CON" || log 'WARNING: Failed to unmanage/delete {{ iface }}'
+        fi
+    fi
+{% endfor %}
+{% for iface in ovs.iface.keys() %}
+    : '{{ iface }}'
+    if [[ -d '/sys/class/net/{{ iface }}' ]]; then
+        log 'Unmanaging/Deleting {{ iface }}'
+        nmcli device set '{{ iface }}' managed no || log 'WARNING: Failed to unmanage/delete {{ iface }}'
+    fi
+{% endfor %}
+fi
+
+log 'Deleting leftover VLAN interfaces'
+{% for iface in _vlan_ifaces_to_cleanup %}
+: '{{ iface }}'
+if [[ -d '/sys/class/net/{{ iface }}' ]]; then
+    log 'Deleting {{ iface }}'
+    ip link delete '{{ iface }}' || log 'WARNING: Failed to delete {{ iface }}'
+fi
+{% endfor %}
+
 # --- Bridge creation
 
 {% for br in ovs.br %}
