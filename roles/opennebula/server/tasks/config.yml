@@ -196,7 +196,8 @@
     - Sync Remotes
   when: unsafe_migrations | bool is true
 
-# Generic overrides: oned_conf/kvm_conf keys are "/"-separated paths (e.g. "HOOK_LOG_CONF/LOG_RETENTION")
+# Generic overrides: oned_conf/monitord_conf/kvm_conf keys are "/"-separated paths
+# (e.g. "HOOK_LOG_CONF/LOG_RETENTION")
 # with values inserted verbatim (quote strings: '"value"'), kvmrc keys are plain shell variable names;
 # null drops the key.
 - name: Make sure custom overrides do not touch settings managed by one-deploy
@@ -204,7 +205,8 @@
     that: _clashes | count == 0
     fail_msg: >-
       Settings {{ _clashes }} are managed by one-deploy (DB, ONEGATE_ENDPOINT, FEDERATION, RAFT hooks,
-      AUTH_MAD, MIGRATE_OPTIONS), please use the dedicated variables instead of oned_conf/kvmrc.
+      AUTH_MAD, NETWORK/MONITOR_ADDRESS, MIGRATE_OPTIONS), please use the dedicated variables instead
+      of generic config overrides.
   vars:
     _managed:
       oned_conf: [DB, ONEGATE_ENDPOINT, FEDERATION, RAFT_LEADER_HOOK, RAFT_FOLLOWER_HOOK, AUTH_MAD]
@@ -217,6 +219,11 @@
             {%- set _ = out.append(var ~ ':' ~ key) -%}
           {%- endif -%}
         {%- endfor -%}
+      {%- endfor -%}
+      {%- for key in (monitord_conf | d({})).keys() -%}
+        {%- if key in ['NETWORK', 'NETWORK/MONITOR_ADDRESS'] -%}
+          {%- set _ = out.append('monitord_conf:' ~ key) -%}
+        {%- endif -%}
       {%- endfor -%}
       {{ out }}
 
@@ -318,6 +325,15 @@
   vars:
     _monitor_address: >-
       {{ one_vip if monitor_address is undefined and one_vip is defined else monitor_address }}
+  notify:
+    - Restart OpenNebula
+
+- name: Configure monitord (custom monitord_conf)
+  opennebula.deploy.cfgtool:
+    dest: /etc/one/monitord.conf
+    parser: One
+    actions: "{{ monitord_conf | d({}) | opennebula.deploy.to_actions }}"
+  when: monitord_conf | d({}) | count > 0
   notify:
     - Restart OpenNebula
 

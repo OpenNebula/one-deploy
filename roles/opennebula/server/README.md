@@ -31,6 +31,7 @@ Role Variables
 | `admin_pubkey`      | `str`  | loaded        | (check below) | SSH pubkey loaded from `/var/lib/one/.ssh/id_rsa.pub`, provided by the user (as string) or ignored when `null`. |
 | `sched_rank`        | `dict` | undefined     | (check below) | Rank scheduler configuration.                                                                                   |
 | `oned_conf`         | `dict` | undefined     | (check below) | Extra `/etc/one/oned.conf` settings, keys are "/"-separated paths, values inserted verbatim (quote strings).    |
+| `monitord_conf`     | `dict` | undefined     | (check below) | Extra `/etc/one/monitord.conf` settings (same format as `oned_conf`).                                           |
 | `kvm_conf`          | `dict` | undefined     | (check below) | Extra `/etc/one/vmm_exec/vmm_exec_kvm.conf` settings (same format as `oned_conf`).                              |
 | `kvmrc`             | `dict` | undefined     | (check below) | Extra `/var/lib/one/remotes/etc/vmm/kvm/kvmrc` shell variables (flat `NAME: value`, `null` unsets).             |
 | `sched_drs`         | `dict` | undefined     | (check below) | OpenNebula Distributed Resource Scheduler configuration.                                                        |
@@ -39,11 +40,13 @@ Role Variables
 | `auth.ldap.mapping` | `dict` | `{}`          | (check below) | LDAP authentication group mapping (manually defined).                                                           |
 
 > **Note:** Typed variables (`gate_endpoint`, `sched_rank`, `sched_drs`, `auth.*`, ...) are used where
-> one-deploy derives, validates or converts values. The generic `oned_conf`, `kvm_conf` and `kvmrc` dicts are
-> a verbatim pass-through for anything else: for the OpenNebula-template style files (`oned_conf`, `kvm_conf`)
+> one-deploy derives, validates or converts values. The generic `oned_conf`, `monitord_conf`, `kvm_conf` and `kvmrc` dicts are
+> a verbatim pass-through for anything else: for the OpenNebula-template style files (`oned_conf`, `monitord_conf`, `kvm_conf`)
 > keys are "/"-separated paths into the file and strings must carry their own quotes
 > (`LOG_CALL_FORMAT: '"Req:%i ..."'`); `kvmrc` is a shell rc file, so keys are plain variable names and
-> values are written as-is. A `null` value drops the attribute (or the whole vector). Prefer the typed variable when one exists, settings they manage are rejected in the generic dicts.
+> values are written as-is. A `null` value drops the attribute (or the whole vector). Prefer the typed variable
+> when one exists; settings it manages are rejected in the generic dicts. In `monitord_conf`, use
+> `monitor_address` for `NETWORK/MONITOR_ADDRESS`; the bare `NETWORK` key is also reserved to protect it.
 
 Dependencies
 ------------
@@ -86,6 +89,11 @@ Example Playbook
           RAFT/ELECTION_TIMEOUT_MS: 7000
           RAFT/BROADCAST_TIMEOUT_MS: 800
           DEFAULT_COST: null # drop the setting
+        monitord_conf:
+          NETWORK/ADDRESS: '"::"'
+          NETWORK/THREADS: 12
+          LOG/debug_level: 4
+          VM_MONITORING_EXPIRATION_TIME: null # drop the setting
         kvm_conf:
           DISK/DRIVER: '"qcow2"'
           DISK/CACHE: '"writethrough"'
