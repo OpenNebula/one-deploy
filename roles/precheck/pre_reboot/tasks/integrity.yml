@@ -106,6 +106,22 @@
           Please make sure each cluster member can resolve all Front-end hostnames
           (you could try enabling both ensure_hostname and ensure_hosts as a workaround).
 
+- block:
+    - name: Check one_hostname values are resolvable (when overridden in inventory)
+      ansible.builtin.getent:
+        database: ahosts
+        key: "{{ hostvars[item].one_hostname }}"
+        fail_key: true
+      when: hostvars[item].one_hostname is defined
+      loop: "{{ groups[node_group | d('node')] | d([]) }}"
+      loop_control:
+        label: "{{ item }}"
+  rescue:
+    - ansible.builtin.fail:
+        msg: |
+          Please make sure each cluster member can resolve all one_hostname values
+          (you could try enabling ensure_hosts as a workaround).
+
 - name: Assert that :order and :match_user_regex are not used together
   ansible.builtin.assert:
     that: (auth.ldap.config is undefined)

@@ -20,7 +20,7 @@ Role Variables
 Dependencies
 ------------
 
-N/A
+- opennebula.deploy.common
 
 Example Playbook
 ----------------

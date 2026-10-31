@@ -1,4 +1,6 @@
 ---
+one_hostname: "{{ ansible_host | d(inventory_hostname) }}"
+
 features_defaults:
   gate: true
   flow: true

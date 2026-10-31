@@ -70,7 +70,7 @@
         executable: /bin/bash
       vars:
         _this: >-
-          {{ ansible_host | d(inventory_hostname) }}
+          {{ one_hostname }}
       register: shell_enable_hv
       changed_when:
         - shell_enable_hv.rc in [78]
