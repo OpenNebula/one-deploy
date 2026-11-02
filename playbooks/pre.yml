@@ -83,6 +83,9 @@
   collections:
     - opennebula.deploy
   roles:
+    - role: helper/slices
+      tags: [slices]
+
     # NOTE: PCI/SR-IOV management is limited to HV nodes exclusively.
     - role: helper/pci
       tags: [pci, pci_passthrough]
