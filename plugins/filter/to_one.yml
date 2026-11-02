@@ -14,7 +14,7 @@ DOCUMENTATION:
       type: dict
       required: true
   author:
-    - Michal Opala (@sk4zuzu)
+    - OpenNebula Systems
 
 EXAMPLES: |
   - name: Multiple NIC conversion example

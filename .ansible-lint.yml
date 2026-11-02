@@ -1,7 +1,4 @@
 ---
-exclude_paths:
-  - vendor/
-
 skip_list:
   - fqcn[keyword]
   - name[missing]

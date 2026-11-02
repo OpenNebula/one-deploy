@@ -24,7 +24,7 @@ DOCUMENTATION:
       type: string
       required: false
   author:
-    - Michal Opala (@sk4zuzu)
+    - OpenNebula Systems
 
 EXAMPLES: |
   - name: Match MAC address

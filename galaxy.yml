@@ -26,6 +26,5 @@ issues: https://github.com/OpenNebula/one-deploy/issues
 
 build_ignore:
   - .gitignore
-  - .env.yml
   - inventory
   - ansible_collections
