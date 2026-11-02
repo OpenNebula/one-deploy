@@ -1,0 +1,51 @@
+---
+- vars:
+    _non_isolated_cpus: >-
+      {{ slices.cpus.dpdk | reject('in', numa_query.cpus.isolated) }}
+
+    _sibling_cpus: >-
+      {{ slices.cpus.dpdk | map('extract', numa_query.cpus.to_siblings)
+                          | flatten
+                          | reject('in', slices.cpus.dpdk) }}
+  block:
+    - name: Ensure first CPU in each NUMA node is never isolated (DPDK)
+      ansible.builtin.assert:
+        that: _protected_cpus | reject('in', slices.cpus.dpdk) == _protected_cpus
+        fail_msg: >-
+          CPUs {{ _protected_cpus }} must not be isolated (DPDK).
+
+    - name: Assert various DPDK conditions
+      ansible.builtin.set_fact:
+        slices: >-
+          {{ slices | d({}) | combine(_slices, recursive=true) }}
+      vars:
+        _slices:
+          errors: >-
+            {{ slices.errors | d([]) + [item.fail_msg] }}
+      when: not item.that
+      loop:
+        - name: Assert that CPUs are isolated in kernel (DPDK)
+          that: >-
+            {{ _non_isolated_cpus | count == 0 }}
+          fail_msg: >-
+            Non-isolated DPDK CPUs {{ _non_isolated_cpus }}.
+
+        - name: Assert that CPUs are isolated together with siblings (DPDK)
+          that: >-
+            {{ _sibling_cpus | count == 0 }}
+          fail_msg: >-
+            Non-isolated sibling DPDK CPUs {{ _sibling_cpus }}.
+
+        - name: Assert that there are enough hugepages (DPDK)
+          that: >-
+            {%- set output = [] %}
+            {%- for k, v in slices.pages.claimed.items() -%}
+              {{-
+                output.append(
+                  (v | int) <= (numa_query.numa.get(k).pages.get(slices_hugepagesz).present | int)
+                )
+              -}}
+            {%- endfor -%}
+            {{- output is all -}}
+          fail_msg: >-
+            Not enough hugepages for DPDK.

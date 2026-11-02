@@ -360,6 +360,7 @@
           [Service]
           ExecStartPost=/bin/sleep 2
           ExecStartPost=/usr/bin/ovs-appctl -t ovs-vswitchd vlog/set syslog:info
+          Slice=dpdk.slice
       register: copy_override_conf
 
     - name: Enable / (Re)Start OVS (NOW)

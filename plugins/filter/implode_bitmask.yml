@@ -1,0 +1,40 @@
+---
+# Copyright: OpenNebula Project, OpenNebula Systems
+# Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+DOCUMENTATION:
+  name: implode_bitmask
+  short_description: Convert indices to bitmask.
+  description:
+    - Convert bit indices to a bitmask string.
+  options:
+    _input:
+      description:
+        - String or list containing indices to convert.
+      type: raw
+      required: true
+    base:
+      description:
+        - Numeral system base.
+      type: int
+      choices: [2, 8, 10, 16]
+      default: 16
+      required: false
+  author:
+    - OpenNebula Systems
+
+EXAMPLES: |
+  # '11,1,2,10' -> '0xc06'
+  # '11,1-2,10' -> '0xc06'
+  # ['11', '1', '2', '10'] -> '0xc06'
+  - name: Conversion example
+    ansible.builtin.debug:
+      msg: |
+        {{ '11,1,2,10' | opennebula.deploy.implode_bitmask }}
+        {{ '11,1-2,10' | opennebula.deploy.implode_bitmask }}
+        {{ ['11', '1', '2', '10'] | opennebula.deploy.implode_bitmask }}
+
+RETURN:
+  _value:
+    description: String representing bitmask in desired base.
+    type: str

@@ -1,0 +1,62 @@
+---
+- vars:
+    _non_isolated_cpus: >-
+      {{ slices.cpus.infra | reject('in', numa_query.cpus.isolated) }}
+
+    _sibling_cpus: >-
+      {{ slices.cpus.infra | map('extract', numa_query.cpus.to_siblings)
+                           | flatten
+                           | reject('in', slices.cpus.infra) }}
+  block:
+    - name: Ensure vcpu_pinned is non-empty
+      ansible.builtin.assert:
+        that: not _infra_cpu_pinned
+              or
+              (vcpu_pinned is string and vcpu_pinned | length > 0)
+        fail_msg: >-
+          Value of 'vcpu_pinned' must not be empty for FE-VM pinning.
+
+    - name: Ensure first CPU in each NUMA node is never isolated (FE-VM)
+      ansible.builtin.assert:
+        that: not _infra_cpu_pinned
+              or
+              _protected_cpus | reject('in', slices.cpus.infra) == _protected_cpus
+        fail_msg: >-
+          CPUs {{ _protected_cpus }} must not be isolated (FE-VM).
+          Please adjust the value of the 'vcpu_pinned' variable.
+
+    - name: Assert various FE-VM conditions
+      ansible.builtin.set_fact:
+        slices: >-
+          {{ slices | d({}) | combine(_slices, recursive=true) }}
+      vars:
+        _slices:
+          errors: >-
+            {{ slices.errors | d([]) + [item.fail_msg] }}
+      when: not item.that
+      loop:
+        - name: Assert that CPUs are isolated in kernel (FE-VM)
+          that: >-
+            {{ not _infra_cpu_pinned or _non_isolated_cpus | count == 0 }}
+          fail_msg: >-
+            Non-isolated FE-VM CPUs {{ _non_isolated_cpus }}.
+
+        - name: Assert that CPUs are isolated together with siblings (FE-VM)
+          that: >-
+            {{ not _infra_cpu_pinned or _sibling_cpus | count == 0 }}
+          fail_msg: >-
+            Non-isolated FE-VM sibling CPUs {{ _sibling_cpus }}.
+
+        - name: Assert that there are enough hugepages (FE-VM)
+          that: >-
+            {%- set output = [] %}
+            {%- for k, v in slices.pages.claimed.items() -%}
+              {{-
+                output.append(
+                  (v | int) <= (numa_query.numa.get(k).pages.get(slices_hugepagesz).present | int)
+                )
+              -}}
+            {%- endfor -%}
+            {{- not _infra_mem_pinned or output is all -}}
+          fail_msg: >-
+            Not enough hugepages for FE-VMs.

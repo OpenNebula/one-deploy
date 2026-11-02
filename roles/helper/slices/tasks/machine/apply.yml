@@ -1,0 +1,18 @@
+---
+- name: Pre-configure machine.slice (file)
+  ansible.builtin.file:
+    dest: /etc/systemd/system/machine.slice.d/
+    state: directory
+    owner: 0
+    group: 0
+    mode: u=rwx,go=rx
+
+- name: Pre-configure machine.slice (copy)
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/machine.slice.d/override.conf
+    owner: 0
+    group: 0
+    mode: u=rw,go=r
+    content: |
+      [Slice]
+      AllowedCPUs={{ numa_query.cpus.system | map('int') | sort | join(',') }}

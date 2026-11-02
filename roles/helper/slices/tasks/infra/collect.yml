@@ -1,0 +1,93 @@
+---
+- vars:
+    # Isolated CPUs are *shared* in case of multiple FE VMs are deployed on a single HV.
+    _cpus_to_pin: >-
+      {{ vcpu_pinned | opennebula.deploy.explode_ranges(split=true) }}
+
+    # In case of *unpinned* variants only the NUMA node 0 is used (which still allows using hugepages for FE-VMs).
+    _numa_nodes: >-
+      {{ _cpus_to_pin | map('extract', numa_query.cpus.to_numa)
+                      | unique
+                      | d(['0'], true) }}
+
+    # This is MiB count needed for a single FM VM.
+    _memory_per_numa_node: >-
+      {{ (((_frontends | count) * memory_KiB) / 1024) / (_numa_nodes | count) }}
+
+    _frontends: >-
+      {{ groups.get(frontend_group | d('frontend'), []) | map('extract', hostvars)
+                                                        | selectattr('infra_hostname', 'defined')
+                                                        | selectattr('infra_hostname', 'in', [inventory_hostname])
+                                                        | map(attribute='inventory_hostname') }}
+  block:
+    - name: Collect FE VM CPU / Memory requirements
+      ansible.builtin.set_fact:
+        slices: >-
+          {{
+            slices | d({}) | combine(
+              { "pages": _pages, "memory": _memory, "cpus": _cpus },
+              recursive=true
+            )
+          }}
+      vars:
+        _pages:
+          infra: >-
+            {%- set output = [] -%}
+            {%- for k, v in _memory.infra.items() -%}
+              {{-
+                output.append([
+                  k, ((v | float) / (_hugepage_size | float)) | round(0, 'ceil') | int
+                ])
+              -}}
+            {%- endfor -%}
+            {{- output | items2dict(key_name=0, value_name=1) -}}
+          claimed: >-
+            {%- set output = [] -%}
+            {%- for k, v in _memory.claimed.items() -%}
+              {{-
+                output.append([
+                  k, ((v | float) / (_hugepage_size | float)) | round(0, 'ceil') | int
+                ])
+              -}}
+            {%- endfor -%}
+            {{- output | items2dict(key_name=0, value_name=1) -}}
+
+        _memory:
+          infra: >-
+            {%- set output = {} -%}
+            {%- for k in output.keys() | union(_numa_nodes) -%}
+              {{-
+                output.update({
+                  k: _memory_per_numa_node | int
+                })
+              -}}
+            {%- endfor -%}
+            {{- output -}}
+          claimed: >-
+            {%- set output = slices.memory.claimed | d({}) -%}
+            {%- for k in output.keys() | union(_numa_nodes) -%}
+              {{-
+                output.update({
+                  k: [
+                    output.get(k, 0),
+                    _memory_per_numa_node | int
+                  ] | sum
+                })
+              -}}
+            {%- endfor -%}
+            {{- output -}}
+
+        _cpus:
+          infra: >-
+            {{ _cpus_to_pin | map('int')
+                            | sort
+                            | map('string') }}
+          claimed: >-
+            {{ slices.cpus.claimed | d([])
+                                   | union(_cpus_to_pin)
+                                   | map('extract', numa_query.cpus.to_siblings)
+                                   | flatten
+                                   | unique
+                                   | map('int')
+                                   | sort
+                                   | map('string') }}

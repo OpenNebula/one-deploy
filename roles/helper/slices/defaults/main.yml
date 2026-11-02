@@ -1,0 +1,11 @@
+---
+slices_hugepagesz: 1G # or 2M
+
+# Extra hugepages are distributed as evenly as possible across all NUMA nodes.
+# If you don't want this behavior, then please add appropriate config manually instead.
+slices_extra_hugepage_count: 0
+
+# The CPU count is automatically expanded to include SMT siblings.
+# Extra isolated CPUs are distributed as evenly as possible across all NUMA nodes.
+# If you don't want this behavior, then please add appropriate config manually instead.
+slices_extra_cpu_count: 0

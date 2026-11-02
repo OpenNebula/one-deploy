@@ -7,35 +7,52 @@ passthrough_fs: []
 
 infra_bridge: br0
 
-# NOTE: We assume that no more than a single FE VM is deployed on a HV
+# NOTE: We assume that no more than a single FE-VM is deployed on a HV
 #       (which should be considered a regular / default setup).
-#       More FE VMs can be deployed on a HV of course, but in such a case,
+#       More FE-VMs can be deployed on a HV of course, but in such a case,
 #       please handle it directly in your inventory.
 dpdk_socket_path: /var/run/one/vhost-socks/frontend.sock
 
 memory_KiB: 2097152 # 2 GiB
 
-vcpu_static: 1
+# NOTE: In case multiple FE-VMs are to be deployed on the same infra HV
+#       pinned CPUs will be shared.
+vcpu_pinned: ''
+vcpu_static: "{{ vcpu_pinned | opennebula.deploy.explode_ranges(split=true) | select | count | d(1, true) }}"
 vcpu_shares: "{{ ((vcpu_static | int) * 200) | int }}"
 
 infra_xml_variant: default
 
 infra_xml:
-  default:
+  default: # no CPU pinning + no hugepages
     - "{{ infra_xml_base.default }}"
     - "{{ infra_xml_cputune.default }}"
     - "{{ infra_xml_memoryBacking.default }}"
     - "{{ infra_xml_interfaces.default }}"
     - "{{ infra_xml_filesystems.default }}"
-  openvswitch:
+  pinned: # CPU pinning + hugepages
+    - "{{ infra_xml_base.default }}"
+    - "{{ infra_xml_cputune.pinned }}"
+    - "{{ infra_xml_numatune.pinned }}"
+    - "{{ infra_xml_memoryBacking.hugepages }}"
+    - "{{ infra_xml_interfaces.default }}"
+    - "{{ infra_xml_filesystems.default }}"
+  openvswitch: # no CPU pinning + no hugepages
     - "{{ infra_xml_base.default }}"
     - "{{ infra_xml_cputune.default }}"
     - "{{ infra_xml_memoryBacking.default }}"
     - "{{ infra_xml_interfaces.openvswitch }}"
     - "{{ infra_xml_filesystems.default }}"
-  openvswitch_dpdk:
+  openvswitch_dpdk: # no CPU pinning + hugepages
     - "{{ infra_xml_base.default }}"
     - "{{ infra_xml_cputune.default }}"
+    - "{{ infra_xml_memoryBacking.hugepages }}"
+    - "{{ infra_xml_interfaces.openvswitch_dpdk }}"
+    - "{{ infra_xml_filesystems.default }}"
+  openvswitch_dpdk_pinned: # CPU pinning + hugepages
+    - "{{ infra_xml_base.default }}"
+    - "{{ infra_xml_cputune.pinned }}"
+    - "{{ infra_xml_numatune.pinned }}"
     - "{{ infra_xml_memoryBacking.hugepages }}"
     - "{{ infra_xml_interfaces.openvswitch_dpdk }}"
     - "{{ infra_xml_filesystems.default }}"
@@ -46,6 +63,27 @@ infra_xml_cputune:
       <cputune>
         <shares>{{ [vcpu_shares | int, 10000] | min }}</shares>
       </cputune>
+    </domain>
+  pinned: |
+    <domain type='kvm'>
+      <cputune>
+    {% for v in vcpu_pinned | split(',') %}
+        <vcpupin vcpu='{{ loop.index0 }}' cpuset='{{ v }}'/>
+    {% endfor %}
+        <emulatorpin cpuset='{{ vcpu_pinned }}'/>
+      </cputune>
+    </domain>
+
+infra_xml_numatune:
+  pinned: |
+    <domain type='kvm'>
+      <numatune>
+        <memory mode='strict'
+                nodeset='{{ vcpu_pinned | opennebula.deploy.explode_ranges(split=true)
+                                        | map('extract', numa_query.cpus.to_numa)
+                                        | unique
+                                        | join(',') }}'/>
+      </numatune>
     </domain>
 
 infra_xml_memoryBacking:
@@ -142,7 +180,7 @@ infra_xml_base:
       <cpu mode='host-passthrough' check='none' migratable='on'/>
 
       <resource>
-        <partition>/machine</partition>
+        <partition>/infra</partition>
       </resource>
       <os firmware='efi'>
         <type arch='x86_64' machine='q35'>hvm</type>

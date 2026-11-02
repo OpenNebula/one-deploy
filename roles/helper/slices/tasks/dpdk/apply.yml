@@ -1,0 +1,18 @@
+---
+- name: Pre-configure dpdk.slice (file)
+  ansible.builtin.file:
+    dest: /etc/systemd/system/dpdk.slice.d/
+    state: directory
+    owner: 0
+    group: 0
+    mode: u=rwx,go=rx
+
+- name: Pre-configure dpdk.slice (copy)
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/dpdk.slice.d/override.conf
+    owner: 0
+    group: 0
+    mode: u=rw,go=r
+    content: |
+      [Slice]
+      AllowedCPUs={{ slices.cpus.dpdk | map('int') | sort | join(',') }}
