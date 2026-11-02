@@ -19,6 +19,7 @@
     - opennebula.deploy
   roles:
     - role: helper/kernel # NOTE: it may reboot the machine!
+    - role: helper/slices
 
     # The helper/pci role does not require OpenNebula cluster to be established
     # as it operates strictly on the device layer of the underlying OS.
