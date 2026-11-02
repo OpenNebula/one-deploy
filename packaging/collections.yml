@@ -1,0 +1,34 @@
+---
+# Lockfile for the Ansible collections bundled into the opennebula-deploy
+# package (the counterpart of uv.lock for Python dependencies).
+#
+# Keep in sync with ../requirements.yml: every collection listed there must be
+# pinned here, and transitive dependencies are listed explicitly.
+#
+# To refresh the pins:
+#
+#   ansible-galaxy collection download -r requirements.yml -p /tmp/collections
+collections:
+  - name: https://github.com/ansible-collections/ansible.posix.git
+    version: 2.2.2
+    type: git
+
+  - name: https://github.com/ansible-collections/ansible.utils.git
+    version: v6.1.1
+    type: git
+
+  - name: https://github.com/ansible-collections/community.crypto.git
+    version: 3.5.1
+    type: git
+
+  - name: https://github.com/ansible-collections/community.general.git
+    version: 13.5.0
+    type: git
+
+  - name: https://github.com/ansible-collections/community.libvirt.git
+    version: 2.4.0
+    type: git
+
+  - name: https://github.com/ansible-collections/community.library_inventory_filtering.git
+    version: 1.1.5
+    type: git
