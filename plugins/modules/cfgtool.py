@@ -21,7 +21,7 @@ options:
       - Operations to perform inside the file (Match, Get, Put or Drop).
     type: list
 author:
-  - Michal Opala (@sk4zuzu)
+  - OpenNebula Systems
 """
 
 EXAMPLES = r"""

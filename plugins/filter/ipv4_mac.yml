@@ -20,7 +20,7 @@ DOCUMENTATION:
       required: false
       default: '02:01:%02x:%02x:%02x:%02x'
   author:
-    - Michal Opala (@sk4zuzu)
+    - OpenNebula Systems
 
 EXAMPLES: |
   # '10.11.12.13' -> '02:01:0a:0b:0c:0d'
