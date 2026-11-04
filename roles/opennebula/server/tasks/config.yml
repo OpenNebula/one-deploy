@@ -45,7 +45,9 @@
     _gate_endpoint: >-
       {{ gate_endpoint | d(_default) }}
     _default: >-
-      {{ 'http://' ~ (one_vip | d(_host)) ~ ':5030' }}
+      {{ 'http://' ~ _vip ~ ':5030' }}
+    _vip: >-
+      {{ one_vip | d(_host) }}
     _host: >-
       {{ hostvars[federation.groups.frontend[0]].ansible_host }}
   notify:
@@ -270,6 +272,24 @@
 - when:
     - use_ha is true
     - one_vip is defined
+  vars:
+    _one_vips: >-
+      {{ one_vips | d([
+           {
+             "interface": one_vip_if,
+             "address": one_vip,
+             "cidr": one_vip_cidr
+           }
+         ]) }}
+    _one_vip_arguments: >-
+      {%- set output = [] -%}
+      {%- for item in _one_vips -%}
+      {%- set interface = item.interface | d(one_vip_if) if (item is mapping) else one_vip_if -%}
+      {%- set address = item.address if (item is mapping) else item -%}
+      {%- set cidr = item.cidr | d(one_vip_cidr) if (item is mapping) else one_vip_cidr -%}
+      {{- output.append(interface ~ ' ' ~ address ~ '/' ~ cidr) -}}
+      {%- endfor -%}
+      {{- output | join(' ') -}}
   block:
     - when: _hooks is contains('raft/failover.sh')
       vars:
@@ -303,13 +323,13 @@
               value: '"{{ leader_hook }}"'
           - put:
               path: [RAFT_LEADER_HOOK, ARGUMENTS]
-              value: '"leader {{ one_vip_if }} {{ one_vip }}/{{ one_vip_cidr }}"'
+              value: '"leader {{ _one_vip_arguments }}"'
           - put:
               path: [RAFT_FOLLOWER_HOOK, COMMAND]
               value: '"{{ follower_hook }}"'
           - put:
               path: [RAFT_FOLLOWER_HOOK, ARGUMENTS]
-              value: '"follower {{ one_vip_if }} {{ one_vip }}/{{ one_vip_cidr }}"'
+              value: '"follower {{ _one_vip_arguments }}"'
       notify:
         - Restart OpenNebula
 
