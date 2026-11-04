@@ -33,7 +33,7 @@
         _host_pool: >-
           {{ (command.stdout | from_json).HOST_POOL }}
         _this: >-
-          {{ ansible_host | d(inventory_hostname) }}
+          {{ one_hostname }}
         _template: >-
           {{ ([_host_pool.HOST] | flatten
                                 | selectattr('NAME', '==', _this)

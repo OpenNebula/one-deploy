@@ -21,7 +21,7 @@
         executable: /bin/bash
       vars:
         _this: >-
-          {{ ansible_host | d(inventory_hostname) }}
+          {{ one_hostname }}
       register: shell_disable_hv
       changed_when:
         - shell_disable_hv.rc in [78]

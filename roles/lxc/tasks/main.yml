@@ -61,7 +61,7 @@
             _node_names: >-
               {{ [_host_pool.HOST] | flatten | map(attribute='NAME') | list }}
             _this: >-
-              {{ ansible_host | d(inventory_hostname) }}
+              {{ one_hostname }}
             _hv: >-
               {{ node_hv | lower }}
           register: shell

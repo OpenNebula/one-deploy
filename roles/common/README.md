@@ -11,10 +11,11 @@ N/A
 Role Variables
 --------------
 
-| Name      | Type   | Default   | Example       | Description                                            |
-|-----------|--------|-----------|---------------|--------------------------------------------------------|
-| `one_vip` | `str`  | undefined | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. |
-| `leader`  | `str`  | undefined | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. |
+| Name           | Type   | Default        | Example       | Description                                            |
+|----------------|--------|----------------|---------------|--------------------------------------------------------|
+| `one_vip`      | `str`  | undefined      | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. |
+| `leader`       | `str`  | undefined      | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. |
+| `one_hostname` | `str`  | `ansible_host` | `node-1`      | OpenNebula host name of a Node.                        |
 
 Dependencies
 ------------
