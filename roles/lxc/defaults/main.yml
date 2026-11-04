@@ -3,3 +3,6 @@ hv_types:
   lxc:
     im_mad: lxc
     vmm_mad: lxc
+
+onehost:
+  template: {}
