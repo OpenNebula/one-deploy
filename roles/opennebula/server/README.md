@@ -48,22 +48,7 @@ Role Variables
 > are written as-is. `guestagent_conf` uses "/"-separated paths into its YAML file and retains YAML value
 > types. For `oned_conf`, `monitord_conf`, `kvm_conf` and `kvmrc`, a `null` value drops the attribute (or
 > the whole vector). Prefer a typed variable when one exists; settings it manages are rejected in the
-> generic dicts. In `monitord_conf`, use `monitor_address` for `NETWORK/MONITOR_ADDRESS`; the bare `NETWORK`
-> key is also reserved to protect it.
-
-To enable QEMU Guest Agent monitoring and add a command for Ubuntu 22.04 and 24.04 VMs, set:
-
-    guestagent_conf:
-      :enabled: true
-      :commands/:guest_info:
-        :command: 'one-$vm_id ''{"execute":"guest-info"}'' --timeout 5'
-        :os_ids: [ubuntu]
-        :os_versions: ['22.04', '24.04']
-
-Each path updates only that setting, preserving other packaged commands. Changes trigger `onehost sync -f`
-through the role's Sync Remotes handler. The VM template must also enable the `GUEST_AGENT` feature, and
-the guest OS must run the QEMU Guest Agent. See the [OpenNebula KVM driver documentation](https://docs.opennebula.io/7.4/product/operation_references/hypervisor_configuration/kvm_driver/#qemu-guest-agent-monitoring)
-for monitoring behavior and available command filters.
+> generic dicts.
 
 Dependencies
 ------------
@@ -106,19 +91,33 @@ Example Playbook
           RAFT/ELECTION_TIMEOUT_MS: 7000
           RAFT/BROADCAST_TIMEOUT_MS: 800
           DEFAULT_COST: null # drop the setting
+
         monitord_conf:
           NETWORK/ADDRESS: '"::"'
           NETWORK/THREADS: 12
           LOG/debug_level: 4
           VM_MONITORING_EXPIRATION_TIME: null # drop the setting
+
         kvm_conf:
           DISK/DRIVER: '"qcow2"'
           DISK/CACHE: '"writethrough"'
+
+        # NOTE: The VM template must also enable the `GUEST_AGENT` feature, and the guest OS must run the QEMU Guest Agent.
+        #       See the [OpenNebula KVM driver documentation](https://docs.opennebula.io/7.4/product/operation_references/hypervisor_configuration/kvm_driver/#qemu-guest-agent-monitoring)
+        #       for monitoring behavior and available command filters.
+        guestagent_conf:
+          :enabled: true
+          :commands/:guest_info:
+            :command: >-
+              one-$vm_id '{"execute":"guest-info"}' --timeout 5
+            :os_ids: [ubuntu]
+            :os_versions: ['22.04', '24.04']
+
         kvmrc:
           CLEANUP_MEMORY_ON_START: 'yes'
+
         sched_rank:
           DIFFERENT_VNETS: false
-
           DEFAULT_SCHED:
             POLICY: 3
             RANK: "- (RUNNING_VMS * 50  + FREE_CPU)"
@@ -130,10 +129,8 @@ Example Playbook
           DEFAULT_SCHED:
             SOLVER: "CBC"
             SOLVER_PATH: "/usr/lib/one/python/pulp/solverdir/cbc/linux/64/cbc"
-
           PLACE:
             POLICY: "PACK"
-
           OPTIMIZE:
             POLICY: "BALANCE"
             MIGRATION_THRESHOLD: 10
@@ -143,7 +140,6 @@ Example Playbook
               MEMORY: 0.4
               DISK: 0.1
               NET: 0.1
-
       roles:
         - role: opennebula.deploy.helper.facts
         - role: opennebula.deploy.database
