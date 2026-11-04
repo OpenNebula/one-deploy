@@ -54,7 +54,7 @@
           register: command_onehost_list
           when: inventory_hostname == _lxc_nodes.0 # `run_once: true` cannot be used here
 
-        - name: Add / Update this KVM Node
+        - name: Add / Update this LXC Node
           ansible.builtin.shell:
             cmd: |
               set +o errexit -o pipefail
@@ -101,5 +101,5 @@
                            | opennebula.deploy.to_one }}
             _after: >-
               {{ _template | d({})
-                           | combine(onehost.template | d({}))
+                           | combine(onehost.template)
                            | opennebula.deploy.to_one }}

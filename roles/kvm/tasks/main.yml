@@ -110,5 +110,5 @@
                            | opennebula.deploy.to_one }}
             _after: >-
               {{ _template | d({})
-                           | combine(onehost.template | d({}))
+                           | combine(onehost.template)
                            | opennebula.deploy.to_one }}

@@ -11,3 +11,6 @@ hv_types:
     vmm_mad: qemu
 
 node_hv: kvm
+
+onehost:
+  template: {}
