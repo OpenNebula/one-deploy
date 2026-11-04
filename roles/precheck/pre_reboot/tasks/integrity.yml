@@ -58,11 +58,7 @@
     _legacy_vip_ok: >-
       {{ (one_vips is defined) or
          (_legacy_vip_count | int == 0) or
-         (_legacy_vip_count | int == 3) or
-         ((one_vips is defined) and
-          (one_vip is defined) and
-          (one_vip_cidr is undefined) and
-          (one_vip_if is undefined)) }}
+         (_legacy_vip_count | int == 3) }}
     _one_vips_valid: >-
       {%- set output = [] -%}
       {%- for item in one_vips | d([]) -%}
