@@ -11,10 +11,11 @@ N/A
 Role Variables
 --------------
 
-| Name      | Type   | Default   | Example       | Description                                            |
-|-----------|--------|-----------|---------------|--------------------------------------------------------|
-| `leader`  | `str`  | undefined | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. |
-| `node_hv` | `str`  | undefined | `lxc`         | Select `lxc` hypervisor.                               |
+| Name               | Type   | Default   | Example       | Description                                            |
+|--------------------|--------|-----------|---------------|--------------------------------------------------------|
+| `leader`           | `str`  | undefined | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. |
+| `node_hv`          | `str`  | undefined | `lxc`         | Select `lxc` hypervisor.                               |
+| `onehost.template` | `dict` | `{}`      |               | Host template attributes to add or update.             |
 
 Dependencies
 ------------

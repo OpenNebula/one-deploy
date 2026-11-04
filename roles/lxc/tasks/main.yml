@@ -1,5 +1,12 @@
 ---
-- when: node_hv is defined and node_hv in hv_types
+- when: inventory_hostname in _lxc_nodes and _lxc_nodes.0 is defined
+  vars:
+    _lxc_nodes: >-
+      {{ (federation.groups.node | map('extract', hostvars)
+                                 | selectattr('node_hv', 'defined')
+                                 | selectattr('node_hv', 'in', hv_types)
+                                 | map(attribute='inventory_hostname')
+                                 | list) }}
   block:
     - tags: [preinstall]
       block:
@@ -41,30 +48,58 @@
     - delegate_to: "{{ leader }}"
       block:
         - name: Get Nodes
-          ansible.builtin.shell:
+          ansible.builtin.command:
             cmd: onehost list --json
-            executable: /bin/bash
           changed_when: false
-          register: shell
+          register: command_onehost_list
+          when: inventory_hostname == _lxc_nodes.0 # `run_once: true` cannot be used here
 
-        - name: Add this LXC Node to OpenNebula
+        - name: Add / Update this KVM Node
           ansible.builtin.shell:
-            cmd: onehost create '{{ _this }}' -i '{{ hv_types[_hv].im_mad }}' -v '{{ hv_types[_hv].vmm_mad }}'
+            cmd: |
+              set +o errexit -o pipefail
+
+              RC=0
+
+              if [[ "$ACTION" == CREATE_AND_UPDATE ]]; then
+                  onehost create '{{ _this }}' -i '{{ hv_types[_hv].im_mad }}' -v '{{ hv_types[_hv].vmm_mad }}'; RC="$?"
+              fi
+
+              if [[ "$RC" -eq 0 && -n "$AFTER" ]]; then
+                  TEMPLATE="$(mktemp)"; echo "$AFTER" > "$TEMPLATE"
+
+                  cat "$TEMPLATE" | onehost update '{{ _this }}' -a "$TEMPLATE"; RC="$?"
+
+                  rm -f "$TEMPLATE"
+              fi
+
+              exit "$RC"
             executable: /bin/bash
+          environment:
+            ACTION: "{{ _action }}"
+            AFTER: "{{ _after }}"
           changed_when: true
-          when: _host_pool is falsy or _this not in _node_names
+          when: _action == 'CREATE_AND_UPDATE'
+                or
+                _after != _before
           vars:
-            _document: >-
-              {{ shell.stdout | from_json }}
-            _host_pool: >-
-              {{ _document.HOST_POOL }}
-            _node_names: >-
-              {{ [_host_pool.HOST] | flatten | map(attribute='NAME') | list }}
-            _this: >-
-              {{ ansible_host | d(inventory_hostname) }}
             _hv: >-
               {{ node_hv | lower }}
-          register: shell
-          until: shell is success
-          retries: 12
-          delay: 5
+            _host_pool: >-
+              {{ (hostvars[_lxc_nodes.0].command_onehost_list.stdout | from_json).HOST_POOL }}
+            _this: >-
+              {{ ansible_host | d(inventory_hostname) }}
+            _template: >-
+              {{ ([_host_pool.HOST] | flatten
+                                    | selectattr('NAME', '==', _this)
+                                    | first
+                                    | d({})).TEMPLATE }}
+            _action: >-
+              {{ _template is undefined | ternary('CREATE_AND_UPDATE', 'UPDATE_ONLY') }}
+            _before: >-
+              {{ _template | d({})
+                           | opennebula.deploy.to_one }}
+            _after: >-
+              {{ _template | d({})
+                           | combine(onehost.template | d({}))
+                           | opennebula.deploy.to_one }}
