@@ -13,7 +13,8 @@ Role Variables
 
 | Name      | Type   | Default   | Example       | Description                                            |
 |-----------|--------|-----------|---------------|--------------------------------------------------------|
-| `one_vip` | `str`  | undefined | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. |
+| `one_vip` | `str`  | first `one_vips` address, otherwise undefined | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. Explicit values take precedence. |
+| `one_vips` | `list` | undefined | see `opennebula/server` | VIP addresses or mappings. Common derives `one_vip` from the first entry if needed. |
 | `leader`  | `str`  | undefined | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader. |
 
 Dependencies
