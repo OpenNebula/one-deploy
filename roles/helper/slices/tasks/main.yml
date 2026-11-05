@@ -1,0 +1,109 @@
+---
+- vars:
+    _infra_enabled: >-
+      {{ groups.get(infra_group | d('infra'), []) | intersect(groups.get(node_group | d('node'), []))
+                                                  | intersect([inventory_hostname])
+                                                  | count > 0 }}
+
+    _infra_cpu_pinned: >-
+      {{ _infra_enabled and infra_xml_variant in ['pinned',
+                                                  'openvswitch_dpdk_pinned'] }}
+
+    _infra_mem_pinned: >-
+      {{ _infra_enabled and infra_xml_variant in ['pinned',
+                                                  'openvswitch_dpdk',
+                                                  'openvswitch_dpdk_pinned'] }}
+
+    _dpdk_enabled: >-
+      {{ ovs.set | d([])
+                 | selectattr('other_config:dpdk-init', 'defined')
+                 | selectattr('other_config:dpdk-init', 'in', ['true'])
+                 | count > 0 }}
+
+    _hugepage_size: >-
+      {{ {"1G": 1024, "2M": 2}.get(slices_hugepagesz, 1024) }}
+
+    # Ensure that first CPU (+ siblings) from each NUMA node is never isolated.
+    _protected_cpus: >-
+      {{ numa_query.numa.items() | map(attribute='1.cpus.present')
+                                 | map('batch', 1)
+                                 | map('first')
+                                 | flatten
+                                 | map('extract', numa_query.cpus.to_siblings)
+                                 | flatten
+                                 | unique
+                                 | map('int')
+                                 | sort
+                                 | map('string') }}
+  block:
+    - name: Query NUMA topology
+      ansible.builtin.include_role:
+        name: helper/numa
+      when: (_infra_enabled or _dpdk_enabled) and numa_query is undefined
+
+    - name: Load infra defaults
+      ansible.builtin.include_role:
+        name: infra
+        tasks_from: empty.yml
+        public: true
+      when: _infra_enabled
+
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/infra/collect.yml"
+      when: _infra_enabled
+
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/dpdk/collect.yml"
+      when: _dpdk_enabled
+
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/infra/assert.yml"
+      when: _infra_enabled
+
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/dpdk/assert.yml"
+      when: _dpdk_enabled
+
+    - ansible.builtin.fail:
+        msg: |
+          ERRORS:
+
+          {{ slices.errors | d([]) | to_nice_yaml | trim }}
+
+          SUGGESTIONS:
+
+          {% if _infra_cpu_pinned %}
+          vcpu_pinned: '{{ slices.cpus.infra | map('extract', numa_query.cpus.to_siblings)
+                                             | flatten
+                                             | unique
+                                             | opennebula.deploy.implode_ranges }}'
+          {% endif -%}
+
+          kernel_params:
+            - isolcpus: &claimed '{{ slices.cpus.claimed | opennebula.deploy.implode_ranges }}'
+            - nohz_full: *claimed
+            - rcu_nocbs: *claimed
+            - irqaffinity: &protected '{{ _protected_cpus | opennebula.deploy.implode_ranges }}'
+            - kthread_cpus: *protected
+            - systemd.cpu_affinity: *protected
+            - default_hugepagesz: '{{ slices_hugepagesz | upper }}'
+            - hugepagesz: '{{ slices_hugepagesz | upper }}'
+            - hugepages: '{{ slices.pages.claimed.items() | map('join', ':') | join(',') }}'
+      when: slices.errors | d([]) | count > 0
+
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/infra/apply.yml"
+      when: _infra_enabled
+
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/dpdk/apply.yml"
+      when: _dpdk_enabled
+
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/machine/apply.yml"
+      when: _infra_enabled or _dpdk_enabled
+
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      when: _infra_enabled or _dpdk_enabled

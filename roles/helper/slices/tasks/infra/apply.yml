@@ -1,0 +1,55 @@
+---
+- vars:
+    _cases:
+      - when: "{{ _infra_cpu_pinned and _infra_mem_pinned }}"
+        content: |
+          AllowedCPUs={{ slices.cpus.infra | map('int') | sort | join(',') }}
+
+      - when: "{{ _infra_cpu_pinned and not _infra_mem_pinned }}"
+        content: |
+          AllowedCPUs={{ slices.cpus.infra | map('int') | sort | join(',') }}
+          MemoryMin={{ _memory_min | int }}K
+          MemoryLow={{ _memory_low | int }}K
+
+      - when: "{{ not _infra_cpu_pinned and _infra_mem_pinned }}"
+        content: |
+          CPUWeight={{ _cpu_weight | int }}
+
+      - when: "{{ not _infra_cpu_pinned and not _infra_mem_pinned }}"
+        content: |
+          CPUWeight={{ _cpu_weight | int }}
+          MemoryMin={{ _memory_min | int }}K
+          MemoryLow={{ _memory_low | int }}K
+
+    _cpu_weight: >-
+      {{ [vcpu_shares | int, 10000] | min }}
+
+    _memory_min: >-
+      {{ (_frontends | count) * (memory_KiB * 1.10 + 150 * 1024) }}
+
+    _memory_low: >-
+      {{ (_frontends | count) * (memory_KiB * 1.15 + 250 * 1024) }}
+
+    _frontends: >-
+      {{ groups.get(frontend_group | d('frontend'), []) | map('extract', hostvars)
+                                                        | selectattr('infra_hostname', 'defined')
+                                                        | selectattr('infra_hostname', 'in', [inventory_hostname])
+                                                        | map(attribute='inventory_hostname') }}
+  block:
+    - name: Pre-configure infra.slice (file)
+      ansible.builtin.file:
+        dest: /etc/systemd/system/infra.slice.d/
+        state: directory
+        owner: 0
+        group: 0
+        mode: u=rwx,go=rx
+
+    - name: Pre-configure infra.slice (copy)
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/infra.slice.d/override.conf
+        owner: 0
+        group: 0
+        mode: u=rw,go=r
+        content: |
+          [Slice]
+          {{ (_cases | selectattr('when') | first).content }}
