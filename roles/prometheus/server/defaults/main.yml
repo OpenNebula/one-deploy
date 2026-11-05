@@ -1,4 +1,9 @@
 ---
+prometheus_target_labels:
+  compute: {}
+  control_plane: {}
+prometheus_rule_files: {}
+
 alertmanager_config: |
   ---
   global:
