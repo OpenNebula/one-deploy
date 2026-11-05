@@ -106,6 +106,34 @@
           Please make sure each cluster member can resolve all Front-end hostnames
           (you could try enabling both ensure_hostname and ensure_hosts as a workaround).
 
+- name: Make sure custom overrides do not touch settings managed by one-deploy
+  ansible.builtin.assert:
+    that: _clashes | count == 0
+    fail_msg: >-
+      Settings {{ _clashes }} are managed by one-deploy.
+      Please use the dedicated variables instead of generic config overrides.
+  vars:
+    _managed:
+      oned_conf:
+        - [AUTH_MAD/AUTHN]
+        - [DB/BACKEND, DB/DB_NAME, DB/PASSWD, DB/PORT, DB/SERVER, DB/USER]
+        - [FEDERATION/MASTER_ONED, FEDERATION/MODE, FEDERATION/SERVER_ID, FEDERATION/ZONE_ID]
+        - [ONEGATE_ENDPOINT]
+        - [RAFT_FOLLOWER_HOOK/ARGUMENTS, RAFT_FOLLOWER_HOOK/COMMAND, RAFT_LEADER_HOOK/ARGUMENTS, RAFT_LEADER_HOOK/COMMAND]
+      monitord_conf:
+        - [NETWORK/MONITOR_ADDRESS]
+      kvmrc:
+        - [MIGRATE_OPTIONS]
+    _clashes: >-
+      {%- set output = [] -%}
+      {%- for var, paths in _managed.items() -%}
+        {%- for path in (lookup('vars', var, default={}) or {}).keys() | select('in', paths | flatten) -%}
+          {{- output.append(var ~ ':' ~ path) -}}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{- output -}}
+  when: inventory_hostname in groups[frontend_group | d('frontend')]
+
 - name: Assert that :order and :match_user_regex are not used together
   ansible.builtin.assert:
     that: (auth.ldap.config is undefined)
@@ -119,3 +147,4 @@
       {{ _ldap_config is contains(':order') }}
     _has_match_user_regex: >-
       {{ _ldap_config is contains(':match_user_regex') }}
+  when: inventory_hostname in groups[frontend_group | d('frontend')]

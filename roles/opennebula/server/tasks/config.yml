@@ -4,77 +4,51 @@
 # - values are inserted verbatim (quote strings: '"value"')
 # - kvmrc keys are plain shell variable names
 # - null drops the key
-- name: Make sure custom overrides do not touch settings managed by one-deploy
-  ansible.builtin.assert:
-    that: _clashes | count == 0
-    fail_msg: >-
-      Settings {{ _clashes }} are managed by one-deploy.
-      Please use the dedicated variables instead of generic config overrides.
-  vars:
-    _managed:
-      oned_conf:
-        - [AUTH_MAD/AUTHN]
-        - [DB/BACKEND, DB/DB_NAME, DB/PASSWD, DB/PORT, DB/SERVER, DB/USER]
-        - [FEDERATION/MASTER_ONED, FEDERATION/MODE, FEDERATION/SERVER_ID, FEDERATION/ZONE_ID]
-        - [ONEGATE_ENDPOINT]
-        - [RAFT_FOLLOWER_HOOK/ARGUMENTS, RAFT_FOLLOWER_HOOK/COMMAND, RAFT_LEADER_HOOK/ARGUMENTS, RAFT_LEADER_HOOK/COMMAND]
-      monitord_conf:
-        - [NETWORK/MONITOR_ADDRESS]
-      kvmrc:
-        - [MIGRATE_OPTIONS]
-    _clashes: >-
-      {%- set output = [] -%}
-      {%- for var, paths in _managed.items() -%}
-        {%- for path in (lookup('vars', var, default={}) or {}).keys() | select('in', paths | flatten) -%}
-          {{- output.append(var ~ ':' ~ path) -}}
-        {%- endfor -%}
-      {%- endfor -%}
-      {{- output -}}
+- block:
+    - name: Configure oned (custom oned_conf)
+      opennebula.deploy.cfgtool:
+        dest: /etc/one/oned.conf
+        parser: One
+        actions: "{{ oned_conf | d({}) | opennebula.deploy.to_actions }}"
+      when: oned_conf | d({}) | count > 0
+      notify:
+        - Restart OpenNebula
 
-- name: Configure oned (custom oned_conf)
-  opennebula.deploy.cfgtool:
-    dest: /etc/one/oned.conf
-    parser: One
-    actions: "{{ oned_conf | d({}) | opennebula.deploy.to_actions }}"
-  when: oned_conf | d({}) | count > 0
-  notify:
-    - Restart OpenNebula
+    - name: Configure monitord (custom monitord_conf)
+      opennebula.deploy.cfgtool:
+        dest: /etc/one/monitord.conf
+        parser: One
+        actions: "{{ monitord_conf | d({}) | opennebula.deploy.to_actions }}"
+      when: monitord_conf | d({}) | count > 0
+      notify:
+        - Restart OpenNebula
 
-- name: Configure monitord (custom monitord_conf)
-  opennebula.deploy.cfgtool:
-    dest: /etc/one/monitord.conf
-    parser: One
-    actions: "{{ monitord_conf | d({}) | opennebula.deploy.to_actions }}"
-  when: monitord_conf | d({}) | count > 0
-  notify:
-    - Restart OpenNebula
+    - name: Configure KVM driver defaults (custom kvm_conf)
+      opennebula.deploy.cfgtool:
+        dest: /etc/one/vmm_exec/vmm_exec_kvm.conf
+        parser: One
+        actions: "{{ kvm_conf | d({}) | opennebula.deploy.to_actions }}"
+      when: kvm_conf | d({}) | count > 0
+      notify:
+        - Restart OpenNebula
 
-- name: Configure KVM driver defaults (custom kvm_conf)
-  opennebula.deploy.cfgtool:
-    dest: /etc/one/vmm_exec/vmm_exec_kvm.conf
-    parser: One
-    actions: "{{ kvm_conf | d({}) | opennebula.deploy.to_actions }}"
-  when: kvm_conf | d({}) | count > 0
-  notify:
-    - Restart OpenNebula
+    - name: Configure KVM remotes (custom kvmrc)
+      opennebula.deploy.cfgtool:
+        dest: /var/lib/one/remotes/etc/vmm/kvm/kvmrc
+        parser: Rc
+        actions: "{{ kvmrc | d({}) | opennebula.deploy.to_actions }}"
+      when: kvmrc | d({}) | count > 0
+      notify:
+        - Sync Remotes
 
-- name: Configure KVM remotes (custom kvmrc)
-  opennebula.deploy.cfgtool:
-    dest: /var/lib/one/remotes/etc/vmm/kvm/kvmrc
-    parser: Rc
-    actions: "{{ kvmrc | d({}) | opennebula.deploy.to_actions }}"
-  when: kvmrc | d({}) | count > 0
-  notify:
-    - Sync Remotes
-
-- name: Configure QEMU Guest Agent monitoring (custom guestagent_conf)
-  opennebula.deploy.cfgtool:
-    dest: /var/lib/one/remotes/etc/im/kvm-probes.d/guestagent.conf
-    parser: Yaml
-    actions: "{{ guestagent_conf | d({}) | opennebula.deploy.to_actions }}"
-  when: guestagent_conf | d({}) | count > 0
-  notify:
-    - Sync Remotes
+    - name: Configure QEMU Guest Agent monitoring (custom guestagent_conf)
+      opennebula.deploy.cfgtool:
+        dest: /var/lib/one/remotes/etc/im/kvm-probes.d/guestagent.conf
+        parser: Yaml
+        actions: "{{ guestagent_conf | d({}) | opennebula.deploy.to_actions }}"
+      when: guestagent_conf | d({}) | count > 0
+      notify:
+        - Sync Remotes
 
 - name: Set oneadmin's password if provided
   ansible.builtin.copy:
