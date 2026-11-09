@@ -1,47 +1,128 @@
 Role: opennebula.deploy.opennebula.hooks
-=======================================
+========================================
 
-Registers the `autostart-host` and `autostart-vm` hooks by default and can add
-custom hooks. OpenNebula already supplies the autostart command scripts on
-frontends; this role does not copy them.
+A role that manages OpenNebula hooks.
+
+Requirements
+------------
+
+N/A
 
 Role Variables
 --------------
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `opennebula_custom_hooks` | list of dictionaries | `[]` | Extra hook templates, each with a unique `NAME`. These extend the two autostart hooks. |
-| `opennebula_hook_scripts` | list of `{src, dest}` dictionaries | `[]` | Custom command files to copy from the Ansible controller to every frontend. `dest` is relative to `/var/lib/one/remotes/hooks/`. |
+| Name                          | Type           | Default                       | Description                                                 |
+|-------------------------------|----------------|-------------------------------|-------------------------------------------------------------|
+| `opennebula_hooks_base_dir`   | `str`          | `/var/lib/one/remotes/hooks/` | Destination directory for hook scripts.                     |
+| `opennebula_hooks_defaults`   | `list`         | (check role defaults)         | OpenNebula Hook configuration defaults.                     |
+| `opennebula_hooks`            | `list`         | (check role defaults)         | OpenNebula Hook configuration.                              |
+| `opennebula_hooks[].template` | `dict`         | `{}`                          | OpenNebula Hook template contents.                          |
+| `opennebula_hooks[].source`   | `str` / `null` | `null`                        | Source file / directory to push via `rsync --relative`.     |
+| `opennebula_hooks[].managed`  | `bool`         | `true` (effectively)          | When evaluates to `false` then one-deploy ignores the hook. |
 
-Custom scripts are installed with owner and group `oneadmin` (UID/GID 9869)
-and executable mode `0750`. The role creates any subdirectories in `dest`.
-Only local frontend hook commands are supported; `REMOTE=YES` scripts must be
-distributed to nodes separately.
+Custom scripts are installed in `/var/lib/one/remotes/hooks/` with owner and group `oneadmin` (UID/GID `9869`) and executable mode `0750`.
+
+Dependencies
+------------
+
+- ansible.posix
 
 Example Playbook
 ----------------
 
     - hosts: frontend
-      collections:
-        - opennebula.deploy
       vars:
-        opennebula_hook_scripts:
-          - src: /path/on/controller/notify.sh
-            dest: custom/notify.sh
-        opennebula_custom_hooks:
-          - NAME: notify-host
-            TYPE: state
-            COMMAND: custom/notify.sh
-            RESOURCE: HOST
-            STATE: MONITORED
+        # Ignores all default hooks.
+        opennebula_hooks_defaults: []
       roles:
-        - role: opennebula/hooks
+        - role: opennebula.deploy.opennebula.hooks
 
-The role registers hooks from the first frontend in the play; it does not
-require an elected leader. It creates a hook only when its name is absent and
-does not update or delete existing hooks.
-The two autostart hooks are always included, so extra hooks must have distinct
-names.
+    - hosts: frontend
+      vars:
+        opennebula_hooks:
+          # Ignores `autostart_host` hook (deployed by default).
+          - template: { NAME: autostart_host }
+            managed: false
+
+          # Ignores `autostart_vm` hook (deployed by default).
+          - template: { NAME: autostart_vm }
+            managed: false
+      roles:
+        - role: opennebula.deploy.opennebula.hooks
+
+    - hosts: frontend
+      vars:
+        opennebula_hooks:
+          # Deploys script from "{{ inventory_dir }}/hooks/custom/notify1.sh".
+          # Deploys script to "/var/lib/one/remotes/hooks/custom/notify1.sh".
+          # Creates "notify1" hook.
+          - template:
+              NAME: notify1
+              TYPE: state
+              RESOURCE: HOST
+              STATE: MONITORED
+              COMMAND: custom/notify1.sh
+              # NOTE: It deletes `ASD` attribute from the existing hook template (during update).
+              ASD: null
+            source: custom/notify1.sh
+
+          # Deploys script from "/absolute/path/on/controller/custom/notify2.sh".
+          # Deploys script to "/var/lib/one/remotes/hooks/custom/notify2.sh".
+          # Creates "notify2" hook.
+          - template:
+              NAME: notify2
+              TYPE: state
+              RESOURCE: HOST
+              STATE: MONITORED
+              COMMAND: custom/notify2.sh
+            # NOTE: Placement of the /./ marker is significant while using `rsync --relative`.
+            #       Please refer to rsync's documentation.
+            source: /absolute/path/on/controller/./custom/notify2.sh
+
+          # Reuses "/var/lib/one/remotes/hooks/custom/notify2.sh".
+          # Creates "notify3" hook.
+          - template:
+              NAME: notify3
+              TYPE: state
+              RESOURCE: HOST
+              STATE: MONITORED
+              COMMAND: custom/notify2.sh
+      roles:
+        - role: opennebula.deploy.opennebula.hooks
+
+    - hosts: frontend
+      vars:
+        opennebula_hooks:
+          # Deploys all scripts from "{{ inventory_dir }}/hooks/custom/" (whole directory tree).
+          # Deploys all script to "/var/lib/one/remotes/hooks/custom/".
+          # Creates "notify1" hook.
+          - template:
+              NAME: notify1
+              TYPE: state
+              RESOURCE: HOST
+              STATE: MONITORED
+              COMMAND: custom/notify1.sh
+            source: custom
+      roles:
+        - role: opennebula.deploy.opennebula.hooks
+
+    - hosts: frontend
+      vars:
+        opennebula_hooks:
+          # Deploys script from "/absolute/path/on/controller/custom/" (whole directory tree).
+          # Deploys all script to "/var/lib/one/remotes/hooks/custom/".
+          # Creates "notify1" hook.
+          - template:
+              NAME: notify1
+              TYPE: state
+              RESOURCE: HOST
+              STATE: MONITORED
+              COMMAND: custom/notify1.sh
+            # NOTE: Placement of the /./ marker is significant while using `rsync --relative`.
+            #       Please refer to rsync's documentation.
+            source: /absolute/path/on/controller/./custom
+      roles:
+        - role: opennebula.deploy.opennebula.hooks
 
 License
 -------

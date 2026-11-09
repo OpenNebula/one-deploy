@@ -1,3 +1,49 @@
 ---
-opennebula_custom_hooks: []
-opennebula_hook_scripts: []
+opennebula_hooks_base_dir: /var/lib/one/remotes/hooks/
+
+opennebula_hooks: []
+
+opennebula_hooks_defaults:
+  - template:
+      NAME: autostart_host
+      TYPE: state
+      RESOURCE: HOST
+      STATE: MONITORED
+      COMMAND: autostart/host
+      ARGUMENTS: $TEMPLATE
+      ARGUMENTS_STDIN: 'YES'
+
+  - template:
+      NAME: autostart_vm
+      TYPE: state
+      'ON': CUSTOM # Ansible converts ON to True otherwise..
+      RESOURCE: VM
+      STATE: POWEROFF
+      LCM_STATE: LCM_INIT
+      COMMAND: autostart/vm
+      ARGUMENTS: $TEMPLATE
+      ARGUMENTS_STDIN: 'YES'
+
+  - template:
+      NAME: add_backup_metrics
+      TYPE: api
+      CALL: one.vm.backup
+      REMOTE: 'NO'
+      COMMAND: >-
+        /bin/env GEM_HOME=/usr/share/one/gems/
+        ruby -I/usr/lib/one/ruby/ /var/lib/one/remotes/hooks/metrics/backup_restore_metrics.rb
+      ARGUMENTS: $API backup
+      ARGUMENTS_STDIN: 'YES'
+    managed: "{{ features.prometheus | bool and one_version is version('7.2.1', '>=') }}"
+
+  - template:
+      NAME: add_restore_metrics
+      TYPE: api
+      CALL: one.vm.restore
+      REMOTE: 'NO'
+      COMMAND: >-
+        /bin/env GEM_HOME=/usr/share/one/gems/
+        ruby -I/usr/lib/one/ruby/ /var/lib/one/remotes/hooks/metrics/backup_restore_metrics.rb
+      ARGUMENTS: $API restore
+      ARGUMENTS_STDIN: 'YES'
+    managed: "{{ features.prometheus | bool and one_version is version('7.2.1', '>=') }}"
