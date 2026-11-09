@@ -1,0 +1,139 @@
+---
+- name: Merge opennebula_hooks with defaults
+  ansible.builtin.set_fact:
+    opennebula_hooks: >-
+      {{ _enabled | map(attribute='value') | list }}
+  vars:
+    _defaults_with_name: >-
+      {{ opennebula_hooks_defaults | selectattr('template.NAME', 'defined')
+                                   | selectattr('template.NAME', 'string')
+                                   | selectattr('template.NAME', 'truthy') }}
+
+    _defaults_with_name_dict: >-
+      {{ _defaults_with_name | map(attribute='template.NAME')
+                             | zip(_defaults_with_name)
+                             | items2dict(key_name=0, value_name=1) }}
+
+    _with_name: >-
+      {{ opennebula_hooks | selectattr('template.NAME', 'defined')
+                          | selectattr('template.NAME', 'string')
+                          | selectattr('template.NAME', 'truthy') }}
+
+    _with_name_dict: >-
+      {{ _with_name | map(attribute='template.NAME')
+                    | zip(_with_name)
+                    | items2dict(key_name=0, value_name=1) }}
+
+    _enabled: >-
+      {{ _defaults_with_name_dict | combine(_with_name_dict, recursive=true)
+                                  | dict2items
+                                  | rejectattr('value.managed', 'sameas', false) }}
+
+- when: opennebula_hooks | count > 0
+  block:
+    - name: Push sources
+      ansible.posix.synchronize:
+        dest: "{{ (opennebula_hooks_base_dir | normpath) ~ '/' }}"
+        src: "{{ _src }}"
+        mode: push
+        rsync_opts:
+          - --relative
+          - --chown=9869:9869
+          - --chmod=u=rwx,g=rx,o=
+        use_ssh_args: true
+      become: false
+      vars:
+        # NOTE: With `rsync --relative` the /./ marks the root of the file tree on the destination host.
+        _abs: >-
+          {{ item is abs | ternary(item, [inventory_dir, 'hooks', '.', item] | path_join) }}
+        # NOTE: In case there is no /./ marker inside the path we insert one just before the basename.
+        _src: >-
+          {{ _abs is contains('/./') | ternary(_abs, [_abs | dirname, '.', _abs | basename] | path_join) }}
+      loop: >-
+        {{ opennebula_hooks | rejectattr('source', 'undefined')
+                            | rejectattr('source', 'sameas', none)
+                            | map(attribute='source')
+                            | list }}
+      notify:
+        - Sync Remotes
+
+    - ansible.builtin.include_role:
+        name: opennebula/leader
+      when: leader is undefined
+      run_once: true
+
+    - when: inventory_hostname == leader
+      block:
+        - name: Get hooks
+          ansible.builtin.command:
+            cmd: onehook list --json
+          changed_when: false
+          register: command_onehook_list
+
+        - name: Add / Update hooks
+          ansible.builtin.shell:
+            cmd: "{{ _actions[_action].cmd }}"
+            stdin: "{{ _actions[_action].stdin }}"
+            executable: /bin/bash
+          changed_when: true
+          when: _actions[_action].when | d(true)
+          vars:
+            _hook_pool: >-
+              {{ (command_onehook_list.stdout | from_json).HOOK_POOL }}
+
+            # NOTE: The `[] | flatten` operation is not necessary here really,
+            #       but we stay paranoid..
+            _template: >-
+              {{ ([_hook_pool.HOOK] | flatten
+                                    | selectattr('NAME', '==', item.NAME)
+                                    | first
+                                    | d({})).TEMPLATE }}
+
+            _before: >-
+              {{ _template | d({}) | combine({ "NAME": none,
+                                               "TYPE": none,
+                                               "ON":   none }) }}
+
+            _after: >-
+              {{ _template | d({}) | combine(item) | combine({ "NAME": none,
+                                                               "TYPE": none,
+                                                               "ON":   none }) }}
+
+            _action: >-
+              {{ _template is undefined | ternary('CREATE', 'UPDATE') }}
+
+            _actions:
+              CREATE:
+                cmd: |
+                  set +o errexit -o pipefail
+
+                  TEMPLATE="$(mktemp)"; tee "$TEMPLATE"
+
+                  cat "$TEMPLATE" | onehook create "$TEMPLATE"; RC="$?"
+
+                  rm -f "$TEMPLATE"
+
+                  exit "$RC"
+                stdin: >-
+                  {{ _after | combine({ "NAME": item.NAME,
+                                        "TYPE": item.TYPE,
+                                        "ON":   item.ON | d(none) }) | opennebula.deploy.to_one }}
+              UPDATE:
+                cmd: |
+                  set +o errexit -o pipefail
+
+                  TEMPLATE="$(mktemp)"; tee "$TEMPLATE"
+
+                  cat "$TEMPLATE" | onehook update '{{ item.NAME }}' "$TEMPLATE"; RC="$?"
+
+                  rm -f "$TEMPLATE"
+
+                  exit "$RC"
+                stdin: >-
+                  {{ _after | opennebula.deploy.to_one }}
+                when: >-
+                  {{ _after | opennebula.deploy.to_one != _before | opennebula.deploy.to_one }}
+          loop: >-
+            {{ opennebula_hooks | map(attribute='template') | list }}
+          loop_control:
+            label: "{{ item.NAME }}"

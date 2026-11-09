@@ -1,0 +1,7 @@
+---
+collections:
+  - opennebula.deploy
+  - ansible.posix
+
+dependencies:
+  - role: opennebula/common
