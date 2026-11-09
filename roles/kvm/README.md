@@ -43,6 +43,8 @@ Set `onehost.template` in a node's inventory variables to manage host attributes
             template:
               RESERVED_MEM: 4096
               ISOLCPUS: "2,3"
+              # NOTE: It removes existing 'ASD' attribute during the next update.
+              ASD: null
 
 The attributes are appended to the host template after the host is registered.
 Existing attributes outside `onehost.template` are preserved. Use uppercase
