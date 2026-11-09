@@ -54,6 +54,8 @@
                             | rejectattr('source', 'sameas', none)
                             | map(attribute='source')
                             | list }}
+      notify:
+        - Sync Remotes
 
     - ansible.builtin.include_role:
         name: opennebula/leader

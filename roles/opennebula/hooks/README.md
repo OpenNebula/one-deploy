@@ -94,7 +94,7 @@ Example Playbook
       vars:
         opennebula_hooks:
           # Deploys all scripts from "{{ inventory_dir }}/hooks/custom/" (whole directory tree).
-          # Deploys all script to "/var/lib/one/remotes/hooks/custom/".
+          # Deploys all scripts to "/var/lib/one/remotes/hooks/custom/".
           # Creates "notify1" hook.
           - template:
               NAME: notify1
@@ -109,8 +109,8 @@ Example Playbook
     - hosts: frontend
       vars:
         opennebula_hooks:
-          # Deploys script from "/absolute/path/on/controller/custom/" (whole directory tree).
-          # Deploys all script to "/var/lib/one/remotes/hooks/custom/".
+          # Deploys all scripts from "/absolute/path/on/controller/custom/" (whole directory tree).
+          # Deploys all scripts to "/var/lib/one/remotes/hooks/custom/".
           # Creates "notify1" hook.
           - template:
               NAME: notify1
