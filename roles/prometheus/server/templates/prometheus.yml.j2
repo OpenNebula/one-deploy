@@ -1,0 +1,51 @@
+{% if prometheus_config is defined %}
+{{ prometheus_config }}
+{% else %}
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+{% for host in federation.groups.frontend %}
+{% set address = hostvars[host].ansible_host | d(host) | string %}
+            - {{ (('[' ~ address ~ ']' if ':' in address and not address.startswith('[') else address) ~ ':9093') | to_json }}
+{% endfor %}
+
+rule_files:
+  - rules.yml
+{% for name in prometheus_rule_files if name != 'rules.yml' %}
+  - {{ ('/etc/one/prometheus/' ~ name) | to_json }}
+{% endfor %}
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+  - job_name: opennebula_exporter
+    static_configs:
+{% set self_address = hostvars[inventory_hostname].ansible_host | d(inventory_hostname) | string %}
+      - targets: [{{ (('[' ~ self_address ~ ']' if ':' in self_address and not self_address.startswith('[') else self_address) ~ ':9925') | to_json }}]
+  - job_name: node_exporter
+    file_sd_configs:
+      - files:
+          - /etc/one/prometheus/inventory/compute.yml
+          - /etc/one/prometheus/inventory/control-plane.yml
+  - job_name: libvirt_exporter
+    file_sd_configs:
+      - files: [/etc/one/prometheus/inventory/libvirt.yml]
+  - job_name: ovs_exporter
+    file_sd_configs:
+      - files: [/etc/one/prometheus/inventory/ovs.yml]
+  - job_name: smartctl_exporter
+    file_sd_configs:
+      - files: [/etc/one/prometheus/inventory/smartctl.yml]
+  - job_name: lvm_exporter
+    file_sd_configs:
+      - files: [/etc/one/prometheus/inventory/lvm.yml]
+  - job_name: mysql_exporter
+    file_sd_configs:
+      - files: [/etc/one/prometheus/inventory/mysql.yml]
+{% endif %}
