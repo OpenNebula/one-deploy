@@ -24,19 +24,21 @@ Dependencies
 Example Playbook
 ----------------
 
-    - hosts: node
-      vars:
-        mkfs_ok_to_wipefs: true
-        mkfs:
-          - fstype: ext4
-            dev: /dev/vdb
-            force: true
-          - fstype: xfs
-            dev: /dev/vdc
-            resizefs: true
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.helper.mkfs
+```yaml
+- hosts: node
+  vars:
+    mkfs_ok_to_wipefs: true
+    mkfs:
+      - fstype: ext4
+        dev: /dev/vdb
+        force: true
+      - fstype: xfs
+        dev: /dev/vdc
+        resizefs: true
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.helper.mkfs
+```
 
 License
 -------

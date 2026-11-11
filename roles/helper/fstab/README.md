@@ -30,40 +30,42 @@ Dependencies
 Example Playbook
 ----------------
 
-    - hosts: frontend:node
-      vars:
-        fstab:
-          - src: server:/var/lib/one/datastores
-            path: /var/lib/one/datastores
-            fstype: nfs
-            opts: rw,relatime,comment=one-deploy
-      roles:
-         - role: opennebula.deploy.helper.facts
-         - role: opennebula.deploy.helper.fstab
+```yaml
+- hosts: frontend:node
+  vars:
+    fstab:
+      - src: server:/var/lib/one/datastores
+        path: /var/lib/one/datastores
+        fstype: nfs
+        opts: rw,relatime,comment=one-deploy
+  roles:
+     - role: opennebula.deploy.helper.facts
+     - role: opennebula.deploy.helper.fstab
 
-    - hosts: frontend:node
-      vars:
-        # NOTE: The `/srv` directory is automatically included in AppArmor configs
-        #       by the `kvm` role.
-        fstab:
-          - src: server:/srv/shared
-            path: /srv/shared
-            fstype: nfs
-            opts: rw,relatime,comment=one-deploy
-        ds:
-          mode: shared
-          config:
-            mounts:
-              - type: system
-                path: /srv/shared/system
-              - type: image
-                path: /srv/shared/image
-              - type: file
-                path: /srv/shared/file
-      roles:
-         - role: opennebula.deploy.helper.facts
-         - role: opennebula.deploy.helper.fstab
-         - role: opennebula.deploy.datastore
+- hosts: frontend:node
+  vars:
+    # NOTE: The `/srv` directory is automatically included in AppArmor configs
+    #       by the `kvm` role.
+    fstab:
+      - src: server:/srv/shared
+        path: /srv/shared
+        fstype: nfs
+        opts: rw,relatime,comment=one-deploy
+    ds:
+      mode: shared
+      config:
+        mounts:
+          - type: system
+            path: /srv/shared/system
+          - type: image
+            path: /srv/shared/image
+          - type: file
+            path: /srv/shared/file
+  roles:
+     - role: opennebula.deploy.helper.facts
+     - role: opennebula.deploy.helper.fstab
+     - role: opennebula.deploy.datastore
+```
 
 License
 -------

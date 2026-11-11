@@ -23,22 +23,24 @@ Dependencies
 Example Playbook
 ----------------
 
-    - hosts: node
-      vars:
-        pci_devices:
-          - address: "0000:02:00.0"
-            excluded: true
-          - address: "0000:03:00.*"
-            set_name: "asd{0[3]}"
-          - vendor: "1af4"
-            device: "*"
-            class: "0200"
-            unlisted: false
-            set_driver: omit # NOTE: 'vfio-pci' is the default, 'omit' skips override altogether
-            set_numvfs: max
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.pci.node
+```yaml
+- hosts: node
+  vars:
+    pci_devices:
+      - address: "0000:02:00.0"
+        excluded: true
+      - address: "0000:03:00.*"
+        set_name: "asd{0[3]}"
+      - vendor: "1af4"
+        device: "*"
+        class: "0200"
+        unlisted: false
+        set_driver: omit # NOTE: 'vfio-pci' is the default, 'omit' skips override altogether
+        set_numvfs: max
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.pci.node
+```
 
 License
 -------

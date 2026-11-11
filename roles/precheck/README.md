@@ -21,10 +21,12 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: frontend:node
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.precheck
+```yaml
+- hosts: frontend:node
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.precheck
+```
 
 License
 -------

@@ -24,9 +24,11 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: frontend:node
-      roles:
-         - { role: opennebula.deploy.helper.facts, _force: true }
+```yaml
+- hosts: frontend:node
+  roles:
+     - { role: opennebula.deploy.helper.facts, _force: true }
+```
 
 License
 -------

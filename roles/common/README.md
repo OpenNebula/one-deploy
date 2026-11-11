@@ -24,9 +24,11 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: all
-      roles:
-        - role: opennebula.deploy.common
+```yaml
+- hosts: all
+  roles:
+    - role: opennebula.deploy.common
+```
 
 License
 -------

@@ -24,9 +24,11 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: all
-      roles:
-         - { role: opennebula.deploy.helper.hosts, ensure_hostname: true, ensure_hosts: true }
+```yaml
+- hosts: all
+  roles:
+     - { role: opennebula.deploy.helper.hosts, ensure_hostname: true, ensure_hosts: true }
+```
 
 License
 -------

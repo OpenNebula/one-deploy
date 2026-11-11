@@ -26,10 +26,12 @@ Dependencies
 Example Playbook
 ----------------
 
-    - hosts: node
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - { role: opennebula.deploy.lxc, node_hv: lxc }
+```yaml
+- hosts: node
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - { role: opennebula.deploy.lxc, node_hv: lxc }
+```
 
 License
 -------

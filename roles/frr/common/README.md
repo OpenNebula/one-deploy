@@ -22,10 +22,12 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: router:node
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.frr.common
+```yaml
+- hosts: router:node
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.frr.common
+```
 
 License
 -------

@@ -57,185 +57,189 @@ Dependencies
 Example Playbook
 ----------------
 
-    - hosts: infra
-      vars:
-        os_image_url: https://d24fmfybwxpuhu.cloudfront.net/ubuntu2404-7.4.0-0-20260714.qcow2
-        passthrough_fs:
-          - driver_type: virtiofs
-            source_dir: /var/lib/one/datastores
-            target_dir: /var/lib/one/datastores
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.infra
+```yaml
+- hosts: infra
+  vars:
+    os_image_url: https://d24fmfybwxpuhu.cloudfront.net/ubuntu2404-7.4.0-0-20260714.qcow2
+    passthrough_fs:
+      - driver_type: virtiofs
+        source_dir: /var/lib/one/datastores
+        target_dir: /var/lib/one/datastores
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.infra
+```
 
 Example Inventory
 -----------------
 
-    # --- VARIANT: default ---
+```yaml
+# --- VARIANT: default ---
 
-    infra:
-      vars:
-        os_image_url: http://10.2.11.1/images/ubuntu2404-7.4.0-0-20260714.qcow2
-        os_image_size: 20G
-        memory_KiB: 2097152 # 2 GiB
-      hosts:
-        u1q20: { ansible_host: 10.3.10.20 }
-        u1q30: { ansible_host: 10.3.10.30 }
+infra:
+  vars:
+    os_image_url: http://10.2.11.1/images/ubuntu2404-7.4.0-0-20260714.qcow2
+    os_image_size: 20G
+    memory_KiB: 2097152 # 2 GiB
+  hosts:
+    u1q20: { ansible_host: 10.3.10.20 }
+    u1q30: { ansible_host: 10.3.10.30 }
 
-    frontend:
-      vars:
-        context:
-          ETH0_DNS: 10.3.10.1
-          ETH0_GATEWAY: 10.3.10.1
-          ETH0_MASK: 255.255.255.0
-          ETH0_NETWORK: 10.3.10.0
-          ETH0_IP: "{{ ansible_host }}"
-          PASSWORD: asd
-          SSH_PUBLIC_KEY: |-
-            ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF5ndznuZTNZ8u7FCYKgv6Q3/HUVxnaha3tPDUXPfIIw
-      hosts:
-        u1q40: { ansible_host: 10.3.10.40, infra_hostname: u1q20 }
-        u1q50: { ansible_host: 10.3.10.50, infra_hostname: u1q30 }
+frontend:
+  vars:
+    context:
+      ETH0_DNS: 10.3.10.1
+      ETH0_GATEWAY: 10.3.10.1
+      ETH0_MASK: 255.255.255.0
+      ETH0_NETWORK: 10.3.10.0
+      ETH0_IP: "{{ ansible_host }}"
+      PASSWORD: asd
+      SSH_PUBLIC_KEY: |-
+        ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF5ndznuZTNZ8u7FCYKgv6Q3/HUVxnaha3tPDUXPfIIw
+  hosts:
+    u1q40: { ansible_host: 10.3.10.40, infra_hostname: u1q20 }
+    u1q50: { ansible_host: 10.3.10.50, infra_hostname: u1q30 }
 
-    node:
-      hosts:
-        u1q20: { ansible_host: 10.3.10.20 }
-        u1q30: { ansible_host: 10.3.10.30 }
+node:
+  hosts:
+    u1q20: { ansible_host: 10.3.10.20 }
+    u1q30: { ansible_host: 10.3.10.30 }
 
-    # --- VARIANT: default (with distinct images) ---
+# --- VARIANT: default (with distinct images) ---
 
-    infra:
-      vars:
-        memory_KiB: 2097152 # 2 GiB
-      hosts:
-        u1q20: { ansible_host: 10.3.10.20 }
-        u1q30: { ansible_host: 10.3.10.30 }
+infra:
+  vars:
+    memory_KiB: 2097152 # 2 GiB
+  hosts:
+    u1q20: { ansible_host: 10.3.10.20 }
+    u1q30: { ansible_host: 10.3.10.30 }
 
-    frontend:
-      vars:
-        context:
-          ETH0_DNS: 10.3.10.1
-          ETH0_GATEWAY: 10.3.10.1
-          ETH0_MASK: 255.255.255.0
-          ETH0_NETWORK: 10.3.10.0
-          ETH0_IP: "{{ ansible_host }}"
-          PASSWORD: asd
-          SSH_PUBLIC_KEY: |-
-            ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF5ndznuZTNZ8u7FCYKgv6Q3/HUVxnaha3tPDUXPfIIw
-      # NOTE: Please make sure source images are not named identically to FE inventory hostnames
-      #       (hence the 'img-' prefix in the example below).
-      hosts:
-        u1q40:
-          ansible_host: 10.3.10.40
-          infra_hostname: u1q20
-          os_image_url: http://10.2.11.1/images/img-u1q40.qcow2
-          os_image_size: 20G
+frontend:
+  vars:
+    context:
+      ETH0_DNS: 10.3.10.1
+      ETH0_GATEWAY: 10.3.10.1
+      ETH0_MASK: 255.255.255.0
+      ETH0_NETWORK: 10.3.10.0
+      ETH0_IP: "{{ ansible_host }}"
+      PASSWORD: asd
+      SSH_PUBLIC_KEY: |-
+        ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF5ndznuZTNZ8u7FCYKgv6Q3/HUVxnaha3tPDUXPfIIw
+  # NOTE: Please make sure source images are not named identically to FE inventory hostnames
+  #       (hence the 'img-' prefix in the example below).
+  hosts:
+    u1q40:
+      ansible_host: 10.3.10.40
+      infra_hostname: u1q20
+      os_image_url: http://10.2.11.1/images/img-u1q40.qcow2
+      os_image_size: 20G
 
-        u1q50:
-          ansible_host: 10.3.10.50
-          infra_hostname: u1q30
-          os_image_url: http://10.2.11.1/images/img-u1q50.qcow2
-          os_image_size: 20G
+    u1q50:
+      ansible_host: 10.3.10.50
+      infra_hostname: u1q30
+      os_image_url: http://10.2.11.1/images/img-u1q50.qcow2
+      os_image_size: 20G
 
-    # --- VARIANT: openvswitch ---
+# --- VARIANT: openvswitch ---
 
-    infra:
-      vars:
-        os_image_url: http://10.2.11.1/images/ubuntu2404-7.4.0-0-20260714.qcow2
-        os_image_size: 20G
-        memory_KiB: 2097152 # 2 GiB
-        infra_xml_variant: openvswitch
-        infra_bridge: ovsbr0
-      hosts:
-        u1q20: { ansible_host: 10.3.10.20 }
+infra:
+  vars:
+    os_image_url: http://10.2.11.1/images/ubuntu2404-7.4.0-0-20260714.qcow2
+    os_image_size: 20G
+    memory_KiB: 2097152 # 2 GiB
+    infra_xml_variant: openvswitch
+    infra_bridge: ovsbr0
+  hosts:
+    u1q20: { ansible_host: 10.3.10.20 }
 
-    frontend:
-      vars:
-        context:
-          ETH0_DNS: 10.3.10.1
-          ETH0_SEARCH_DOMAIN: u1q.lh
-          ETH0_GATEWAY: 10.3.10.1
-          ETH0_MASK: 255.255.255.0
-          ETH0_NETWORK: 10.3.10.0
-          ETH0_IP: "{{ ansible_host }}"
-          PASSWORD: asd
-          SSH_PUBLIC_KEY: |-
-            ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF5ndznuZTNZ8u7FCYKgv6Q3/HUVxnaha3tPDUXPfIIw
-      hosts:
-        u1q40: { ansible_host: 10.3.10.40, infra_hostname: u1q20 }
+frontend:
+  vars:
+    context:
+      ETH0_DNS: 10.3.10.1
+      ETH0_SEARCH_DOMAIN: u1q.lh
+      ETH0_GATEWAY: 10.3.10.1
+      ETH0_MASK: 255.255.255.0
+      ETH0_NETWORK: 10.3.10.0
+      ETH0_IP: "{{ ansible_host }}"
+      PASSWORD: asd
+      SSH_PUBLIC_KEY: |-
+        ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF5ndznuZTNZ8u7FCYKgv6Q3/HUVxnaha3tPDUXPfIIw
+  hosts:
+    u1q40: { ansible_host: 10.3.10.40, infra_hostname: u1q20 }
 
-    node:
-      vars:
-        ovs:
-          iface:
-            eth1: {}
-          br:
-            ovsbr0:
-              ports: [eth1]
-      hosts:
-        u1q20: { ansible_host: 10.3.10.20 }
+node:
+  vars:
+    ovs:
+      iface:
+        eth1: {}
+      br:
+        ovsbr0:
+          ports: [eth1]
+  hosts:
+    u1q20: { ansible_host: 10.3.10.20 }
 
-    # --- VARIANT: openvswitch_dpdk ---
+# --- VARIANT: openvswitch_dpdk ---
 
-    infra:
-      vars:
-        os_image_url: http://10.2.11.1/images/ubuntu2404-7.4.0-0-20260714.qcow2
-        os_image_size: 20G
-        memory_KiB: 2097152 # 2 GiB
-        infra_xml_variant: openvswitch_dpdk
-      hosts:
-        u1q20: { ansible_host: 10.3.10.20, dpdk_socket_path: /var/run/one/vhost-socks/u1q40.sock }
+infra:
+  vars:
+    os_image_url: http://10.2.11.1/images/ubuntu2404-7.4.0-0-20260714.qcow2
+    os_image_size: 20G
+    memory_KiB: 2097152 # 2 GiB
+    infra_xml_variant: openvswitch_dpdk
+  hosts:
+    u1q20: { ansible_host: 10.3.10.20, dpdk_socket_path: /var/run/one/vhost-socks/u1q40.sock }
 
-    frontend:
-      vars:
-        context:
-          ETH0_DNS: 10.3.10.1
-          ETH0_SEARCH_DOMAIN: u1q.lh
-          ETH0_GATEWAY: 10.3.10.1
-          ETH0_MASK: 255.255.255.0
-          ETH0_NETWORK: 10.3.10.0
-          ETH0_IP: "{{ ansible_host }}"
-          PASSWORD: asd
-          SSH_PUBLIC_KEY: |-
-            ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF5ndznuZTNZ8u7FCYKgv6Q3/HUVxnaha3tPDUXPfIIw
-      hosts:
-        u1q40: { ansible_host: 10.3.10.40, infra_hostname: u1q20 }
+frontend:
+  vars:
+    context:
+      ETH0_DNS: 10.3.10.1
+      ETH0_SEARCH_DOMAIN: u1q.lh
+      ETH0_GATEWAY: 10.3.10.1
+      ETH0_MASK: 255.255.255.0
+      ETH0_NETWORK: 10.3.10.0
+      ETH0_IP: "{{ ansible_host }}"
+      PASSWORD: asd
+      SSH_PUBLIC_KEY: |-
+        ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF5ndznuZTNZ8u7FCYKgv6Q3/HUVxnaha3tPDUXPfIIw
+  hosts:
+    u1q40: { ansible_host: 10.3.10.40, infra_hostname: u1q20 }
 
-    node:
-      vars:
-        kernel_ok_to_reboot: true
-        kernel_params:
-          - default_hugepagesz: '1G'
-          - hugepages: '0:4,1:4'
-          - intel_iommu: 'on'
-        kernel_modules:
-          - load: vfio-pci
-          - load: vfio_iommu_type1
-            options: ['allow_unsafe_interrupts=1']
+node:
+  vars:
+    kernel_ok_to_reboot: true
+    kernel_params:
+      - default_hugepagesz: '1G'
+      - hugepages: '0:4,1:4'
+      - intel_iommu: 'on'
+    kernel_modules:
+      - load: vfio-pci
+      - load: vfio_iommu_type1
+        options: ['allow_unsafe_interrupts=1']
 
-        pci_devices:
-          - address: '0000:40:00.0'
+    pci_devices:
+      - address: '0000:40:00.0'
 
-        ovs:
+    ovs:
+      set:
+        - other_config:dpdk-init: 'true'
+        - other_config:dpdk-socket-mem: '2048,2048'
+      iface:
+        dpdk-p0:
           set:
-            - other_config:dpdk-init: 'true'
-            - other_config:dpdk-socket-mem: '2048,2048'
-          iface:
-            dpdk-p0:
-              set:
-                - type: dpdk
-                - options:dpdk-devargs: '0000:40:00.0'
-            dpdk-p1:
-              set:
-                - type: dpdkvhostuserclient
-                - options:vhost-server-path: "{{ dpdk_socket_path }}"
-          br:
-            ovsbr1:
-              ports: [dpdk-p0, dpdk-p1]
-              set:
-                - datapath_type: netdev
-      hosts:
-        u1q20: { ansible_host: 10.3.10.20 }
+            - type: dpdk
+            - options:dpdk-devargs: '0000:40:00.0'
+        dpdk-p1:
+          set:
+            - type: dpdkvhostuserclient
+            - options:vhost-server-path: "{{ dpdk_socket_path }}"
+      br:
+        ovsbr1:
+          ports: [dpdk-p0, dpdk-p1]
+          set:
+            - datapath_type: netdev
+  hosts:
+    u1q20: { ansible_host: 10.3.10.20 }
+```
 
 License
 -------

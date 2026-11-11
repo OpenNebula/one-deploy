@@ -27,20 +27,22 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: node
-      vars:
-        iscsi:
-          - name: target0
-            target: iqn.1970-01.com.example:target0
-            initiator: iqn.1970-01.com.example:client0
-            portal: 10.2.11.1:3260
-          - name: target1
-            target: iqn.1970-01.com.example:target1
-            initiator: iqn.1970-01.com.example:client1
-            portal: 10.2.11.1:3261
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.helper.iscsi
+```yaml
+- hosts: node
+  vars:
+    iscsi:
+      - name: target0
+        target: iqn.1970-01.com.example:target0
+        initiator: iqn.1970-01.com.example:client0
+        portal: 10.2.11.1:3260
+      - name: target1
+        target: iqn.1970-01.com.example:target1
+        initiator: iqn.1970-01.com.example:client1
+        portal: 10.2.11.1:3261
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.helper.iscsi
+```
 
 License
 -------

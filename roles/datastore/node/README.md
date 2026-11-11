@@ -27,80 +27,82 @@ Dependencies
 Example Playbook
 ----------------
 
-    - hosts: node
-      vars:
-        # Configure OpenNebula to use "shared" image and system datastores.
-        # Create symlinks accordingly.
-        ds:
-          mode: shared
-          config:
-            mounts:
-              - type: system
-                path: /opt/nfs/system/
-              - type: image
-                path: /opt/nfs/default/
-              - type: file
-                path: /opt/nfs/files/
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.datastore.node
+```yaml
+- hosts: node
+  vars:
+    # Configure OpenNebula to use "shared" image and system datastores.
+    # Create symlinks accordingly.
+    ds:
+      mode: shared
+      config:
+        mounts:
+          - type: system
+            path: /opt/nfs/system/
+          - type: image
+            path: /opt/nfs/default/
+          - type: file
+            path: /opt/nfs/files/
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.datastore.node
 
-    - hosts: node
-      vars:
-        # Configure OpenNebula to use "lvm" image and system datastores.
-        ds:
-          mode: lvm
-          config:
-            device: /dev/mapper/mpatha
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.datastore.node
+- hosts: node
+  vars:
+    # Configure OpenNebula to use "lvm" image and system datastores.
+    ds:
+      mode: lvm
+      config:
+        device: /dev/mapper/mpatha
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.datastore.node
 
-    - hosts: node
-      vars:
-        # Configure OpenNebula to use "shared" image and system datastores.
-        # Create new datastores and symlinks accordingly.
-        ds:
-          mode: generic
-          config:
-            SYSTEM_DS:
-              system:
-                enabled: false
-              system1:
-                managed: true
-                enabled: true
-                symlink:
-                  groups: [node]
-                  src: /opt/nfs1/100/
-                template: &template
-                  TYPE: SYSTEM_DS
-                  TM_MAD: shared
-                  BRIDGE_LIST: "{{ groups.node | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
-              system2:
-                managed: true
-                enabled: true
-                symlink:
-                  groups: [node]
-                  src: /opt/nfs2/101/
-                template: *template
-              system3:
-                managed: true
-                enabled: true
-                symlink:
-                  groups: [node]
-                  src: /opt/nfs3/102/
-                template: *template
-            IMAGE_DS:
-              default:
-                symlink: { src: /opt/nfs0/1/ }
-                template:
-                  TM_MAD: shared
-            FILE_DS:
-              files:
-                symlink: { src: /opt/nfs0/2/ }
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.datastore.node
+- hosts: node
+  vars:
+    # Configure OpenNebula to use "shared" image and system datastores.
+    # Create new datastores and symlinks accordingly.
+    ds:
+      mode: generic
+      config:
+        SYSTEM_DS:
+          system:
+            enabled: false
+          system1:
+            managed: true
+            enabled: true
+            symlink:
+              groups: [node]
+              src: /opt/nfs1/100/
+            template: &template
+              TYPE: SYSTEM_DS
+              TM_MAD: shared
+              BRIDGE_LIST: "{{ groups.node | map('extract', hostvars, ['ansible_host']) | join(' ') }}"
+          system2:
+            managed: true
+            enabled: true
+            symlink:
+              groups: [node]
+              src: /opt/nfs2/101/
+            template: *template
+          system3:
+            managed: true
+            enabled: true
+            symlink:
+              groups: [node]
+              src: /opt/nfs3/102/
+            template: *template
+        IMAGE_DS:
+          default:
+            symlink: { src: /opt/nfs0/1/ }
+            template:
+              TM_MAD: shared
+        FILE_DS:
+          files:
+            symlink: { src: /opt/nfs0/2/ }
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.datastore.node
+```
 
 License
 -------

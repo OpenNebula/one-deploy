@@ -29,42 +29,44 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: node
-      vars:
-        logrotate_defaults: {} # disable defaults
-        logrotate:
-          openvswitch:
-            managed: true # can be omitted as it's true by default
-            paths:
-              - /var/log/openvswitch/*.log
-            config:
-              - su root root
-              - daily
-              - rotate 30
-              - missingok
-              - notifempty
-              - compress
-              - delaycompress
-              - dateext
-              - sharedscripts
-              - postrotate: |-
-                  if [ -d /run/openvswitch ]; then
-                    for ctl in /run/openvswitch/*.ctl; do
-                      ovs-appctl -t "$ctl" vlog/reopen 2>/dev/null ||:
-                    done
-                  fi
-        rsyslog:
-          90-kernel:
-            # Replace default path /var/log/kern.log
-            config: |
-              module(load="imklog")
-              kern.info /var/log/asd.log
-        # Enable log forwarding
-        rsyslog_collector:
-          target: 10.11.12.13
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.helper.logs
+```yaml
+- hosts: node
+  vars:
+    logrotate_defaults: {} # disable defaults
+    logrotate:
+      openvswitch:
+        managed: true # can be omitted as it's true by default
+        paths:
+          - /var/log/openvswitch/*.log
+        config:
+          - su root root
+          - daily
+          - rotate 30
+          - missingok
+          - notifempty
+          - compress
+          - delaycompress
+          - dateext
+          - sharedscripts
+          - postrotate: |-
+              if [ -d /run/openvswitch ]; then
+                for ctl in /run/openvswitch/*.ctl; do
+                  ovs-appctl -t "$ctl" vlog/reopen 2>/dev/null ||:
+                done
+              fi
+    rsyslog:
+      90-kernel:
+        # Replace default path /var/log/kern.log
+        config: |
+          module(load="imklog")
+          kern.info /var/log/asd.log
+    # Enable log forwarding
+    rsyslog_collector:
+      target: 10.11.12.13
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.helper.logs
+```
 
 License
 -------

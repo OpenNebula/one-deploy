@@ -29,12 +29,14 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: router:node
-      vars:
-        features: { evpn: true }
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.frr.evpn
+```yaml
+- hosts: router:node
+  vars:
+    features: { evpn: true }
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.frr.evpn
+```
 
 License
 -------

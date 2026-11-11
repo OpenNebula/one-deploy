@@ -24,12 +24,14 @@ Dependencies
 Example Playbook
 ----------------
 
-    - hosts: frontend:node
-      vars:
-        one_version: '7.4.1'
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.opennebula.upgrade
+```yaml
+- hosts: frontend:node
+  vars:
+    one_version: '7.4.1'
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.opennebula.upgrade
+```
 
 License
 -------
