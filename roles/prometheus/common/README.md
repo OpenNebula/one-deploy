@@ -21,9 +21,11 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: frontend:grafana
-      roles:
-        - role: opennebula.deploy.prometheus.common
+```yaml
+- hosts: frontend:grafana
+  roles:
+    - role: opennebula.deploy.prometheus.common
+```
 
 License
 -------

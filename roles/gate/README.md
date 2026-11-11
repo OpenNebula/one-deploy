@@ -27,22 +27,24 @@ Dependencies
 Example Playbook
 ----------------
 
-    - hosts: frontend
-      vars:
-        gate_endpoint: "http://169.254.16.9:5030"
-        gate_tproxy:
-          # OneGate service.
-          - :service_port: 5030
-            :remote_addr: "{{ one_vip }}"
-            :remote_port: 5030
-          # Custom service.
-          - :service_port: 1234
-            :remote_addr: 10.11.12.13
-            :remote_port: 4321
-            :networks: [vnet_name_or_id]
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.gate
+```yaml
+- hosts: frontend
+  vars:
+    gate_endpoint: "http://169.254.16.9:5030"
+    gate_tproxy:
+      # OneGate service.
+      - :service_port: 5030
+        :remote_addr: "{{ one_vip }}"
+        :remote_port: 5030
+      # Custom service.
+      - :service_port: 1234
+        :remote_addr: 10.11.12.13
+        :remote_port: 4321
+        :networks: [vnet_name_or_id]
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.gate
+```
 
 License
 -------

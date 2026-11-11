@@ -27,16 +27,18 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: frontend:node
-      vars:
-        ntp:
-          - timezone: UTC
-          - locale: LC_TIME=C.UTF-8
-          - pool: pool.ntp.org
-          - server: ntp.icm.edu.pl
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.helper.ntp
+```yaml
+- hosts: frontend:node
+  vars:
+    ntp:
+      - timezone: UTC
+      - locale: LC_TIME=C.UTF-8
+      - pool: pool.ntp.org
+      - server: ntp.icm.edu.pl
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.helper.ntp
+```
 
 License
 -------

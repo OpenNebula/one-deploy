@@ -25,9 +25,11 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: frontend:node
-      roles:
-        - { role: opennebula.deploy.helper.cache, update_pkg_cache: true, unattend_disable: true }
+```yaml
+- hosts: frontend:node
+  roles:
+    - { role: opennebula.deploy.helper.cache, update_pkg_cache: true, unattend_disable: true }
+```
 
 License
 -------

@@ -26,11 +26,13 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: frontend:node
-      tasks:
-        - ansible.builtin.include_role:
-            name: opennebula.deploy.opennebula.leader
-          when: leader is undefined
+```yaml
+- hosts: frontend:node
+  tasks:
+    - ansible.builtin.include_role:
+        name: opennebula.deploy.opennebula.leader
+      when: leader is undefined
+```
 
 License
 -------

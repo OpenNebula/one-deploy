@@ -24,38 +24,40 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: node
-      vars:
-        oneprometheus_limits:
-          opennebula-libvirt-exporter.service:
-            CPUQuota: 25%
-            CPUWeight: 25
-            MemoryHigh: 128M
-            MemoryMax: 256M
-          opennebula-lvm-exporter.service:
-            CPUQuota: 25%
-            CPUWeight: 25
-            MemoryHigh: 128M
-            MemoryMax: 256M
-          opennebula-node-exporter.service:
-            CPUQuota: 25%
-            CPUWeight: 25
-            MemoryHigh: 64M
-            MemoryMax: 128M
-          opennebula-ovs-exporter.service:
-            CPUQuota: 50%
-            CPUWeight: 25
-            MemoryHigh: 256M
-            MemoryMax: 512M
-          opennebula-smartctl-exporter.service:
-            CPUQuota: 25%
-            CPUWeight: 25
-            MemoryHigh: 128M
-            MemoryMax: 256M
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.repository
-        - role: opennebula.deploy.prometheus.exporter
+```yaml
+- hosts: node
+  vars:
+    oneprometheus_limits:
+      opennebula-libvirt-exporter.service:
+        CPUQuota: 25%
+        CPUWeight: 25
+        MemoryHigh: 128M
+        MemoryMax: 256M
+      opennebula-lvm-exporter.service:
+        CPUQuota: 25%
+        CPUWeight: 25
+        MemoryHigh: 128M
+        MemoryMax: 256M
+      opennebula-node-exporter.service:
+        CPUQuota: 25%
+        CPUWeight: 25
+        MemoryHigh: 64M
+        MemoryMax: 128M
+      opennebula-ovs-exporter.service:
+        CPUQuota: 50%
+        CPUWeight: 25
+        MemoryHigh: 256M
+        MemoryMax: 512M
+      opennebula-smartctl-exporter.service:
+        CPUQuota: 25%
+        CPUWeight: 25
+        MemoryHigh: 128M
+        MemoryMax: 256M
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.repository
+    - role: opennebula.deploy.prometheus.exporter
+```
 
 License
 -------

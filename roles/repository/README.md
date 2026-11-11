@@ -67,28 +67,30 @@ them, register the extension manually before running one-deploy:
 Example Playbook
 ----------------
 
-    - hosts: frontend:node
-      vars:
-        repos_enabled_defaults: [ceph, frr, grafana, opennebula] # role defaults
-        repos_enabled: [frr, opennebula] # optional subset; [] disables all repos
+```yaml
+- hosts: frontend:node
+  vars:
+    repos_enabled_defaults: [ceph, frr, grafana, opennebula] # role defaults
+    repos_enabled: [frr, opennebula] # optional subset; [] disables all repos
 
-        # Enable OpenNebula EE repo.
-        one_token: 'asd123as:123asd12'
+    # Enable OpenNebula EE repo.
+    one_token: 'asd123as:123asd12'
 
-        # Enable only 'epel' and 'crb' DNF repos in Alma Linux 9
-        opennebula_repo_pre_enable:
-          AlmaLinux:
-            config_manager:
-              '9': [epel, crb]
+    # Enable only 'epel' and 'crb' DNF repos in Alma Linux 9
+    opennebula_repo_pre_enable:
+      AlmaLinux:
+        config_manager:
+          '9': [epel, crb]
 
-        # Use custom / local / insecure OpenNebula repo.
-        opennebula_repo_force_trusted: true
-        opennebula_repo_url:
-          RedHat: http://10.11.12.13/repo/6.8/AlmaLinux/
-          Ubuntu: http://10.11.12.13/repo/6.8/Ubuntu/22.04/
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.repository
+    # Use custom / local / insecure OpenNebula repo.
+    opennebula_repo_force_trusted: true
+    opennebula_repo_url:
+      RedHat: http://10.11.12.13/repo/6.8/AlmaLinux/
+      Ubuntu: http://10.11.12.13/repo/6.8/Ubuntu/22.04/
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.repository
+```
 
 License
 -------

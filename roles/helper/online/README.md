@@ -24,11 +24,13 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: all
-      vars:
-        online_timeout: 120
-      roles:
-        - role: opennebula.deploy.helper.online
+```yaml
+- hosts: all
+  vars:
+    online_timeout: 120
+  roles:
+    - role: opennebula.deploy.helper.online
+```
 
 License
 -------

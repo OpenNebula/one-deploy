@@ -25,18 +25,20 @@ Dependencies
 Example Playbook
 ----------------
 
-    - hosts: grafana
-      vars:
-        oneprometheus_limits:
-          grafana-server.service:
-            CPUQuota: 100%
-            CPUWeight: 100
-            MemoryHigh: 1024M
-            MemoryMax: 2048M
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.repository
-        - role: opennebula.deploy.prometheus.grafana
+```yaml
+- hosts: grafana
+  vars:
+    oneprometheus_limits:
+      grafana-server.service:
+        CPUQuota: 100%
+        CPUWeight: 100
+        MemoryHigh: 1024M
+        MemoryMax: 2048M
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.repository
+    - role: opennebula.deploy.prometheus.grafana
+```
 
 License
 -------

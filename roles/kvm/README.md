@@ -28,23 +28,27 @@ Dependencies
 Example Playbook
 ----------------
 
-    - hosts: node
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - { role: opennebula.deploy.kvm, node_hv: qemu }
+```yaml
+- hosts: node
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - { role: opennebula.deploy.kvm, node_hv: qemu }
+```
 
 Set `onehost.template` in a node's inventory variables to manage host attributes:
 
-    node:
-      hosts:
-        kvm01:
-          ansible_host: 10.11.12.20
-          onehost:
-            template:
-              RESERVED_MEM: 4096
-              ISOLCPUS: "2,3"
-              # NOTE: It removes existing 'ASD' attribute during the next update.
-              ASD: null
+```yaml
+node:
+  hosts:
+    kvm01:
+      ansible_host: 10.11.12.20
+      onehost:
+        template:
+          RESERVED_MEM: 4096
+          ISOLCPUS: "2,3"
+          # NOTE: It removes existing 'ASD' attribute during the next update.
+          ASD: null
+```
 
 The attributes are appended to the host template after the host is registered.
 Existing attributes outside `onehost.template` are preserved. Use uppercase

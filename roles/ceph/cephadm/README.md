@@ -37,52 +37,56 @@ N/A
 Example Inventory
 -----------------
 
-    ceph:
-      children:
-        ? mon
-        ? mgr
-        ? osd
-      vars:
-        # When defined in the `ceph` inventory group, all settings are applied at the "global" level in Ceph.
-        cephadm_conf:
-          osd_memory_target: '2147483648'
+```yaml
+ceph:
+  children:
+    ? mon
+    ? mgr
+    ? osd
+  vars:
+    # When defined in the `ceph` inventory group, all settings are applied at the "global" level in Ceph.
+    cephadm_conf:
+      osd_memory_target: '2147483648'
 
-    mon:
-      hosts:
-        u2q10: { ansible_host: 10.3.12.10 }
-        u2q20: { ansible_host: 10.3.12.20 }
-        u2q30: { ansible_host: 10.3.12.30 }
+mon:
+  hosts:
+    u2q10: { ansible_host: 10.3.12.10 }
+    u2q20: { ansible_host: 10.3.12.20 }
+    u2q30: { ansible_host: 10.3.12.30 }
 
-    mgr:
-      hosts:
-        u2q10: { ansible_host: 10.3.12.10 }
-        u2q20: { ansible_host: 10.3.12.20 }
-        u2q30: { ansible_host: 10.3.12.30 }
+mgr:
+  hosts:
+    u2q10: { ansible_host: 10.3.12.10 }
+    u2q20: { ansible_host: 10.3.12.20 }
+    u2q30: { ansible_host: 10.3.12.30 }
 
-    osd:
-      vars:
-        # When defined in the `osd` inventory group, all settings are applied at the "osd" level in Ceph.
-        cephadm_conf:
-          osd_memory_target_autotune: 'false'
-      hosts:
-        u2q40:
-          ansible_host: 10.3.12.40
-          # When defined on the inventory host, all settings are applied at the host level in Ceph.
-          cephadm_conf:
-            osd_memory_target: null # NOTE: `null` triggers `ceph config rm` instead of `ceph config set`.
-        u2q50:
-          ansible_host: 10.3.12.50
-          cephadm_conf:
-            osd_memory_target: null
+osd:
+  vars:
+    # When defined in the `osd` inventory group, all settings are applied at the "osd" level in Ceph.
+    cephadm_conf:
+      osd_memory_target_autotune: 'false'
+  hosts:
+    u2q40:
+      ansible_host: 10.3.12.40
+      # When defined on the inventory host, all settings are applied at the host level in Ceph.
+      cephadm_conf:
+        osd_memory_target: null # NOTE: `null` triggers `ceph config rm` instead of `ceph config set`.
+    u2q50:
+      ansible_host: 10.3.12.50
+      cephadm_conf:
+        osd_memory_target: null
+```
 
 Example Playbook
 ----------------
 
-    - hosts: mon:mgr:osd
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.ceph.repository
-        - role: opennebula.deploy.ceph.cephadm
+```yaml
+- hosts: mon:mgr:osd
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.ceph.repository
+    - role: opennebula.deploy.ceph.cephadm
+```
 
 License
 -------

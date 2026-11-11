@@ -27,14 +27,16 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: bastion
-      vars:
-        # NOTE: the env_name should normally be defined in your inventory!
-        env_name: nebula3
-      roles:
-        - role: opennebula.deploy.helper.bastion
-          delegate_to: localhost
-          become: false
+```yaml
+- hosts: bastion
+  vars:
+    # NOTE: the env_name should normally be defined in your inventory!
+    env_name: nebula3
+  roles:
+    - role: opennebula.deploy.helper.bastion
+      delegate_to: localhost
+      become: false
+```
 
 License
 -------

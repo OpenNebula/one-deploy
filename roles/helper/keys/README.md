@@ -26,9 +26,11 @@ Dependencies
 Example Playbook
 ----------------
 
-    - hosts: frontend:node
-      roles:
-         - { role: opennebula.deploy.helper.keys, ensure_keys_for: [root] }
+```yaml
+- hosts: frontend:node
+  roles:
+     - { role: opennebula.deploy.helper.keys, ensure_keys_for: [root] }
+```
 
 License
 -------

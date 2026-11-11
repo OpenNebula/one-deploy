@@ -25,76 +25,78 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: frontend
-      vars:
-        alertmanager_config: |
-          ---
-          global:
-            resolve_timeout: 5m
+```yaml
+- hosts: frontend
+  vars:
+    alertmanager_config: |
+      ---
+      global:
+        resolve_timeout: 5m
 
-          route:
-            group_by: [alertname]
-            group_wait: 1m
-            group_interval: 5m
-            repeat_interval: 1h
-            receiver: discard
+      route:
+        group_by: [alertname]
+        group_wait: 1m
+        group_interval: 5m
+        repeat_interval: 1h
+        receiver: discard
 
-          receivers:
-            - name: discard
+      receivers:
+        - name: discard
 
-          templates: []
+      templates: []
 
-          inhibit_rules:
-            - source_match:
-                severity: critical
-              target_match:
-                severity: warning
-              equal: [alertname, dev, instance]
-        oneprometheus_limits:
-          opennebula-alertmanager.service:
-            CPUQuota: 25%
-            CPUWeight: 150
-            MemoryHigh: 128M
-            MemoryMax: 256M
-          opennebula-exporter.service:
-            CPUQuota: 25%
-            CPUWeight: 25
-            MemoryHigh: 128M
-            MemoryMax: 256M
-          opennebula-mysql-exporter.service:
-            CPUQuota: 25%
-            CPUWeight: 25
-            MemoryHigh: 128M
-            MemoryMax: 256M
-          opennebula-node-exporter.service:
-            CPUQuota: 25%
-            CPUWeight: 25
-            MemoryHigh: 64M
-            MemoryMax: 128M
-          opennebula-ovs-exporter.service:
-            CPUQuota: 50%
-            CPUWeight: 25
-            MemoryHigh: 256M
-            MemoryMax: 512M
-          opennebula-prometheus.service:
-            CPUQuota: 100%
-            CPUWeight: 100
-            MemoryHigh: 1024M
-            MemoryMax: 2048M
-            IOWeight: 200
-            IOReadBandwidthMax: /var/lib/prometheus 50M
-            IOWriteBandwidthMax: /var/lib/prometheus 25M
-            storage.tsdb.retention.size: 50GB
-            storage.tsdb.retention.time: 30d
-          opennebula-smartctl-exporter.service:
-            CPUQuota: 25%
-            CPUWeight: 25
-            MemoryHigh: 128M
-            MemoryMax: 256M
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.repository
-        - role: opennebula.deploy.prometheus.server
+      inhibit_rules:
+        - source_match:
+            severity: critical
+          target_match:
+            severity: warning
+          equal: [alertname, dev, instance]
+    oneprometheus_limits:
+      opennebula-alertmanager.service:
+        CPUQuota: 25%
+        CPUWeight: 150
+        MemoryHigh: 128M
+        MemoryMax: 256M
+      opennebula-exporter.service:
+        CPUQuota: 25%
+        CPUWeight: 25
+        MemoryHigh: 128M
+        MemoryMax: 256M
+      opennebula-mysql-exporter.service:
+        CPUQuota: 25%
+        CPUWeight: 25
+        MemoryHigh: 128M
+        MemoryMax: 256M
+      opennebula-node-exporter.service:
+        CPUQuota: 25%
+        CPUWeight: 25
+        MemoryHigh: 64M
+        MemoryMax: 128M
+      opennebula-ovs-exporter.service:
+        CPUQuota: 50%
+        CPUWeight: 25
+        MemoryHigh: 256M
+        MemoryMax: 512M
+      opennebula-prometheus.service:
+        CPUQuota: 100%
+        CPUWeight: 100
+        MemoryHigh: 1024M
+        MemoryMax: 2048M
+        IOWeight: 200
+        IOReadBandwidthMax: /var/lib/prometheus 50M
+        IOWriteBandwidthMax: /var/lib/prometheus 25M
+        storage.tsdb.retention.size: 50GB
+        storage.tsdb.retention.time: 30d
+      opennebula-smartctl-exporter.service:
+        CPUQuota: 25%
+        CPUWeight: 25
+        MemoryHigh: 128M
+        MemoryMax: 256M
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.repository
+    - role: opennebula.deploy.prometheus.server
+```
 
 License
 -------

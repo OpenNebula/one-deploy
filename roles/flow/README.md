@@ -24,10 +24,12 @@ Dependencies
 Example Playbook
 ----------------
 
-    - hosts: frontend
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.flow
+```yaml
+- hosts: frontend
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.flow
+```
 
 License
 -------

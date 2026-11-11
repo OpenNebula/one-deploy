@@ -24,14 +24,16 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: mon:mgr:osd
-      vars:
-        ceph:
-          repo: distro
-          release: squid
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.ceph.repository
+```yaml
+- hosts: mon:mgr:osd
+  vars:
+    ceph:
+      repo: distro
+      release: squid
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.ceph.repository
+```
 
 License
 -------

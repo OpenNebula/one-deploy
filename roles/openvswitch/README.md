@@ -25,92 +25,94 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: node
-      vars:
-        kernel_ok_to_reboot: true
-        kernel_params:
-          - default_hugepagesz: "1G"
-          - hugepagesz: "1G"
-          - hugepages: 3
-          - intel_iommu: "on"
-        kernel_modules:
-          - load: vfio-pci
-          - load: vfio_iommu_type1
-            options: ["allow_unsafe_interrupts=1"] # for virtio-net-pci devices
-        opennebula_repo_pre_enable:
-          AlmaLinux:
-            extra_rpms:
-              '10': [centos-release-nfv-openvswitch]
-            config_manager:
-              '10': [crb, epel, highavailability, centos-nfv-openvswitch]
-          RedHat:
-            subscription_manager:
-              '9':
-                - codeready-builder-for-rhel-9-x86_64-rpms
-                - rhel-9-for-x86_64-highavailability-rpms
-                - fast-datapath-for-rhel-9-x86_64-rpms
-        pci_devices:
-          - address: '0000:04:00.0'
-            set_name: asd123
-            unlisted: true
-          - address: '52:54:00:12:34:56'
-            set_name: asd321
-            unlisted: true
-        ovs:
+```yaml
+- hosts: node
+  vars:
+    kernel_ok_to_reboot: true
+    kernel_params:
+      - default_hugepagesz: "1G"
+      - hugepagesz: "1G"
+      - hugepages: 3
+      - intel_iommu: "on"
+    kernel_modules:
+      - load: vfio-pci
+      - load: vfio_iommu_type1
+        options: ["allow_unsafe_interrupts=1"] # for virtio-net-pci devices
+    opennebula_repo_pre_enable:
+      AlmaLinux:
+        extra_rpms:
+          '10': [centos-release-nfv-openvswitch]
+        config_manager:
+          '10': [crb, epel, highavailability, centos-nfv-openvswitch]
+      RedHat:
+        subscription_manager:
+          '9':
+            - codeready-builder-for-rhel-9-x86_64-rpms
+            - rhel-9-for-x86_64-highavailability-rpms
+            - fast-datapath-for-rhel-9-x86_64-rpms
+    pci_devices:
+      - address: '0000:04:00.0'
+        set_name: asd123
+        unlisted: true
+      - address: '52:54:00:12:34:56'
+        set_name: asd321
+        unlisted: true
+    ovs:
+      set:
+        - other_config:dpdk-init: 'true'
+        - other_config:dpdk-socket-mem: '1024,0'
+      port:
+        ovsbr0: # "internal" port
           set:
-            - other_config:dpdk-init: 'true'
-            - other_config:dpdk-socket-mem: '1024,0'
-          port:
-            ovsbr0: # "internal" port
-              set:
-                - tag: 123
-          iface:
-            ovsbr0: # "internal" port
-              set:
-                - mtu_request: 1500
-            dpdk-p0:
-              set:
-                - type: dpdkvhostuserclient
-                - mtu_request: 9000
-                - options:vhost-server-path: /var/tmp/dpdk-p0
-            dpdk-p1:
-              set:
-                - type: dpdk
-                - mtu_request: 9000
-                - options:dpdk-devargs: '0000:02:00.0'
-              driver: vfio-pci # this is the default
-            dpdk-p2:
-              set:
-                - type: dpdk
-                - mtu_request: 9000
-                - options:dpdk-devargs: '0000:03:00.0'
-              driver: omit # skip forcing the driver
-            asd123: {} # non-DPDK device (renamed)
-            asd321: {} # non-DPDK device (renamed)
-            eth4: {} # non-DPDK device
-          bond:
-            bond0:
-              ifaces: [dpdk-p1, dpdk-p2]
-              set:
-                - bond_mode: active-backup
-          br:
-            ovsbr0:
-              ports: [dpdk-p0, bond0]
-              set:
-                - datapath_type: netdev
-              addrs:
-                - cidr: "{{ ansible_default_ipv4.address ~ '/' ~ ansible_default_ipv4.prefix }}"
-                  metric: 400
-              gw: "{{ ansible_default_ipv4.gateway }}"
-              dns: ["{{ ansible_default_ipv4.gateway }}"]
-            ovsbr1: # non-DPDK bridge
-              ports: [asd123, asd321, eth4]
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.helper.kernel
-        - role: opennebula.deploy.helper.pci
-        - role: opennebula.deploy.repository
-        - role: opennebula.deploy.openvswitch
+            - tag: 123
+      iface:
+        ovsbr0: # "internal" port
+          set:
+            - mtu_request: 1500
+        dpdk-p0:
+          set:
+            - type: dpdkvhostuserclient
+            - mtu_request: 9000
+            - options:vhost-server-path: /var/tmp/dpdk-p0
+        dpdk-p1:
+          set:
+            - type: dpdk
+            - mtu_request: 9000
+            - options:dpdk-devargs: '0000:02:00.0'
+          driver: vfio-pci # this is the default
+        dpdk-p2:
+          set:
+            - type: dpdk
+            - mtu_request: 9000
+            - options:dpdk-devargs: '0000:03:00.0'
+          driver: omit # skip forcing the driver
+        asd123: {} # non-DPDK device (renamed)
+        asd321: {} # non-DPDK device (renamed)
+        eth4: {} # non-DPDK device
+      bond:
+        bond0:
+          ifaces: [dpdk-p1, dpdk-p2]
+          set:
+            - bond_mode: active-backup
+      br:
+        ovsbr0:
+          ports: [dpdk-p0, bond0]
+          set:
+            - datapath_type: netdev
+          addrs:
+            - cidr: "{{ ansible_default_ipv4.address ~ '/' ~ ansible_default_ipv4.prefix }}"
+              metric: 400
+          gw: "{{ ansible_default_ipv4.gateway }}"
+          dns: ["{{ ansible_default_ipv4.gateway }}"]
+        ovsbr1: # non-DPDK bridge
+          ports: [asd123, asd321, eth4]
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.helper.kernel
+    - role: opennebula.deploy.helper.pci
+    - role: opennebula.deploy.repository
+    - role: opennebula.deploy.openvswitch
+```
 
 License
 -------

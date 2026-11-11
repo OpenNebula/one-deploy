@@ -30,24 +30,26 @@ Dependencies
 Example Playbook
 ----------------
 
-    - hosts: frontend
-      vars:
-        usergroups:
-          groups:
-            g1: {}
-            g2:
-              admin_user: admg2
-              admin_password: passwd_admg2
-              resources: VM+NET+IMAGE+TEMPLATE+HOST+CLUSTER
-          users:
-            u1:
-              password: testpassword
-              groups: g1,g2
-            u2:
-              driver: ldap
-     roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.network.frontend
+```yaml
+- hosts: frontend
+  vars:
+    usergroups:
+      groups:
+        g1: {}
+        g2:
+          admin_user: admg2
+          admin_password: passwd_admg2
+          resources: VM+NET+IMAGE+TEMPLATE+HOST+CLUSTER
+      users:
+        u1:
+          password: testpassword
+          groups: g1,g2
+        u2:
+          driver: ldap
+ roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.network.frontend
+```
 
 License
 -------

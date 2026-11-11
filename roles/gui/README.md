@@ -38,23 +38,25 @@ Dependencies
 Example Playbook
 ----------------
 
-    - hosts: frontend
-      vars:
-        one_fqdn: "nebula.example.io"
-        ssl:
-          generate_cert: true
-          web_server: nginx
-          key: /etc/ssl/private/ssl-cert-snakeoil.key
-          certchain: /etc/ssl/certs/ssl-cert-snakeoil.pem
-        sunstone_views:
-          - name: customview
-            label: Custom View
-            description: A custom view
-            groups: [oneadmin, users]
-            source_dir: customview/ # "{{ inventory_dir }}/views/customview/" -> "{{ sunstone_views_base_dir }}/customview/"
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.gui
+```yaml
+- hosts: frontend
+  vars:
+    one_fqdn: "nebula.example.io"
+    ssl:
+      generate_cert: true
+      web_server: nginx
+      key: /etc/ssl/private/ssl-cert-snakeoil.key
+      certchain: /etc/ssl/certs/ssl-cert-snakeoil.pem
+    sunstone_views:
+      - name: customview
+        label: Custom View
+        description: A custom view
+        groups: [oneadmin, users]
+        source_dir: customview/ # "{{ inventory_dir }}/views/customview/" -> "{{ sunstone_views_base_dir }}/customview/"
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.gui
+```
 
 License
 -------

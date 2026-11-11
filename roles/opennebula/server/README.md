@@ -58,92 +58,94 @@ Dependencies
 Example Playbook
 ----------------
 
-    - hosts: frontend
-      vars:
-        gate_endpoint: "http://10.11.12.13:5030"
-        admin_pubkey: null  # ignore it
+```yaml
+- hosts: frontend
+  vars:
+    gate_endpoint: "http://10.11.12.13:5030"
+    admin_pubkey: null  # ignore it
 
-        # LDAP authentication with manually defined group mappings.
-        auth:
-          default: ldap
-          ldap:
-            config:
-              :order: [dirsrv]
-              dirsrv:
-                :user: cn=admin,dc=sk4zuzu,dc=eu
-                :password: asd123
-                :host: 10.3.10.1
-                :base: dc=sk4zuzu,dc=eu
-                :rfc2307bis: true
-                :group_field: memberOf
-                :mapping_generate: false
-                :mapping_filename: dirsrv.yaml
-            mapping:
-              dirsrv:
-                cn=users,ou=groups,dc=sk4zuzu,dc=eu: 1
+    # LDAP authentication with manually defined group mappings.
+    auth:
+      default: ldap
+      ldap:
+        config:
+          :order: [dirsrv]
+          dirsrv:
+            :user: cn=admin,dc=sk4zuzu,dc=eu
+            :password: asd123
+            :host: 10.3.10.1
+            :base: dc=sk4zuzu,dc=eu
+            :rfc2307bis: true
+            :group_field: memberOf
+            :mapping_generate: false
+            :mapping_filename: dirsrv.yaml
+        mapping:
+          dirsrv:
+            cn=users,ou=groups,dc=sk4zuzu,dc=eu: 1
 
-        oned_conf:
-          MANAGER_TIMER: 10
-          MONITORING_INTERVAL_DATASTORE: 20
-          LOG/DEBUG_LEVEL: 5
-          LOG_CALL_FORMAT: '"Req:%i UID:%u IP:%A %m invoked %l5000"'
-          HOOK_LOG_CONF/LOG_RETENTION: 200
-          RAFT/ELECTION_TIMEOUT_MS: 7000
-          RAFT/BROADCAST_TIMEOUT_MS: 800
-          DEFAULT_COST: null # drop the setting
+    oned_conf:
+      MANAGER_TIMER: 10
+      MONITORING_INTERVAL_DATASTORE: 20
+      LOG/DEBUG_LEVEL: 5
+      LOG_CALL_FORMAT: '"Req:%i UID:%u IP:%A %m invoked %l5000"'
+      HOOK_LOG_CONF/LOG_RETENTION: 200
+      RAFT/ELECTION_TIMEOUT_MS: 7000
+      RAFT/BROADCAST_TIMEOUT_MS: 800
+      DEFAULT_COST: null # drop the setting
 
-        monitord_conf:
-          NETWORK/ADDRESS: '"::"'
-          NETWORK/THREADS: 12
-          LOG/debug_level: 4
-          VM_MONITORING_EXPIRATION_TIME: null # drop the setting
+    monitord_conf:
+      NETWORK/ADDRESS: '"::"'
+      NETWORK/THREADS: 12
+      LOG/debug_level: 4
+      VM_MONITORING_EXPIRATION_TIME: null # drop the setting
 
-        kvm_conf:
-          DISK/DRIVER: '"qcow2"'
-          DISK/CACHE: '"writethrough"'
+    kvm_conf:
+      DISK/DRIVER: '"qcow2"'
+      DISK/CACHE: '"writethrough"'
 
-        # NOTE: The VM template must also enable the `GUEST_AGENT` feature, and the guest OS must run the QEMU Guest Agent.
-        #       See the [OpenNebula KVM driver documentation](https://docs.opennebula.io/7.4/product/operation_references/hypervisor_configuration/kvm_driver/#qemu-guest-agent-monitoring)
-        #       for monitoring behavior and available command filters.
-        guestagent_conf:
-          :enabled: true
-          :commands/:guest_info:
-            :command: >-
-              one-$vm_id '{"execute":"guest-info"}' --timeout 5
-            :os_ids: [ubuntu]
-            :os_versions: ['22.04', '24.04']
+    # NOTE: The VM template must also enable the `GUEST_AGENT` feature, and the guest OS must run the QEMU Guest Agent.
+    #       See the [OpenNebula KVM driver documentation](https://docs.opennebula.io/7.4/product/operation_references/hypervisor_configuration/kvm_driver/#qemu-guest-agent-monitoring)
+    #       for monitoring behavior and available command filters.
+    guestagent_conf:
+      :enabled: true
+      :commands/:guest_info:
+        :command: >-
+          one-$vm_id '{"execute":"guest-info"}' --timeout 5
+        :os_ids: [ubuntu]
+        :os_versions: ['22.04', '24.04']
 
-        kvmrc:
-          CLEANUP_MEMORY_ON_START: 'yes'
+    kvmrc:
+      CLEANUP_MEMORY_ON_START: 'yes'
 
-        sched_rank:
-          DIFFERENT_VNETS: false
-          DEFAULT_SCHED:
-            POLICY: 3
-            RANK: "- (RUNNING_VMS * 50  + FREE_CPU)"
+    sched_rank:
+      DIFFERENT_VNETS: false
+      DEFAULT_SCHED:
+        POLICY: 3
+        RANK: "- (RUNNING_VMS * 50  + FREE_CPU)"
 
-        sched_drs:
-          PREDICTIVE: 0.3
-          MEMORY_SYSTEM_DS_SCALE: 0
-          DIFFERENT_VNETS: true
-          DEFAULT_SCHED:
-            SOLVER: "CBC"
-            SOLVER_PATH: "/usr/lib/one/python/pulp/solverdir/cbc/linux/64/cbc"
-          PLACE:
-            POLICY: "PACK"
-          OPTIMIZE:
-            POLICY: "BALANCE"
-            MIGRATION_THRESHOLD: 10
-            WEIGHTS:
-              CPU_USAGE: 0.2
-              CPU: 0.2
-              MEMORY: 0.4
-              DISK: 0.1
-              NET: 0.1
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.database
-        - role: opennebula.deploy.opennebula.server
+    sched_drs:
+      PREDICTIVE: 0.3
+      MEMORY_SYSTEM_DS_SCALE: 0
+      DIFFERENT_VNETS: true
+      DEFAULT_SCHED:
+        SOLVER: "CBC"
+        SOLVER_PATH: "/usr/lib/one/python/pulp/solverdir/cbc/linux/64/cbc"
+      PLACE:
+        POLICY: "PACK"
+      OPTIMIZE:
+        POLICY: "BALANCE"
+        MIGRATION_THRESHOLD: 10
+        WEIGHTS:
+          CPU_USAGE: 0.2
+          CPU: 0.2
+          MEMORY: 0.4
+          DISK: 0.1
+          NET: 0.1
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.database
+    - role: opennebula.deploy.opennebula.server
+```
 
 License
 -------
