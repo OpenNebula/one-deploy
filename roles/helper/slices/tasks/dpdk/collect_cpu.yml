@@ -63,6 +63,7 @@
                                     | unique
                                     | batch(v | int)
                                     | first
+                                    | d([])
                                     | flatten -%}
 
         {{- output.append(claimed) -}}
@@ -117,3 +118,5 @@
                                    | map('int')
                                    | sort
                                    | map('string') }}
+          requested: >-
+            {{ (slices.cpus.requested | d(0) | int) + (_cpu_count_per_numa_node.values() | map('int') | sum) }}

@@ -91,3 +91,5 @@
                                    | map('int')
                                    | sort
                                    | map('string') }}
+          requested: >-
+            {{ (slices.cpus.requested | d(0) | int) + (_cpus_to_pin | count) }}

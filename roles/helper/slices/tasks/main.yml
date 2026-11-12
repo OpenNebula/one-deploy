@@ -53,12 +53,12 @@
       when: _infra_enabled
 
     - ansible.builtin.include_tasks:
-        file: "{{ role_path }}/tasks/dpdk/collect.yml"
-      when: _dpdk_enabled
-
-    - ansible.builtin.include_tasks:
         file: "{{ role_path }}/tasks/infra/assert.yml"
       when: _infra_enabled
+
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/dpdk/collect.yml"
+      when: _dpdk_enabled
 
     - ansible.builtin.include_tasks:
         file: "{{ role_path }}/tasks/dpdk/assert.yml"
