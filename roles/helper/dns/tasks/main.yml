@@ -8,6 +8,11 @@
              | map(attribute='server')
              | list }}
 
+    _domains: >-
+      {{ dns | selectattr('search', 'defined')
+             | map(attribute='search')
+             | list }}
+
     _tokens: >-
       {{ dns | selectattr('host', 'defined')
              | map(attribute='host')

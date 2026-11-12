@@ -3,6 +3,9 @@
     _resolv_conf_content: |
       # managed by one-deploy
       nameserver 127.0.0.1
+      {% if _domains | count > 0 %}
+      search {{ _domains | join(' ') }}
+      {% endif %}
   block:
     - name: Stat /etc/resolv.conf
       ansible.builtin.stat:
