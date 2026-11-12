@@ -1,0 +1,118 @@
+---
+- vars:
+    _resolv_conf_content: |
+      # managed by one-deploy
+      nameserver 127.0.0.1
+  block:
+    - name: Stat /etc/resolv.conf
+      ansible.builtin.stat:
+        path: /etc/resolv.conf
+        follow: false
+        get_attributes: true
+        get_checksum: true
+        get_mime: false
+        checksum_algorithm: sha1
+      register: stat_resolv_conf
+
+    - when: (stat_resolv_conf.stat is defined and stat_resolv_conf.stat.checksum is undefined)
+            or
+            (stat_resolv_conf.stat.checksum != _resolv_conf_content | hash('sha1'))
+      block:
+        - name: Unprotect /etc/resolv.conf
+          ansible.builtin.file:
+            path: /etc/resolv.conf
+            attributes: -i
+          when:
+            - stat_resolv_conf.stat.isreg | d(false)
+            - stat_resolv_conf.stat.attributes | d([]) is contains('immutable')
+
+        - name: Remove /etc/resolv.conf (symlink)
+          ansible.builtin.file:
+            path: /etc/resolv.conf
+            state: absent
+          when:
+            - stat_resolv_conf.stat.islnk | d(false)
+
+        - name: Write static DNS config
+          ansible.builtin.copy:
+            dest: /etc/resolv.conf
+            owner: 0
+            group: 0
+            mode: u=rw,g=r
+            follow: false
+            content: "{{ _resolv_conf_content }}"
+
+        - name: Protect /etc/resolv.conf
+          ansible.builtin.file:
+            path: /etc/resolv.conf
+            attributes: +i
+
+- vars:
+    _nsswitch_conf_locations:
+      true: /etc/authselect/user-nsswitch.conf
+      false: /etc/nsswitch.conf
+    _authselect_managed: >-
+      {{ stat_nsswitch_conf.stat.lnk_source | d('') == _nsswitch_conf_locations[true] }}
+  block:
+    - name: Stat /etc/nsswitch.conf
+      ansible.builtin.stat:
+        path: /etc/nsswitch.conf
+        follow: false
+        get_attributes: false
+        get_checksum: false
+        get_mime: false
+      register: stat_nsswitch_conf
+
+    - name: Bypass systemd-resolved in NSS host lookups
+      ansible.builtin.replace:
+        path: "{{ _nsswitch_conf_locations[_authselect_managed] }}"
+        regexp: '(?m)^([ \t]*hosts:[^#\n]*?)[ \t]+resolve\b(?:[ \t]+\[[^\]\n]*\])*'
+        replace: '\g<1>'
+      register: replace_nsswitch_conf
+
+    - name: Apply authselect changes
+      ansible.builtin.command:
+        cmd: authselect apply-changes
+      when:
+        - _authselect_managed
+        - replace_nsswitch_conf is changed
+
+# NOTE: As a defensive measure, we explicitly disable NetworkManager DNS management
+#       rather than relying solely on resolv.conf immutability.
+- block:
+    - name: Detect NetworkManager.service (query raw status)
+      ansible.builtin.systemd_service:
+        name: NetworkManager.service
+      register: systemd_service_nm
+      no_log: true
+
+    - when: systemd_service_nm.status.LoadState not in ['masked', 'not-found']
+      block:
+        - name: Ensure /etc/NetworkManager/conf.d
+          ansible.builtin.file:
+            path: /etc/NetworkManager/conf.d
+            state: directory
+            owner: 0
+            group: 0
+            mode: u=rwx,go=rx
+
+        - name: Configure DNS opt-out
+          ansible.builtin.copy:
+            dest: /etc/NetworkManager/conf.d/90-static-dns.conf
+            owner: 0
+            group: 0
+            mode: u=rx,go=r
+            content: |
+              # managed by one-deploy
+              [main]
+              dns=none
+              rc-manager=unmanaged
+          register: copy_nm_static_dns
+
+        - name: Reload running NetworkManager
+          ansible.builtin.systemd_service:
+            name: NetworkManager.service
+            state: reloaded
+          when:
+            - systemd_service_nm.status.SubState in ['running']
+            - copy_nm_static_dns is changed

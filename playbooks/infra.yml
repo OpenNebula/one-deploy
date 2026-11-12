@@ -13,22 +13,34 @@
     - role: helper/facts
       tags: [always]
 
+    - role: helper/cache
+
 - hosts: "{{ (infra_group | d('infra')) ~ ':&' ~ (node_group | d('node')) }}" # intersection
   tags: [infra]
   collections:
     - opennebula.deploy
   roles:
     - role: helper/kernel # NOTE: it may reboot the machine!
+      tags: [kernel]
+
+    - role: helper/ntp
+      tags: [ntp]
+
+    - role: helper/dns
+      tags: [dns]
 
     # The helper/pci role does not require OpenNebula cluster to be established
     # as it operates strictly on the device layer of the underlying OS.
     - role: helper/pci
+      tags: [pci, pci_passthrough]
 
     - role: repository
+      tags: [openvswitch]
 
     # The openvswitch role does not require OpenNebula cluster to be established
     # as it operates strictly on the device / networking layers of the underlying OS.
     - role: openvswitch
+      tags: [openvswitch]
   tasks:
     - name: Install OpenNebula KVM package
       ansible.builtin.package:

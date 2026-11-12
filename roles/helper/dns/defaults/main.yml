@@ -1,0 +1,21 @@
+---
+dns_resolvers:
+  unbound:
+    # NOTE: This is not YAML!
+    config:
+      server: |
+        chroot: ""
+        interface: 127.0.0.1
+        {% for h, a in _hosts.items() %}
+        local-data: "{{ h }}. IN A {{ a }}"
+        {% endfor %}
+      forward-zone: |
+        name: "."
+        forward-first: no
+        {% for a in _servers %}
+        forward-addr: "{{ a }}"
+        {% endfor %}
+
+dns_resolver: unbound
+
+dns: []

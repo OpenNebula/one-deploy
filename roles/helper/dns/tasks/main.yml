@@ -1,0 +1,43 @@
+---
+- when:
+    - dns is sequence
+    - _servers | count > 0
+  vars:
+    _servers: >-
+      {{ dns | selectattr('server', 'defined')
+             | map(attribute='server')
+             | list }}
+
+    _tokens: >-
+      {{ dns | selectattr('host', 'defined')
+             | map(attribute='host')
+             | map('split') }}
+    _addrs: >-
+      {{ _tokens | map('first')
+                 | list }}
+    _pairs: >-
+      {{ _addrs | zip(_tokens)
+                | map('zip', ['key', 'value'])
+                | map('list')
+                | map('items2dict', key_name=1, value_name=0)
+                | subelements('value') }}
+    # {hostname -> IP}
+    _hosts: >-
+      {{ _pairs | map(attribute=1)
+                | zip(_pairs | map(attribute='0.key'))
+                | rejectattr(0, 'in', _addrs)
+                | items2dict(key_name=0, value_name=1) }}
+  block:
+    - name: Assert that the chosen DNS resolver is supported
+      ansible.builtin.assert:
+        that: dns_resolver in dns_resolvers
+        fail_msg: >-
+          Unsupported DNS resolver '{{ dns_resolver }}'.
+
+    - name: Configure the chosen DNS resolver
+      ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/{{ dns_resolver }}.yml"
+
+    - name: Overwrite and protect /etc/resolv.conf
+      ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/takeover.yml"
