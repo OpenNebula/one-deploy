@@ -23,10 +23,12 @@ N/A
 Example Playbook
 ----------------
 
-    - hosts: node
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.helper.numa
+```yaml
+- hosts: node
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.helper.numa
+```
 
 License
 -------
