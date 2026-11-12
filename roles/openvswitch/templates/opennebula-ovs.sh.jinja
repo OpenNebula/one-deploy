@@ -236,31 +236,6 @@ log 'Replacing default route to via {{ gw }}'
 ip route replace default via '{{ gw }}' || die 'Failed to replace default route {{ gw }}'
 {% endif %}
 
-# --- Nameserver configuration
-
-{% if (ovs.iface.values() | list + ovs.br.values() | list) | selectattr('dns', 'defined')
-                                                           | selectattr('dns', 'sequence')
-                                                           | selectattr('dns', 'truthy')
-                                                           | count > 0 %}
-if type -p systemctl resolvectl &>/dev/null && [[ "$(systemctl is-enabled systemd-resolved.service)" != not-found ]]; then
-    log 'Enabling systemd-resolved'
-    if systemctl enable --now systemd-resolved.service; then
-        ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
-    else
-        die 'Failed to enable and start systemd-resolved'
-    fi
-{% for dev, v in (ovs.iface.items() | list + ovs.br.items() | list) %}
-    : '{{ dev }}'
-{% if v.dns is defined and v.dns is sequence %}
-    log 'Setting nameservers for {{ dev }}'
-    resolvectl dns '{{ dev }}' \
-        {{ v.dns | map('regex_replace', '^(.*)$', "'\g<1>'") | join(' ') }} \
-        || die 'Failed to setup nameservers'
-{% endif %}
-{% endfor %}
-fi
-{% endif %}
-
 # --- Networking refresh
 
 {% for br, v in ovs.br.items() %}

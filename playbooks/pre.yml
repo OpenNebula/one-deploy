@@ -71,6 +71,9 @@
     - role: helper/ntp
       tags: [ntp]
 
+    - role: helper/dns
+      tags: [dns]
+
     - role: helper/logs
       tags: [logs]
 
