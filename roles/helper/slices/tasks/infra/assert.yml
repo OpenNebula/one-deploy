@@ -16,6 +16,21 @@
         fail_msg: >-
           Value of 'vcpu_pinned' must not be empty for FE-VM pinning.
 
+    - name: Ensure there are enough CPUs to satisfy requirements (FE-VM)
+      ansible.builtin.assert:
+        that: _available | int >= _requested | int
+        fail_msg: >-
+          Not enough total CPUs ({{ _available }} < {{ _requested }}) to satisfy requested configuration (FE-VM).
+      vars:
+        _available: >-
+          {{ numa_query.cpus.to_siblings | dict2items
+                                         | rejectattr('key', 'in', _protected_cpus)
+                                         | map(attribute='value')
+                                         | unique
+                                         | count }}
+        _requested: >-
+          {{ slices.cpus.requested }}
+
     - name: Ensure first CPU in each NUMA node is never isolated (FE-VM)
       ansible.builtin.assert:
         that: not _infra_cpu_pinned
