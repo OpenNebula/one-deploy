@@ -149,6 +149,7 @@
             group: 0
             mode: u=rw,go=r
             content: |
+              # managed by one-deploy
               [Slice]
               {% for k, v in item.get('properties', {}).items() %}
               {{ k }}={{ v }}

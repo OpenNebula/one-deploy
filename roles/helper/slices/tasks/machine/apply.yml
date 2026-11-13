@@ -32,6 +32,7 @@
         group: 0
         mode: u=rw,go=r
         content: |
+          # managed by one-deploy
           [Slice]
           {% for k, v in _properties.items() %}
           {{ k }}={{ v }}
