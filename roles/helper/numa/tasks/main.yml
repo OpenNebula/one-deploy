@@ -1,0 +1,126 @@
+---
+- vars:
+    _query: >-
+      {{ shell_cpus_numa.stdout | split(_sep1)
+                                | select('truthy')
+                                | map('split', _sep2)
+                                | map('map', 'split', _sep3) }}
+    _sep1: "\n\n"
+    _sep2: "\n"
+    _sep3: ":\t" # noqa no-tabs
+
+    # Construct CPU ID -> NUMA node mapping.
+    _to_numa: >-
+      {%- set output = [] %}
+      {%- for k, v in _query.2 | map(attribute=1)
+                               | map('split', ';')
+                               | map('first')
+                               | map('opennebula.deploy.explode_ranges', split=true)
+                               | zip(_query.2 | map(attribute=0)) -%}
+        {{- output.append(k | product(v)) -}}
+      {%- endfor -%}
+      {{- output | flatten(levels=1) | items2dict(key_name=0, value_name=1) -}}
+
+    # Construct CPU ID -> sibling CPU IDs mapping.
+    _to_siblings: >-
+      {%- set output = [] %}
+      {%- for k, v in _query.1 -%}
+        {{-
+          output.append([
+            k, v | opennebula.deploy.explode_ranges(split=true)
+          ])
+        -}}
+      {%- endfor -%}
+      {{- output | items2dict(key_name=0, value_name=1) -}}
+
+    # Produce complete info about CPUs.
+    _cpus: >-
+      {%- set output = {} -%}
+      {%- for k, v in _query.0 -%}
+        {{-
+          output.update({
+            k: (output.get(k, []) + [v | opennebula.deploy.explode_ranges(split=true)]) | flatten | unique
+          })
+        -}}
+      {%- endfor -%}
+      {{-
+        output | combine({
+          "system": output.present | reject('in', output.isolated),
+
+          "to_numa": _to_numa,
+
+          "to_siblings": _to_siblings,
+        })
+      -}}
+
+    # Produce complete info about NUMA topology.
+    _numa: >-
+      {%- set output = {} -%}
+      {%- for k, v in _query.2 -%}
+        {{-
+          output.update({
+            k: {
+              "cpus": {
+                "present": v.split(';').0 | opennebula.deploy.explode_ranges(split=true),
+              },
+              "pages": {
+                "1G": {
+                  "present": v.split(';').1,
+
+                  "free": v.split(';').2,
+                },
+                "2M": {
+                  "present": v.split(';').3,
+
+                  "free": v.split(';').4,
+                },
+              },
+            },
+          })
+        -}}
+      {%- endfor -%}
+      {{- output -}}
+  block:
+    - name: Query CPU and NUMA resources
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit; shopt -s nullglob
+
+          # Query CPU availability and affinity.
+
+          PRESENT="$(head -1 '/sys/devices/system/cpu/present')"
+          echo -e "present:\t$PRESENT"
+          ISOLATED="$(head -1 '/sys/devices/system/cpu/isolated')"
+          echo -e "isolated:\t$ISOLATED"
+          echo
+
+          # Query CPU topology.
+
+          for DIR in '/sys/devices/system/cpu/cpu'[0-9]*; do
+            CORE="$(basename "$DIR")"
+            THSB="$(head -1 "$DIR/topology/thread_siblings_list")"
+            echo -e "${CORE#cpu}:\t$THSB"
+          done
+          echo
+
+          # Query NUMA topology.
+
+          for DIR in '/sys/devices/system/node/node'[0-9]*; do
+            NODE="$(basename "$DIR")"
+            CPUS="$(head -1 "$DIR/cpulist")"
+            NP1G="$(head -1 "$DIR/hugepages/hugepages-1048576kB/nr_hugepages")"
+            FP1G="$(head -1 "$DIR/hugepages/hugepages-1048576kB/free_hugepages")"
+            NP2M="$(head -1 "$DIR/hugepages/hugepages-2048kB/nr_hugepages")"
+            FP2M="$(head -1 "$DIR/hugepages/hugepages-2048kB/free_hugepages")"
+            echo -e "${NODE#node}:\t$CPUS;$NP1G;$FP1G;$NP2M;$FP2M"
+          done
+          echo
+        executable: /bin/bash
+      register: shell_cpus_numa
+      changed_when: false
+
+    - name: Store query results in the numa_query fact
+      ansible.builtin.set_fact:
+        numa_query:
+          cpus: "{{ _cpus }}"
+          numa: "{{ _numa }}"

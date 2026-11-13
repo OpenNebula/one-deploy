@@ -1,0 +1,39 @@
+---
+- vars:
+    _properties: >-
+      {{ (_cases | selectattr('when')
+                 | first
+                 | d({})).get('properties', {}) | combine(_override) }}
+
+
+    _override: >-
+      {{ (slices_override | selectattr('name', '==', 'machine.slice')
+                          | first
+                          | d({})).get('properties', {}) }}
+
+    _cases:
+      - when: "{{ true }}"
+        properties:
+          AllowedCPUs: >-
+            {{ numa_query.cpus.system | map('int') | sort | join(',') }}
+  block:
+    - name: Pre-configure machine.slice (file)
+      ansible.builtin.file:
+        dest: /etc/systemd/system/machine.slice.d/
+        state: directory
+        owner: 0
+        group: 0
+        mode: u=rwx,go=rx
+
+    - name: Pre-configure machine.slice (copy)
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/machine.slice.d/override.conf
+        owner: 0
+        group: 0
+        mode: u=rw,go=r
+        content: |
+          # managed by one-deploy
+          [Slice]
+          {% for k, v in _properties.items() %}
+          {{ k }}={{ v }}
+          {% endfor %}
