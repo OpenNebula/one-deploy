@@ -11,14 +11,15 @@ N/A
 Role Variables
 --------------
 
-| Name                          | Type   | Default   | Example | Description                                                |
-|-------------------------------|--------|-----------|---------|------------------------------------------------------------|
-| `slices_hugepagesz`           | `str`  | `1G`      | `2M`    | Hugepage type to use (mixed types are not supported).      |
-| `slices_extra_hugepage_count` | `int`  | `0`       |         | Add extra hugepages for DPDK (distributed evenly).         |
-| `slices_extra_cpu_count`      | `int`  | `0`       |         | Add extra CPUs for DPDK (distributed evenly).              |
-| `infra_xml_variant`           | `str`  | `default` |         | Defines which domain XML variant will be used for FE-VMs.  |
-| `vcpu_pinned`                 | `str`  | empty     | `2-3,5` | Isolated CPUs (specified by CPU ID) to be used for FE-VMs. |
-| `ovs`                         | `dict` | empty     |         | OVS/DPDK config.                                           |
+| Name                          | Type   | Default               | Example | Description                                                |
+|-------------------------------|--------|-----------------------|---------|------------------------------------------------------------|
+| `slices_hugepagesz`           | `str`  | `1G`                  | `2M`    | Hugepage type to use (mixed types are not supported).      |
+| `slices_extra_hugepage_count` | `int`  | `0`                   |         | Add extra hugepages for DPDK (distributed evenly).         |
+| `slices_extra_cpu_count`      | `int`  | `0`                   |         | Add extra CPUs for DPDK (distributed evenly).              |
+| `slices_override`             | `list` | (check role defaults) |         | Allow configuration overrides for any systemd slice.       |
+| `infra_xml_variant`           | `str`  | `default`             |         | Defines which domain XML variant will be used for FE-VMs.  |
+| `vcpu_pinned`                 | `str`  | empty                 | `2-3,5` | Isolated CPUs (specified by CPU ID) to be used for FE-VMs. |
+| `ovs`                         | `dict` | empty                 |         | OVS/DPDK config.                                           |
 
 Dependencies
 ------------
@@ -56,8 +57,15 @@ Example Playbook
 - hosts: node
   vars:
     slices_hugepagesz: 2M
+
     slices_extra_hugepage_count: 16
+
     slices_extra_cpu_count: 2
+
+    slices_override:
+      - name: system.slice
+        properties:
+          MemoryHigh: 3G
 
     kernel_ok_to_reboot: true
     kernel_params:

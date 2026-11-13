@@ -9,3 +9,18 @@ slices_extra_hugepage_count: 0
 # Extra isolated CPUs are distributed as evenly as possible across all NUMA nodes.
 # If you don't want this behavior, then please add appropriate config manually instead.
 slices_extra_cpu_count: 0
+
+slices_override: []
+
+# NOTE: The 'properties' dictionaries are merged with the corresponding estimates for the dpdk,
+#       infra and machine slices.
+slices_override_defaults:
+  - name: system.slice
+    properties:
+      MemoryHigh: 4G
+
+  - name: user.slice
+    properties:
+      MemoryHigh: 10G
+      MemoryMax: 12G
+      CPUQuota: 800%

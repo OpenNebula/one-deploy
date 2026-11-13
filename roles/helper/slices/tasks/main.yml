@@ -1,4 +1,29 @@
 ---
+- name: Merge slices_override with defaults
+  ansible.builtin.set_fact:
+    slices_override: >-
+      {{ (_defaults_with_name_dict | combine(_with_name_dict, recursive=true)).values() | list }}
+  vars:
+    _defaults_with_name: >-
+      {{ slices_override_defaults | selectattr('name', 'defined')
+                                  | selectattr('name', 'string')
+                                  | selectattr('name', 'truthy') }}
+
+    _defaults_with_name_dict: >-
+      {{ _defaults_with_name | map(attribute='name')
+                             | zip(_defaults_with_name)
+                             | items2dict(key_name=0, value_name=1) }}
+
+    _with_name: >-
+      {{ slices_override | selectattr('name', 'defined')
+                         | selectattr('name', 'string')
+                         | selectattr('name', 'truthy') }}
+
+    _with_name_dict: >-
+      {{ _with_name | map(attribute='name')
+                    | zip(_with_name)
+                    | items2dict(key_name=0, value_name=1) }}
+
 - vars:
     _infra_enabled: >-
       {{ groups.get(infra_group | d('infra'), []) | intersect(groups.get(node_group | d('node'), []))
@@ -103,7 +128,35 @@
         file: "{{ role_path }}/tasks/machine/apply.yml"
       when: _infra_enabled or _dpdk_enabled
 
+    - vars:
+        _loop: >-
+          {{ slices_override | selectattr('name', 'defined')
+                             | rejectattr('name', 'in', ['dpdk.slice', 'infra.slice', 'machine.slice']) }}
+      block:
+        - name: Pre-configure extra slices (file)
+          ansible.builtin.file:
+            dest: "/etc/systemd/system/{{ item.name }}.d/"
+            state: directory
+            owner: 0
+            group: 0
+            mode: u=rwx,go=rx
+          loop: "{{ _loop }}"
+
+        - name: Pre-configure extra slices (copy)
+          ansible.builtin.copy:
+            dest: "/etc/systemd/system/{{ item.name }}.d/override.conf"
+            owner: 0
+            group: 0
+            mode: u=rw,go=r
+            content: |
+              [Slice]
+              {% for k, v in item.get('properties', {}).items() %}
+              {{ k }}={{ v }}
+              {% endfor %}
+          loop: "{{ _loop }}"
+          register: copy_extra_slices
+
     - name: Reload systemd
       ansible.builtin.systemd_service:
         daemon_reload: true
-      when: _infra_enabled or _dpdk_enabled
+      when: _infra_enabled or _dpdk_enabled or copy_extra_slices is changed
