@@ -1,25 +1,43 @@
 ---
 - vars:
+    _properties: >-
+      {{ (_cases | selectattr('when')
+                 | first
+                 | d({})).get('properties', {}) | combine(_override) }}
+
+    _override: >-
+      {{ (slices_override | selectattr('name', '==', 'infra.slice')
+                          | first
+                          | d({})).get('properties', {}) }}
+
     _cases:
       - when: "{{ _infra_cpu_pinned and _infra_mem_pinned }}"
-        content: |
-          AllowedCPUs={{ slices.cpus.infra | map('int') | sort | join(',') }}
+        properties:
+          AllowedCPUs: >-
+            {{ slices.cpus.infra | map('int') | sort | join(',') }}
 
       - when: "{{ _infra_cpu_pinned and not _infra_mem_pinned }}"
-        content: |
-          AllowedCPUs={{ slices.cpus.infra | map('int') | sort | join(',') }}
-          MemoryMin={{ _memory_min | int }}K
-          MemoryLow={{ _memory_low | int }}K
+        properties:
+          AllowedCPUs: >-
+            {{ slices.cpus.infra | map('int') | sort | join(',') }}
+          MemoryMin: >-
+            {{ _memory_min | int }}K
+          MemoryLow: >-
+            {{ _memory_low | int }}K
 
       - when: "{{ not _infra_cpu_pinned and _infra_mem_pinned }}"
-        content: |
-          CPUWeight={{ _cpu_weight | int }}
+        properties:
+          CPUWeight: >-
+            {{ _cpu_weight | int }}
 
       - when: "{{ not _infra_cpu_pinned and not _infra_mem_pinned }}"
-        content: |
-          CPUWeight={{ _cpu_weight | int }}
-          MemoryMin={{ _memory_min | int }}K
-          MemoryLow={{ _memory_low | int }}K
+        properties:
+          CPUWeight: >-
+            {{ _cpu_weight | int }}
+          MemoryMin: >-
+            {{ _memory_min | int }}K
+          MemoryLow: >-
+            {{ _memory_low | int }}K
 
     _cpu_weight: >-
       {{ [vcpu_shares | int, 10000] | min }}
@@ -52,4 +70,6 @@
         mode: u=rw,go=r
         content: |
           [Slice]
-          {{ (_cases | selectattr('when') | first).content }}
+          {% for k, v in _properties.items() %}
+          {{ k }}={{ v }}
+          {% endfor %}
