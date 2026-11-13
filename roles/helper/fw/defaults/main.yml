@@ -115,3 +115,9 @@ fw_default_ports:
     groups:
       local: ["{{ node_group | d('node') }}"]
       peers: ["{{ node_group | d('node') }}"]
+
+  - name: IncomingGRE
+    ports: [/gre]
+    groups:
+      local: ["{{ frontend_group | d('frontend') }}"]
+      peers: ["{{ node_group | d('node') }}"]

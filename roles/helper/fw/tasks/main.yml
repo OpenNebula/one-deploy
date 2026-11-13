@@ -56,7 +56,7 @@
 
     - name: Open requested FW ports
       ansible.builtin.shell:
-        cmd: "{{ _shell[_detected].cmd }}"
+        cmd: "{{ _shell[_detected].cmd.splitlines() | reject('match', '^\\s*$') | join('\n') }}"
         executable: /bin/bash
       vars:
         _shell:
@@ -94,34 +94,51 @@
 
               {% for p in v.ports %}
 
+              {% set port = p.split('/')[0].replace(':', '-') %}
+              {% set is_ports = (
+                port is match('^[0-9]+(-[0-9]+)?$')
+                and 1 <= (port.split('-') | first | int) <= (port.split('-') | last | int) <= 65535
+              ) %}
+
+              {% set proto = p.split('/')[1].lower() %}
+              {% set is_proto = proto in ['tcp', 'udp', 'gre'] %}
+
+              {% if is_ports or is_proto %}
+
               {% if v.groups.peers | count > 0 %}
               {% for h in ipv4s %}
               firewall-cmd --permanent --zone=public \
                            --add-rich-rule="rule family='ipv4' \
                                             source address='{{ h }}' \
-                                            port port='{{ p.split('/')[0].replace(':', '-') }}' \
-                                            protocol='{{ p.split('/')[1] }}' \
+                                            {{ "port port='{}'".format(port) if is_ports }} \
+                                            {{ "protocol='{}'".format(proto) if is_proto and is_ports }} \
+                                            {{ "protocol value='{}'".format(proto) if is_proto and not is_ports }} \
                                             accept"
               {% endfor %}
               {% for h in ipv6s %}
               firewall-cmd --permanent --zone=public \
                            --add-rich-rule="rule family='ipv6' \
                                             source address='{{ h }}' \
-                                            port port='{{ p.split('/')[0].replace(':', '-') }}' \
-                                            protocol='{{ p.split('/')[1] }}' \
+                                            {{ "port port='{}'".format(port) if is_ports }} \
+                                            {{ "protocol='{}'".format(proto) if is_proto and is_ports }} \
+                                            {{ "protocol value='{}'".format(proto) if is_proto and not is_ports }} \
                                             accept"
               {% endfor %}
               {% else %}
               firewall-cmd --permanent --zone=public \
                            --add-rich-rule="rule family='ipv4' \
-                                            port port='{{ p.split('/')[0].replace(':', '-') }}' \
-                                            protocol='{{ p.split('/')[1] }}' \
+                                            {{ "port port='{}'".format(port) if is_ports }} \
+                                            {{ "protocol='{}'".format(proto) if is_proto and is_ports }} \
+                                            {{ "protocol value='{}'".format(proto) if is_proto and not is_ports }} \
                                             accept"
               firewall-cmd --permanent --zone=public \
                            --add-rich-rule="rule family='ipv6' \
-                                            port port='{{ p.split('/')[0].replace(':', '-') }}' \
-                                            protocol='{{ p.split('/')[1] }}' \
+                                            {{ "port port='{}'".format(port) if is_ports }} \
+                                            {{ "protocol='{}'".format(proto) if is_proto and is_ports }} \
+                                            {{ "protocol value='{}'".format(proto) if is_proto and not is_ports }} \
                                             accept"
+              {% endif %}
+
               {% endif %}
 
               {% endfor %}
@@ -172,18 +189,31 @@
 
               {% for p in v.ports %}
 
+              {% set port = p.split('/')[0].replace('-', ':') %}
+              {% set is_ports = (
+                port is match('^[0-9]+(:[0-9]+)?$')
+                and 1 <= (port.split(':') | first | int) <= (port.split(':') | last | int) <= 65535
+              ) %}
+
+              {% set proto = p.split('/')[1].lower() %}
+              {% set is_proto = proto in ['tcp', 'udp', 'gre'] %}
+
+              {% if is_ports or is_proto %}
+
               {% if v.groups.peers | count > 0 %}
               {% for h in ipv4s + ipv6s %}
               ufw allow from '{{ h }}' \
                         to any \
-                        port '{{ p.split('/')[0].replace('-', ':') }}' \
-                        proto '{{ p.split('/')[1] }}'
+                        {{ "port '{}'".format(port) if is_ports }} \
+                        {{ "proto '{}'".format(proto) if is_proto }}
               {% endfor %}
               {% else %}
               ufw allow from any \
                         to any \
-                        port '{{ p.split('/')[0].replace('-', ':') }}' \
-                        proto '{{ p.split('/')[1] }}'
+                        {{ "port '{}'".format(port) if is_ports }} \
+                        {{ "proto '{}'".format(proto) if is_proto }}
+              {% endif %}
+
               {% endif %}
 
               {% endfor %}

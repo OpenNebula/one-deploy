@@ -28,49 +28,51 @@ N/A
 Example Playbook
 ----------------
 
-    # Enable helper/fw, use default rules only.
-    - hosts: frontend:node
-      vars:
-        fw_ports: []
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.helper.fw
+```yaml
+# Enable helper/fw, use default rules only.
+- hosts: frontend:node
+  vars:
+    fw_ports: []
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.helper.fw
 
-    # Enable helper/fw, skip OneXmlRpc rule (please check role defaults).
-    - hosts: frontend:node
-      vars:
-        fw_ports:
-          - name: OneXmlRpc
-            skip: true
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.helper.fw
+# Enable helper/fw, skip OneXmlRpc rule (please check role defaults).
+- hosts: frontend:node
+  vars:
+    fw_ports:
+      - name: OneXmlRpc
+        skip: true
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.helper.fw
 
-    # Enable helper/fw, open custom UDP port on FEs, but allow datagrams only from HVs.
-    - hosts: frontend:node
-      vars:
-        fw_ports:
-          - name: CustomPort1
-            ports: [1234/udp]
-            groups:
-              local: [frontend]
-              peers: [node]
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.helper.fw
+# Enable helper/fw, open custom UDP port on FEs, but allow datagrams only from HVs.
+- hosts: frontend:node
+  vars:
+    fw_ports:
+      - name: CustomPort1
+        ports: [1234/udp]
+        groups:
+          local: [frontend]
+          peers: [node]
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.helper.fw
 
-    # Enable helper/fw, open custom TCP port range everywhere for everybody.
-    - hosts: frontend:node
-      vars:
-        fw_ports:
-          - name: CustomRange1
-            ports: [1234-4321/tcp] # 1234:4321/tcp is also allowed
-            groups:
-              local: [frontend, node]
-              peers: [] # `[]` means "any" or "0.0.0.0"
-      roles:
-        - role: opennebula.deploy.helper.facts
-        - role: opennebula.deploy.helper.fw
+# Enable helper/fw, open custom TCP port range everywhere for everybody.
+- hosts: frontend:node
+  vars:
+    fw_ports:
+      - name: CustomRange1
+        ports: [1234-4321/tcp] # 1234:4321/tcp is also allowed
+        groups:
+          local: [frontend, node]
+          peers: [] # `[]` means "any" or "0.0.0.0"
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.helper.fw
+```
 
 License
 -------
