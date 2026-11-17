@@ -261,10 +261,10 @@
         _dpdk_keys: >-
           {{ _dpdk_bond.keys() | list + _dpdk_iface.keys() | list }}
 
-    - name: Assert addrs/gw/dns are not declared for br 'ports' and bond 'ifaces'
+    - name: Assert addrs/gw are not declared for br 'ports' and bond 'ifaces'
       ansible.builtin.assert:
         that: _matched | count == 0
-        fail_msg: Please remove addrs/gw/dns attributes from br 'ports' and bond 'ifaces'.
+        fail_msg: Please remove addrs/gw attributes from br 'ports' and bond 'ifaces'.
       vars:
         _keys: >-
           {{ (_bond_ifaces + _br_ports) | difference(ovs.bond) }}
@@ -272,7 +272,7 @@
           {{ _keys | map('extract', ovs.iface)
                    | map('dict2items')
                    | flatten
-                   | selectattr('key', 'in', ['addrs', 'gw', 'dns']) }}
+                   | selectattr('key', 'in', ['addrs', 'gw']) }}
 
     - block:
         - name: Render extra udev rules (/etc/udev/rules.d)

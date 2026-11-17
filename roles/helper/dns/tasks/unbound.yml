@@ -1,0 +1,50 @@
+---
+- name: Install required OS packages
+  ansible.builtin.package:
+    name: "{{ _common + _specific[ansible_os_family] }}"
+  vars:
+    _common: [e2fsprogs, unbound]
+    _specific:
+      Debian: [iproute2]
+      RedHat: [iproute]
+      Suse: [iproute2]
+  register: package
+  until: package is success
+  retries: 12
+  delay: 5
+  tags: [preinstall]
+
+- name: Render Unbound's config
+  ansible.builtin.copy:
+    dest: /etc/unbound/unbound.conf
+    owner: 0
+    group: 0
+    mode: u=rw,g=r,o=
+    content: |
+      # managed by one-deploy (NOTE: This is not YAML!)
+
+      {% for k, v in dns_resolvers.unbound.config.items() %}
+      {{ k }}:
+      {{ v | indent(width=4, first=true) }}
+      {% endfor %}
+  register: copy_unbound_conf
+
+- name: Enable / Start / Restart Unbound (NOW)
+  ansible.builtin.systemd_service:
+    name: unbound.service
+    state: "{{ copy_unbound_conf is changed | ternary('restarted', 'started') }}"
+    enabled: true
+
+- name: Verify Unbound socket bindings
+  ansible.builtin.command:
+    argv: ["ss", "-H", "{{ item }}", "sport = :53"]
+  changed_when: false
+  become: true
+  loop:
+    - -lnup  # UDP
+    - -lntp  # TCP
+  register: command_unbound_sockets
+  failed_when: (command_unbound_sockets.rc != 0)
+               or
+               ((command_unbound_sockets.stdout_lines | select('search', '127[.]0[.]0[.]1:53 .*"unbound"')
+                                                      | count) == 0)

@@ -103,7 +103,6 @@ Example Playbook
             - cidr: "{{ ansible_default_ipv4.address ~ '/' ~ ansible_default_ipv4.prefix }}"
               metric: 400
           gw: "{{ ansible_default_ipv4.gateway }}"
-          dns: ["{{ ansible_default_ipv4.gateway }}"]
         ovsbr1: # non-DPDK bridge
           ports: [asd123, asd321, eth4]
   roles:

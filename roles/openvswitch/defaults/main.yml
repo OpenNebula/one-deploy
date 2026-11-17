@@ -11,25 +11,21 @@ ovs_packages:
     - iproute
     - iputils
     - openvswitch3.5
-    - systemd-resolved
   Debian:
     - ethtool
     - iproute2
     - iputils-arping
     - openvswitch-switch
-    - systemd-resolved
   RedHat:
     - ethtool
     - iproute
     - iputils
     - openvswitch3.6
-    - systemd-resolved
   Suse:
     - ethtool
     - iproute2
     - iputils
     - openvswitch
-    - systemd-resolved
 
 ovs_packages_dpdk:
   AlmaLinux:
@@ -38,27 +34,23 @@ ovs_packages_dpdk:
     - iproute
     - iputils
     - openvswitch3.5
-    - systemd-resolved
   Debian:
     - ethtool
     - iproute2
     - iputils-arping
     - openvswitch-switch-dpdk
-    - systemd-resolved
   RedHat:
     - dpdk-tools
     - ethtool
     - iproute
     - iputils
     - openvswitch3.6
-    - systemd-resolved
   Suse:
     - dpdk-tools
     - ethtool
     - iproute2
     - iputils
     - openvswitch
-    - systemd-resolved
 
 # SELinux userspace tools required to build/load the custom "dpdk_virt" policy module:
 # checkmodule (checkpolicy), semodule/semodule_package (policycoreutils), semanage (policycoreutils-python-utils).
