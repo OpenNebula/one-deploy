@@ -152,6 +152,7 @@
               # managed by one-deploy
               [Slice]
               {% for k, v in item.get('properties', {}).items() %}
+              {{ k }}=
               {{ k }}={{ v }}
               {% endfor %}
           loop: "{{ _loop }}"

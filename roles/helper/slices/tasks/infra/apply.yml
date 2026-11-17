@@ -72,5 +72,6 @@
           # managed by one-deploy
           [Slice]
           {% for k, v in _properties.items() %}
+          {{ k }}=
           {{ k }}={{ v }}
           {% endfor %}
