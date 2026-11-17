@@ -65,6 +65,9 @@
     - role: helper/kernel
       tags: [kernel]
 
+    - role: helper/fw
+      tags: [fw]
+
     - role: helper/keys
       tags: [keys]
 
