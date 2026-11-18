@@ -1,0 +1,46 @@
+---
+- hosts: frontend
+  gather_facts: false
+  tasks:
+    - name: Validate active Prometheus configuration
+      ansible.builtin.command:
+        cmd: /usr/bin/promtool check config /etc/one/prometheus/prometheus.yml
+      changed_when: false
+
+    - name: Read Prometheus configuration
+      ansible.builtin.slurp:
+        path: /etc/one/prometheus/prometheus.yml
+      register: prometheus_config_file
+
+    - name: Read node exporter discovery inventories
+      ansible.builtin.slurp:
+        path: "/etc/one/prometheus/inventory/{{ item }}.yml"
+      loop: [compute, control-plane]
+      register: prometheus_inventory_files
+
+    - name: Check node exporter discovery and host labels
+      ansible.builtin.assert:
+        that:
+          - >-
+            _node_job.file_sd_configs[0].files
+            == ['/etc/one/prometheus/inventory/compute.yml',
+                '/etc/one/prometheus/inventory/control-plane.yml']
+          - _compute_targets is sequence
+          - _control_plane_targets is sequence
+          - _control_plane_targets | length == groups.frontend | length
+          - _compute_targets | selectattr('labels.one_host_id', 'defined') | list | length == _compute_targets | length
+          - _compute_targets | selectattr('labels.role', 'equalto', 'compute') | list | length == _compute_targets | length
+      vars:
+        _config: "{{ prometheus_config_file.content | b64decode | from_yaml }}"
+        _node_job: "{{ _config.scrape_configs | selectattr('job_name', 'equalto', 'node_exporter') | first }}"
+        _compute_targets: "{{ prometheus_inventory_files.results[0].content | b64decode | from_yaml }}"
+        _control_plane_targets: "{{ prometheus_inventory_files.results[1].content | b64decode | from_yaml }}"
+
+    - name: Wait for Prometheus readiness
+      ansible.builtin.uri:
+        url: http://127.0.0.1:9090/-/ready
+        status_code: 200
+      register: prometheus_ready
+      until: prometheus_ready is success
+      retries: 12
+      delay: 5

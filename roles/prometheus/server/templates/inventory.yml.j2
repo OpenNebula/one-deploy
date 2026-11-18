@@ -1,0 +1,34 @@
+{% set entries = namespace(value=[]) %}
+{% set hosts = prometheus_compute_hosts if item.source == 'compute' else federation.groups.frontend %}
+{% for host in hosts %}
+{% if item.source == 'compute' %}
+{% set address = host.TEMPLATE.HOSTNAME | string %}
+{% set name = host.NAME | string %}
+{% set labels = {'role': 'compute'} | combine(prometheus_target_labels.get('compute', {}).get(name, {})) | combine({'one_host_id': host.ID | string}) %}
+{% set probes = prometheus_compute_probes.results | d([]) %}
+{% else %}
+{% set address = hostvars[host].ansible_host | d(host) | string %}
+{% set name = host | string %}
+{% set labels = {'role': 'control-plane'} | combine(prometheus_target_labels.get('control_plane', {}).get(name, {})) %}
+{% set probes = prometheus_mysql_probes.results | d([]) %}
+{% endif %}
+{% set available = namespace(value=item.exporter is not defined) %}
+{% if item.exporter is defined %}
+{% for probe in probes %}
+{% if item.source == 'compute' and probe.item.0.NAME == name and probe.item.1.name == item.exporter and probe.msg is not defined %}
+{% set available.value = true %}
+{% elif item.source == 'control_plane' and probe.item == name and probe.msg is not defined %}
+{% set available.value = true %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if available.value %}
+{% set string_labels = namespace(value={}) %}
+{% for key, value in labels.items() %}
+{% set string_labels.value = string_labels.value | combine({key: value | string}) %}
+{% endfor %}
+{% set target = ('[' ~ address ~ ']' if ':' in address and not address.startswith('[') else address) ~ ':' ~ item.port | string %}
+{% set entries.value = entries.value + [{'targets': [target], 'labels': string_labels.value}] %}
+{% endif %}
+{% endfor %}
+{{ entries.value | to_nice_yaml(indent=2, sort_keys=true) }}

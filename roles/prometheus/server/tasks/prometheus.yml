@@ -86,25 +86,101 @@
         _changed: >-
           {{ template_override_units is changed }}
 
-# NOTE: patch_datasources.rb only adds extra exporters that are reachable, run it after they start.
-- name: Patch Prometheus datasources
-  ansible.builtin.shell:
-    cmd: |
-      set -o errexit
-      BEFORE=$(cksum /etc/one/prometheus/prometheus.yml)
-      /usr/share/one/prometheus/patch_datasources.rb
-      AFTER=$(cksum /etc/one/prometheus/prometheus.yml)
-      if [[ "$AFTER" == "$BEFORE" ]]; then
-        exit 0
-      else
-        exit 78 # EREMCHG
-      fi
-    executable: /bin/bash
-  register: shell_patch_datasources
-  changed_when:
-    - shell_patch_datasources.rc in [78]
-  failed_when:
-    - shell_patch_datasources.rc not in [0, 78]
+- name: Get registered OpenNebula hosts for Prometheus
+  ansible.builtin.command:
+    cmd: onehost list --json
+  delegate_to: "{{ leader }}"
+  changed_when: false
+  register: prometheus_onehost_list
+
+- name: Select registered hosts with exporter addresses
+  ansible.builtin.set_fact:
+    prometheus_compute_hosts: >-
+      {{ [((prometheus_onehost_list.stdout | from_json).HOST_POOL.HOST | d([], true))]
+         | flatten | selectattr('TEMPLATE.HOSTNAME', 'defined')
+         | rejectattr('TEMPLATE.HOSTNAME', 'equalto', '') | list }}
+
+- vars:
+    _compute_exporters:
+      - { name: ovs_exporter, port: 9475 }
+      - { name: smartctl_exporter, port: 9633 }
+      - { name: lvm_exporter, port: 9845 }
+  block:
+    - name: Probe optional compute exporters
+      ansible.builtin.wait_for:
+        host: "{{ item.0.TEMPLATE.HOSTNAME }}"
+        port: "{{ item.1.port }}"
+        timeout: 2
+        state: started
+      loop: "{{ prometheus_compute_hosts | product(_compute_exporters) | list }}"
+      changed_when: false
+      failed_when: false
+      register: prometheus_compute_probes
+
+- name: Probe optional MySQL exporters
+  ansible.builtin.wait_for:
+    host: "{{ hostvars[item].ansible_host | d(item) }}"
+    port: 9104
+    timeout: 2
+    state: started
+  loop: "{{ federation.groups.frontend }}"
+  changed_when: false
+  failed_when: false
+  register: prometheus_mysql_probes
+
+- name: Create Prometheus discovery directory
+  ansible.builtin.file:
+    path: /etc/one/prometheus/inventory
+    state: directory
+    owner: 0
+    group: 0
+    mode: u=rwx,go=rx
+
+- name: Configure Prometheus discovery inventories
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/inventory.yml.j2"
+    dest: "/etc/one/prometheus/inventory/{{ item.name }}.yml"
+    owner: 0
+    group: 0
+    mode: u=rw,go=r
+  loop:
+    - { name: compute, source: compute, port: 9100 }
+    - { name: control-plane, source: control_plane, port: 9100 }
+    - { name: libvirt, source: compute, port: 9926 }
+    - { name: ovs, source: compute, port: 9475, exporter: ovs_exporter }
+    - { name: smartctl, source: compute, port: 9633, exporter: smartctl_exporter }
+    - { name: lvm, source: compute, port: 9845, exporter: lvm_exporter }
+    - { name: mysql, source: control_plane, port: 9104, exporter: mysql_exporter }
+
+- name: Validate managed Prometheus rule file names
+  ansible.builtin.assert:
+    that:
+      - >-
+        item.key is string and item.key not in ['.', '..', 'prometheus.yml']
+        and (item.key | basename) == item.key
+      - item.value is mapping or item.value is string
+  loop: "{{ prometheus_rule_files | dict2items }}"
+
+- name: Configure managed Prometheus rule files
+  ansible.builtin.copy:
+    dest: "/etc/one/prometheus/{{ item.key }}"
+    content: "{{ item.value if item.value is string else item.value | to_nice_yaml(indent=2, sort_keys=false) }}"
+    owner: 0
+    group: 0
+    mode: u=rw,go=r
+    validate: /usr/bin/promtool check rules %s
+  loop: "{{ prometheus_rule_files | dict2items }}"
+  register: copy_prometheus_rule_files
+
+- name: Configure and validate Prometheus
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/prometheus.yml.j2"
+    dest: /etc/one/prometheus/prometheus.yml
+    owner: 0
+    group: 0
+    mode: u=rw,go=r
+    validate: /usr/bin/promtool check config %s
+  register: template_prometheus_yml
 
 - name: Enable / Start / Restart Prometheus service (NOW)
   ansible.builtin.systemd_service:
@@ -116,4 +192,5 @@
       {{ _changed }}
   vars:
     _changed: >-
-      {{ shell_patch_datasources is changed or template_override_units is changed }}
+      {{ template_prometheus_yml is changed or copy_prometheus_rule_files is changed
+         or (template_override_units is defined and template_override_units is changed) }}
