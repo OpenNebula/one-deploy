@@ -15,6 +15,7 @@ Role Variables
 |-------------------|--------|------------|---------------|-----------------------------------------------------------|
 | `frontend_group`  | `str`  | `frontend` |               | Custom name of the Frontend group in the inventory.       |
 | `one_vip`         | `str`  | undefined  | `10.11.12.13` | When OpenNebula is in HA mode it points to the Leader.    |
+| `one_vips`        | `list` | undefined  | see `opennebula/server` | List of VIPs. The first entry is used as Leader endpoint if `one_vip` is undefined. |
 | `ping_port`       | `int`  | `22`       |               | TCP port to check while detecting the Leader.             |
 | `force_ha`        | `bool` | `false`    |               | Deploy OpenNebula in HA mode even with a single Frontend. |
 

@@ -1,4 +1,15 @@
 ---
+- name: Derive the primary OpenNebula VIP
+  ansible.builtin.set_fact:
+    one_vip: "{{ one_vips[0].address if one_vips[0] is mapping else one_vips[0] }}"
+  when:
+    - one_vip is undefined
+    - one_vips is defined
+    - one_vips is sequence
+    - one_vips is not string
+    - one_vips | count > 0
+    - (one_vips[0] is not mapping) or (one_vips[0].address is defined)
+
 - name: Compute facts
   ansible.builtin.set_fact:
     features: >-
