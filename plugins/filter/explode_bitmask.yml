@@ -1,0 +1,37 @@
+---
+# Copyright: OpenNebula Project, OpenNebula Systems
+# Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+DOCUMENTATION:
+  name: explode_bitmask
+  short_description: Convert bitmask to indices.
+  description:
+    - Convert a non-negative bitmask to set-bit indices.
+  options:
+    _input:
+      description:
+        - Bitmask string to convert.
+      type: str
+      required: true
+    split:
+      description:
+        - When true returns a list.
+      type: bool
+      default: false
+      required: false
+  author:
+    - OpenNebula Systems
+
+EXAMPLES: |
+  # '0xc06' -> ['1', '2', '10', '11']
+  # '0b1100_0000_0110' -> ['1', '2', '10', '11']
+  - name: Conversion example
+    ansible.builtin.debug:
+      msg: |
+        {{ '0xc06' | opennebula.deploy.explode_bitmask(split=true) }}
+        {{ '0b1100_0000_0110' | opennebula.deploy.explode_bitmask(split=true) }}
+
+RETURN:
+  _value:
+    description: String (joined) or a list of indices (depending on split=).
+    type: raw

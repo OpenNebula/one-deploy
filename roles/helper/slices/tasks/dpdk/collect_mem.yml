@@ -1,0 +1,209 @@
+---
+- vars:
+    _dpdk_socket_mem: >-
+      {{ ovs.set | d([])
+                 | selectattr('other_config:dpdk-socket-mem', 'defined')
+                 | map(attribute='other_config:dpdk-socket-mem')
+                 | first
+                 | d('') }}
+
+    _per_port_memory: >-
+      {{ ovs.set | d([])
+                 | selectattr('other_config:per-port-memory', 'defined')
+                 | map(attribute='other_config:per-port-memory')
+                 | map('bool')
+                 | first
+                 | d(false) }}
+
+    _dpdk_mtu_per_iface: >-
+      {%- set output = [] -%}
+      {%- for iface, v in _dpdk_iface.items() -%}
+        {{- output.append([iface, 1500]) -}}
+        {%- for o in v.set | d([]) | selectattr('mtu_request', 'defined') -%}
+          {{-
+            output.append([
+              iface, o.mtu_request
+            ])
+          -}}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{- output | items2dict(key_name=0, value_name=1) -}}
+
+    # NOTE:
+    #  896 = 704 + 128 + 64 <- metadata overhead (constant for all MTUs)
+    #  704 <- dp_packet & rte_mbuf
+    #  128 <- RTE_PKTMBUF_HEADROOM
+    #  64 <- alignment
+    #  262_144 <- MAX_NB_MBUF
+    _dpdk_base_pool_sizes: >-
+      {%- set output = [] -%}
+      {%- for mtu in _dpdk_mtu_per_iface.values() -%}
+        {%- set mbuf_count = _per_port_memory | ternary(65_536, 262_144) -%}
+        {{-
+          output.append([
+            mtu,
+            ((((((mtu / 1024) | round(0, 'ceil') * 1024) | int + 896) / 64) | round(0, 'ceil') * 64) | int + 64) * mbuf_count
+          ])
+        -}}
+      {%- endfor -%}
+      {{- output | items2dict(key_name=0, value_name=1) -}}
+
+    # Extra hugepages are distributed as evenly as possible across all NUMA nodes.
+    _extra_hugepages_per_numa_node: >-
+      {{ numa_query.numa.keys() | map('int')
+                                | sort
+                                | zip(range(slices_extra_hugepage_count) | slice(numa_query.numa | count)
+                                                                         | map('count'))
+                                | items2dict(key_name=0, value_name=1) }}
+
+    _extra_memory_per_numa_node: >-
+      {%- set output = [] -%}
+      {%- for k, v in _extra_hugepages_per_numa_node.items() -%}
+          {{-
+            output.append([
+              k, (v * (_hugepage_size | int)) | int
+            ])
+          -}}
+      {%- endfor -%}
+      {{- output | items2dict(key_name=0, value_name=1) -}}
+
+    # NOTE:
+    #  536_870_912 <- overhead buffer (512M)
+    _dpdk_socket_mem_shared_model: >-
+      {%- set output = {} -%}
+      {%- for numa_node, ifaces in _dpdk_ifaces_per_numa_node.items() -%}
+        {%- for mtu in _dpdk_mtu_per_iface.items() | selectattr(0, 'in', ifaces) | map(attribute=1) | unique -%}
+          {{-
+            output.update({
+              numa_node: [
+                output.get(numa_node, 536_870_912),
+                _dpdk_base_pool_sizes.get(mtu)
+              ] | sum
+            })
+          -}}
+        {%- endfor -%}
+        {{-
+          output.update({
+            numa_node: [
+              ((output.get(numa_node) / 1024**3) | round(0, 'ceil') * 1024) | int,
+              _extra_memory_per_numa_node.get(numa_node, 0) | int
+            ] | sum
+          })
+        -}}
+      {%- endfor -%}
+      {{- range(output | max | d(0) + 1) | zip((output | max | d(0) + 1) * [0])
+                                         | items2dict(key_name=0, value_name=1)
+                                         | combine(output) -}}
+
+    # NOTE:
+    #  536_870_912 <- overhead buffer (512M)
+    _dpdk_socket_mem_per_port_model: >-
+      {%- set output = {} -%}
+      {%- for numa_node, ifaces in _dpdk_ifaces_per_numa_node.items() -%}
+        {%- for iface in ifaces -%}
+          {{-
+            output.update({
+              numa_node: [
+                output.get(numa_node, 536_870_912),
+                _dpdk_base_pool_sizes.get(_dpdk_mtu_per_iface.get(iface))
+              ] | sum
+            })
+          -}}
+        {%- endfor -%}
+        {{-
+          output.update({
+            numa_node: [
+              ((output.get(numa_node) / 1024**3) | round(0, 'ceil') * 1024) | int,
+              _extra_memory_per_numa_node.get(numa_node, 0) | int
+            ] | sum
+          })
+        -}}
+      {%- endfor -%}
+      {{- range(output | max | d(0) + 1) | zip((output | max | d(0) + 1) * [0])
+                                         | items2dict(key_name=0, value_name=1)
+                                         | combine(output) -}}
+
+    _dpdk_socket_mem_estimated: >-
+      {{ (_dpdk_socket_mem_per_port_model | dictsort | map(attribute=1) | join(','))
+         if _per_port_memory else
+         (_dpdk_socket_mem_shared_model | dictsort | map(attribute=1) | join(',')) }}
+
+    _dpdk_socket_mem_decided: >-
+      {{ _dpdk_socket_mem_estimated if (_dpdk_socket_mem == 'auto') else _dpdk_socket_mem }}
+
+    _dpdk_socket_mem_decided_dict: >-
+      {{ range(_dpdk_socket_mem_decided | split(',') | count) | map('string')
+                                                              | zip(_dpdk_socket_mem_decided | split(','))
+                                                              | items2dict(key_name=0, value_name=1) }}
+  block:
+    - name: In-place update 'other_config:dpdk-socket-mem'
+      ansible.builtin.set_fact:
+        ovs: >-
+          {{
+            ovs | combine(
+              { "set": ovs.set | d([])
+                               | rejectattr('other_config:dpdk-socket-mem', 'defined')
+                               | union(_update) },
+              recursive=true
+            )
+          }}
+      vars:
+        _update:
+          - "other_config:dpdk-socket-mem": "{{ _dpdk_socket_mem_decided }}"
+
+    - name: Collect DPDK Memory requirements
+      ansible.builtin.set_fact:
+        slices: >-
+          {{
+            slices | d({}) | combine(
+              { "pages": _pages, "memory": _memory },
+              recursive=true
+            )
+          }}
+      vars:
+        _pages:
+          dpdk: >-
+            {%- set output = [] -%}
+            {%- for k, v in _memory.dpdk.items() -%}
+              {{-
+                output.append([
+                  k, ((v | float) / (_hugepage_size | float)) | round(0, 'ceil') | int
+                ])
+              -}}
+            {%- endfor -%}
+            {{- output | items2dict(key_name=0, value_name=1) -}}
+          claimed: >-
+            {%- set output = [] -%}
+            {%- for k, v in _memory.claimed.items() -%}
+              {{-
+                output.append([
+                  k, ((v | float) / (_hugepage_size | float)) | round(0, 'ceil') | int
+                ])
+              -}}
+            {%- endfor -%}
+            {{- output | items2dict(key_name=0, value_name=1) -}}
+
+        _memory:
+          dpdk: >-
+            {%- set output = {} -%}
+            {%- for k in output.keys() | union(_dpdk_socket_mem_decided_dict.keys()) -%}
+              {{-
+                output.update({
+                  k: _dpdk_socket_mem_decided_dict.get(k, 0) | int
+                })
+              -}}
+            {%- endfor -%}
+            {{- output -}}
+          claimed: >-
+            {%- set output = slices.memory.claimed | d({}) | combine({}) -%}
+            {%- for k in output.keys() | union(_dpdk_socket_mem_decided_dict.keys()) -%}
+              {{-
+                output.update({
+                  k: [
+                    output.get(k, 0),
+                    _dpdk_socket_mem_decided_dict.get(k, 0) | int
+                  ] | sum
+                })
+              -}}
+            {%- endfor -%}
+            {{- output -}}

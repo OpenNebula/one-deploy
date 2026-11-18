@@ -1,0 +1,76 @@
+---
+- vars:
+    _dpdk_iface: >-
+      {%- set output = [] -%}
+      {%- for k, v in ovs.iface.items() -%}
+        {%- for u in v.set | d([]) | selectattr('type', 'defined') -%}
+          {%- if u.type in ['dpdk'] -%}
+            {{-
+              output.append([
+                k, v
+              ])
+            -}}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{- output | items2dict(key_name=0, value_name=1) -}}
+
+    _pci_addr_regex: >-
+      ^[0-9a-fA-F]{4}[:][0-9a-fA-F]{2}[:][0-9a-fA-F]{2}[.][0-9a-fA-F]{1,2}$
+
+    _dpdk_pci_addr_per_iface: >-
+      {%- set output = [] -%}
+      {%- for iface, v in _dpdk_iface.items() -%}
+        {%- for u in v.set | selectattr('options:dpdk-devargs', 'defined') -%}
+          {%- set _devargs = u['options:dpdk-devargs'] | string -%}
+          {%- if _devargs | regex_search(_pci_addr_regex) -%}
+            {{-
+              output.append([
+                iface, _devargs
+              ])
+            -}}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{- output | items2dict(key_name=0, value_name=1) -}}
+
+    _dpdk_numa_node_per_iface: >-
+      {%- set output = [] -%}
+      {%- for iface, numa_node in shell_pci_addr_per_iface.stdout_lines | map('split', ';') -%}
+        {{-
+          output.append([
+            iface, numa_node | int
+          ])
+        -}}
+      {%- endfor -%}
+      {{- output | items2dict(key_name=0, value_name=1) -}}
+
+    _dpdk_ifaces_per_numa_node: >-
+      {%- set output = {} -%}
+      {%- for iface, numa_node in _dpdk_numa_node_per_iface.items() -%}
+        {{-
+          output.update(output | combine({
+            numa_node: output.get(numa_node, []) | union([iface])
+          }))
+        -}}
+      {%- endfor -%}
+      {{- output -}}
+  block:
+    # PCI devices with unknown NUMA locality (-1) are assigned to node 0.
+    - name: Get NUMA info for DPDK devices
+      ansible.builtin.shell:
+        cmd: |
+          set -o errexit
+          {% for k, v in _dpdk_pci_addr_per_iface.items() %}
+          NODE="$(head -1 '/sys/bus/pci/devices/{{ v }}/numa_node' || echo '0')"
+          echo "{{ k }};$(( NODE < 0 ? 0 : NODE ))"
+          {% endfor %}
+        executable: /bin/bash
+      changed_when: false
+      register: shell_pci_addr_per_iface
+
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/dpdk/collect_cpu.yml"
+
+    - ansible.builtin.include_tasks:
+        file: "{{ role_path }}/tasks/dpdk/collect_mem.yml"

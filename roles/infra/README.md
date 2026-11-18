@@ -23,6 +23,7 @@ Role Variables
 | `vnc_max_port`                       | `str`  | `65535`                                  |                     | Upper limit for VNC ports to start counting-down from.            |
 | `passthrough_fs`                     | `list` | `[]`                                     | (check below)       | Shared HV filesystems to attach to the Front-end VMs.             |
 |                                      |        |                                          |                     |                                                                   |
+| `vcpu_pinned`                        | `str`  |                                          | `2-3,5`             | Isolated CPUs (specified by CPU ID) to be used for FE-VMs.        |
 | `vcpu_static`                        | `str`  | `1`                                      |                     | VCPU amount to be set in XML in Libvirt.                          |
 | `vcpu_shares`                        | `str`  | `200`                                    |                     | The total CPU share for the domain.                               |
 |                                      |        |                                          |                     |                                                                   |
@@ -31,7 +32,7 @@ Role Variables
 | `dpdk_socket_path`                   | `str`  | `/var/run/one/vhost-socks/frontend.sock` |                     | Path for existing socket when using OVS with DPDK.                |
 |                                      |        |                                          |                     |                                                                   |
 | `infra_hostname`                     | `str`  |                                          | `n1a1`              | Defines on which HV machine the Front-end VM should be deployed.  |
-| `infra_xml_variant`                  | `str`  | `default`                                |                     | Defined which domain XML variant will be used in Libvirt.         |
+| `infra_xml_variant`                  | `str`  | `default`                                |                     | Defines which domain XML variant will be used in Libvirt.         |
 |                                      |        |                                          |                     |                                                                   |
 | `context.ETH0_DNS`                   | `str`  |                                          | `1.1.1.1`           | DNS server.                                                       |
 | `context.ETH0_SEARCH_DOMAIN`         | `str`  |                                          | `1.1.1.1`           | DNS search domain.                                                |

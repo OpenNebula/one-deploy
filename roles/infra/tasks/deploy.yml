@@ -112,6 +112,11 @@
     _frontends: >-
       {{ groups[frontend_group | d('frontend')] }}
 
+- ansible.builtin.include_role:
+    name: helper/numa
+  when:
+    - numa_query is undefined
+
 - name: Define Front-end VMs
   community.libvirt.virt:
     command: define

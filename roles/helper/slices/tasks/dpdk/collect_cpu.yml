@@ -1,0 +1,122 @@
+---
+- vars:
+    _pmd_cpu_mask: >-
+      {{ ovs.set | d([])
+                 | selectattr('other_config:pmd-cpu-mask', 'defined')
+                 | map(attribute='other_config:pmd-cpu-mask')
+                 | first
+                 | d('') }}
+
+    _options_n_rxq: >-
+      {%- set output = [] -%}
+      {%- for k, v in _dpdk_iface.items() -%}
+        {{-
+          output.append([
+            k, v.set | d([]) | map(attribute='options:n_rxq', default=1) | last | d(1)
+          ])
+        -}}
+      {%- endfor -%}
+      {{- output | items2dict(key_name=0, value_name=1) -}}
+
+    _options_n_rxq_per_numa_node: >-
+      {%- set output = [] -%}
+      {%- for k in range(_dpdk_ifaces_per_numa_node.keys() | map('int') | max | d(0) + 1) -%}
+        {%- if k in _dpdk_ifaces_per_numa_node.keys() -%}
+          {{-
+            output.append([
+              k, _dpdk_ifaces_per_numa_node.get(k) | map('extract', _options_n_rxq) | sum
+            ])
+          -}}
+        {%- else -%}
+          {{-
+            output.append([
+              k, 0
+            ])
+          -}}
+        {%- endif -%}
+      {%- endfor -%}
+      {{- output | items2dict(key_name=0, value_name=1) -}}
+
+    # Extra isolated CPUs are distributed as evenly as possible across all NUMA nodes.
+    _cpu_count_per_numa_node: >-
+      {%- set output = [] -%}
+      {%- for k, v in _options_n_rxq_per_numa_node.items() -%}
+        {{-
+          output.append([
+            k, v + (range(slices_extra_cpu_count | int) | slice(_options_n_rxq_per_numa_node.keys() | count)
+                                                        | map('count')
+                                                        | list)[k | int] | d(0)
+          ])
+        -}}
+      {%- endfor -%}
+      {{- output | items2dict(key_name=0, value_name=1) -}}
+
+    # The CPU count is automatically expanded to include SMT siblings.
+    _cpus_estimated: >-
+      {%- set output = [] -%}
+      {%- for k, v in _cpu_count_per_numa_node.items() -%}
+        {%- set present = numa_query.numa[k | string].cpus.present -%}
+
+        {%- set available = present | reject('in', _protected_cpus + slices.cpus.claimed) -%}
+
+        {%- set claimed = available | map('extract', numa_query.cpus.to_siblings)
+                                    | unique
+                                    | batch(v | int)
+                                    | first
+                                    | d([])
+                                    | flatten -%}
+
+        {{- output.append(claimed) -}}
+      {%- endfor -%}
+      {{- output | flatten -}}
+
+    _pmd_cpu_mask_estimated: >-
+      {{ _cpus_estimated | opennebula.deploy.implode_bitmask }}
+
+    _pmd_cpu_mask_decided: >-
+      {{ _pmd_cpu_mask_estimated if (_pmd_cpu_mask == 'auto') else _pmd_cpu_mask }}
+
+    _cpus_to_pin: >-
+      {{ _pmd_cpu_mask_decided | opennebula.deploy.explode_bitmask(split=true) }}
+  block:
+    - name: In-place update 'other_config:pmd-cpu-mask'
+      ansible.builtin.set_fact:
+        ovs: >-
+          {{
+            ovs | combine(
+              { "set": ovs.set | d([])
+                               | rejectattr('other_config:pmd-cpu-mask', 'defined')
+                               | union(_update) },
+              recursive=true
+            )
+          }}
+      vars:
+        _update:
+          - "other_config:pmd-cpu-mask": "{{ _pmd_cpu_mask_decided }}"
+
+    - name: Collect DPDK CPU requirements
+      ansible.builtin.set_fact:
+        slices: >-
+          {{
+            slices | d({}) | combine(
+              { "cpus": _cpus },
+              recursive=true
+            )
+          }}
+      vars:
+        _cpus:
+          dpdk: >-
+            {{ _cpus_to_pin | map('int')
+                            | sort
+                            | map('string') }}
+          claimed: >-
+            {{ slices.cpus.claimed | d([])
+                                   | union(_cpus_to_pin)
+                                   | map('extract', numa_query.cpus.to_siblings)
+                                   | flatten
+                                   | unique
+                                   | map('int')
+                                   | sort
+                                   | map('string') }}
+          requested: >-
+            {{ (slices.cpus.requested | d(0) | int) + (_cpu_count_per_numa_node.values() | map('int') | sum) }}
