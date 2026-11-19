@@ -2,19 +2,25 @@
 dns_resolvers:
   unbound:
     # NOTE: This is not YAML!
-    config:
-      server: |
-        chroot: ""
-        interface: 127.0.0.1
-        {% for h, a in _hosts.items() %}
-        local-data: "{{ h }}. IN A {{ a }}"
-        {% endfor %}
-      forward-zone: |
-        name: "."
-        forward-first: no
-        {% for a in _servers %}
-        forward-addr: "{{ a }}"
-        {% endfor %}
+    config: |
+      server:
+          chroot: ""
+          interface: 127.0.0.1
+      {% for h, a in _hosts.items() %}
+          local-data: "{{ h }}. IN A {{ a }}"
+      {% endfor %}
+
+      {% for z, s in _servers_per_zone.items() %}
+      {% if s | count > 0 %}
+      forward-zone:
+          name: "{{ z }}"
+          forward-first: no
+      {% for a in s | map(attribute='server') %}
+          forward-addr: "{{ a }}"
+      {% endfor %}
+
+      {% endif %}
+      {% endfor %}
 
 dns_resolver: unbound
 
