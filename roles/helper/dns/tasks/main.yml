@@ -1,37 +1,44 @@
 ---
 - when:
     - dns is sequence
-    - _servers | count > 0
+    - _servers_per_zone.values() | flatten | count > 0
   vars:
-    _servers: >-
+    _grouped_servers: >-
       {{ dns | selectattr('server', 'defined')
-             | map(attribute='server')
-             | list }}
+             | groupby('zone', default='.')
+             | items2dict(key_name=0, value_name=1) }}
+    _servers_per_zone: >-
+      {{
+        _grouped_servers | combine({
+           ".": _grouped_servers.get('.', []) | map('combine', {"zone": '.'})
+                                              | list
+         })
+      }}
 
     _domains: >-
       {{ dns | selectattr('search', 'defined')
              | map(attribute='search')
              | list }}
 
-    _tokens: >-
+    _host_tokens: >-
       {{ dns | selectattr('host', 'defined')
              | map(attribute='host')
              | map('split') }}
-    _addrs: >-
-      {{ _tokens | map('first')
-                 | list }}
-    _pairs: >-
-      {{ _addrs | zip(_tokens)
-                | map('zip', ['key', 'value'])
-                | map('list')
-                | map('items2dict', key_name=1, value_name=0)
-                | subelements('value') }}
+    _host_addrs: >-
+      {{ _host_tokens | map('first')
+                      | list }}
+    _host_pairs: >-
+      {{ _host_addrs | zip(_host_tokens)
+                     | map('zip', ['key', 'value'])
+                     | map('list')
+                     | map('items2dict', key_name=1, value_name=0)
+                     | subelements('value') }}
     # {hostname -> IP}
     _hosts: >-
-      {{ _pairs | map(attribute=1)
-                | zip(_pairs | map(attribute='0.key'))
-                | rejectattr(0, 'in', _addrs)
-                | items2dict(key_name=0, value_name=1) }}
+      {{ _host_pairs | map(attribute=1)
+                     | zip(_host_pairs | map(attribute='0.key'))
+                     | rejectattr(0, 'in', _host_addrs)
+                     | items2dict(key_name=0, value_name=1) }}
   block:
     - name: Assert that the chosen DNS resolver is supported
       ansible.builtin.assert:
