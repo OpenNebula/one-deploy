@@ -44,6 +44,18 @@
     # as it operates strictly on the device / networking layers of the underlying OS.
     - role: openvswitch
       tags: [openvswitch]
+
+    - role: helper/nbd
+      tags: [nbd]
+
+    - role: helper/iscsi
+      tags: [iscsi]
+
+    - role: helper/mkfs
+      tags: [mkfs]
+
+    - role: helper/fstab
+      tags: [fstab]
   tasks:
     - name: Install OpenNebula KVM package
       ansible.builtin.package:
