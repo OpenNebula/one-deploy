@@ -25,70 +25,81 @@
     name: opennebula/leader
   when: leader is undefined
 
-- name: Update Grafana provisioning
-  ansible.builtin.copy:
-    dest: "{{ item.dest }}"
-    content: "{{ item.content }}"
-    owner: 0
-    group: grafana
-    mode: u=rw,go=r
-  loop: "{{ _loop }}"
-  vars:
-    _loop:
-      - dest: /etc/grafana/provisioning/datasources/prometheus.yml
-        content: |
-          apiVersion: 1
-          datasources:
-          - name: prometheus
-            type: prometheus
-            access: proxy
-            url: "http://{{ one_vip | d(leader) }}:9090"
-            isDefault: true
-            editable: false
-      - dest: /etc/grafana/provisioning/dashboards/opennebula.yml
-        content: |
-          apiVersion: 1
-          providers:
-          - name: opennebula
-            type: file
-            folder: ONE
-            options: { path: /usr/share/one/grafana/dashboards/ }
-  register: copy_grafana_provisioning
-
 - vars:
-    _loop:
-      - name: grafana-server.service
-        dest: /etc/systemd/system/grafana-server.service.d/override.conf
-        src: "{{ role_path }}/../common/templates/grafana-server.service.jinja"
+    _components: >-
+      {{ oneprometheus_components | dict2items
+                                  | selectattr('value.condition', 'sameas', true)
+                                  | list }}
+    _services: >-
+      {{ _components | selectattr('key', 'in', ['grafana-server'])
+                     | list }}
+    _services_local: >-
+      {{ _services | selectattr('value.targets', 'contains', inventory_hostname)
+                   | list }}
   block:
-    - name: Override systemd units (mkdir)
-      ansible.builtin.file:
-        path: "{{ item.dest | dirname }}"
-        state: directory
-        owner: 0
-        group: 0
-        mode: u=rwx,go=rx
-      loop: "{{ _loop }}"
+    - block:
+        - name: Override systemd units (file)
+          ansible.builtin.file:
+            path: "/etc/systemd/system/{{ item.value.service }}.d/"
+            state: directory
+            owner: 0
+            group: 0
+            mode: u=rwx,go=rx
+          loop: "{{ _services_local }}"
+          loop_control: { label: "{{ item.key }}" }
 
-    - name: Override systemd units
-      ansible.builtin.template:
+        - name: Override systemd units (template)
+          ansible.builtin.template:
+            dest: "/etc/systemd/system/{{ item.value.service }}.d/override.conf"
+            src: "{{ role_path }}/../common/templates/{{ item.value.service }}.jinja"
+            owner: 0
+            group: 0
+            mode: u=rw,go=r
+          loop: "{{ _services_local }}"
+          loop_control: { label: "{{ item.key }}" }
+          register: template_override_units
+
+    - name: Update Grafana provisioning
+      ansible.builtin.copy:
         dest: "{{ item.dest }}"
-        src: "{{ item.src }}"
+        content: "{{ item.content }}"
         owner: 0
-        group: 0
+        group: grafana
         mode: u=rw,go=r
       loop: "{{ _loop }}"
-      register: template_override_units
+      vars:
+        _loop:
+          - dest: /etc/grafana/provisioning/datasources/prometheus.yml
+            content: |
+              apiVersion: 1
+              datasources:
+              - name: prometheus
+                type: prometheus
+                access: proxy
+                url: "http://{{ one_vip | d(leader) }}:9090"
+                isDefault: true
+                editable: false
+          - dest: /etc/grafana/provisioning/dashboards/opennebula.yml
+            content: |
+              apiVersion: 1
+              providers:
+              - name: opennebula
+                type: file
+                folder: ONE
+                options: { path: /usr/share/one/grafana/dashboards/ }
+      register: copy_grafana_provisioning
 
-    - name: Enable / Start / Restart Grafana service (NOW)
+    - name: Enable / Start / Restart Grafana services (NOW)
       ansible.builtin.systemd_service:
-        name: "{{ item.name }}"
+        name: "{{ item.value.service }}"
         enabled: true
         state: >-
-          {{ 'restarted' if _changed else 'started' }}
+          {{ _changed | ternary('restarted', 'started') }}
         daemon_reload: >-
           {{ _changed }}
-      loop: "{{ _loop }}"
+      loop: "{{ _services_local }}"
+      loop_control: { label: "{{ item.key }}" }
       vars:
         _changed: >-
-          {{ copy_grafana_provisioning is changed or template_override_units is changed }}
+          {{ [ template_override_units is changed
+             , copy_grafana_provisioning is changed ] is any }}

@@ -1,24 +1,50 @@
 ---
-alertmanager_config: |
-  ---
-  global:
-    resolve_timeout: 5m
+oneprometheus_config_defaults:
+  prometheus: |
+    ---
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
 
-  route:
-    group_by: [alertname]
-    group_wait: 1m
-    group_interval: 5m
-    repeat_interval: 1h
-    receiver: discard
+    alerting:
+    {% set c = _components | selectattr('key', '==', 'opennebula-alertmanager') | first %}
+      alertmanagers:
+        - file_sd_configs:
+            - files:
+                - /etc/one/prometheus/targets/{{ c.value.short }}.yml
 
-  receivers:
-    - name: discard
+    rule_files:
+    {% for r in _rules %}
+      - /etc/one/prometheus/{{ r.key }}
+    {% endfor %}
 
-  templates: []
+    scrape_configs:
+    {% for c in _components | rejectattr('value.job', 'none') %}
+      - job_name: {{ c.value.job }}
+        file_sd_configs:
+          - files:
+              - /etc/one/prometheus/targets/{{ c.value.short }}.yml
+    {% endfor %}
+  alertmanager: |
+    ---
+    global:
+      resolve_timeout: 5m
 
-  inhibit_rules:
-    - source_match:
-        severity: critical
-      target_match:
-        severity: warning
-      equal: [alertname, dev, instance]
+    route:
+      group_by: [alertname]
+      group_wait: 1m
+      group_interval: 5m
+      repeat_interval: 1h
+      receiver: discard
+
+    receivers:
+      - name: discard
+
+    templates: []
+
+    inhibit_rules:
+      - source_match:
+          severity: critical
+        target_match:
+          severity: warning
+        equal: [alertname, dev, instance]

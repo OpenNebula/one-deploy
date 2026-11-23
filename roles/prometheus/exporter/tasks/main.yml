@@ -8,80 +8,65 @@
       when: opennebula_repo is undefined
 
 - vars:
-    _loop:
-      - when: "{{ true }}"
-        name: opennebula-libvirt-exporter.service
-        pkg: "opennebula-prometheus-{{ node_hypervisor }}"
-        dest: /etc/systemd/system/opennebula-libvirt-exporter.service.d/override.conf
-        src: "{{ role_path }}/../common/templates/opennebula-libvirt-exporter.service.jinja"
-
-      - when: "{{ one_version is version('7.2.1', '>=') }}"
-        name: opennebula-lvm-exporter.service
-        pkg: opennebula-prometheus-lvm
-        dest: /etc/systemd/system/opennebula-lvm-exporter.service.d/override.conf
-        src: "{{ role_path }}/../common/templates/opennebula-lvm-exporter.service.jinja"
-
-      - when: "{{ true }}"
-        name: opennebula-node-exporter.service
-        pkg: "opennebula-prometheus-{{ node_hypervisor }}"
-        dest: /etc/systemd/system/opennebula-node-exporter.service.d/override.conf
-        src: "{{ role_path }}/../common/templates/opennebula-node-exporter.service.jinja"
-
-      - when: "{{ one_version is version('7.2.1', '>=') and (ovs_enabled | d(false)) }}"
-        name: opennebula-ovs-exporter.service
-        pkg: opennebula-prometheus-ovs
-        dest: /etc/systemd/system/opennebula-ovs-exporter.service.d/override.conf
-        src: "{{ role_path }}/../common/templates/opennebula-ovs-exporter.service.jinja"
-
-      - when: "{{ one_version is version('7.2.1', '>=') }}"
-        name: opennebula-smartctl-exporter.service
-        pkg: opennebula-prometheus-smartctl
-        dest: /etc/systemd/system/opennebula-smartctl-exporter.service.d/override.conf
-        src: "{{ role_path }}/../common/templates/opennebula-smartctl-exporter.service.jinja"
+    _components: >-
+      {{ oneprometheus_components | dict2items
+                                  | selectattr('value.condition', 'sameas', true)
+                                  | list }}
+    _exporters: >-
+      {{ _components | selectattr('key', 'search', '-exporter$')
+                     | list }}
+    _exporters_local: >-
+      {{ _exporters | selectattr('value.targets', 'contains', inventory_hostname)
+                    | list }}
   block:
     - name: Install Prometheus exporters
       ansible.builtin.package:
-        name: "{{ _common + _pkgs }}"
+        name: "{{ (_common + _packages) | unique }}"
       vars:
         _common: [bash]
-        _pkgs: >-
-          {{ _loop | selectattr('when') | map(attribute='pkg') | select | unique }}
+        _packages: >-
+          {{ _exporters_local | selectattr('value.package', 'defined')
+                              | rejectattr('value.package', 'none')
+                              | map(attribute='value.package')
+                              | list }}
       register: package
       until: package is success
       retries: 12
       delay: 5
+      tags: [preinstall]
 
-    - name: Override systemd units (mkdir)
-      ansible.builtin.file:
-        path: "{{ item.dest | dirname }}"
-        state: directory
-        owner: 0
-        group: 0
-        mode: u=rwx,go=rx
-      when: item.when
-      loop: "{{ _loop }}"
+    - block:
+        - name: Override systemd units (file)
+          ansible.builtin.file:
+            path: "/etc/systemd/system/{{ item.value.service }}.d/"
+            state: directory
+            owner: 0
+            group: 0
+            mode: u=rwx,go=rx
+          loop: "{{ _exporters_local }}"
+          loop_control: { label: "{{ item.key }}" }
 
-    - name: Override systemd units
-      ansible.builtin.template:
-        dest: "{{ item.dest }}"
-        src: "{{ item.src }}"
-        owner: 0
-        group: 0
-        mode: u=rw,go=r
-      when: item.when
-      loop: "{{ _loop }}"
-      register: template_override_units
+        - name: Override systemd units (template)
+          ansible.builtin.template:
+            dest: "/etc/systemd/system/{{ item.value.service }}.d/override.conf"
+            src: "{{ role_path }}/../common/templates/{{ item.value.service }}.jinja"
+            owner: 0
+            group: 0
+            mode: u=rw,go=r
+          loop: "{{ _exporters_local }}"
+          loop_control: { label: "{{ item.key }}" }
+          register: template_override_units
 
     - name: Enable / Start / Restart Prometheus exporters (NOW)
       ansible.builtin.systemd_service:
-        name: "{{ item.name }}"
+        name: "{{ item.value.service }}"
         enabled: true
         state: >-
-          {{ 'restarted' if _changed else 'started' }}
+          {{ _changed | ternary('restarted', 'started') }}
         daemon_reload: >-
           {{ _changed }}
-      when: item.when
-      loop: "{{ _loop }}"
+      loop: "{{ _exporters_local }}"
+      loop_control: { label: "{{ item.key }}" }
       vars:
         _changed: >-
           {{ template_override_units is changed }}

@@ -7,22 +7,194 @@
         repos_enabled_defaults: [opennebula]
       when: opennebula_repo is undefined
 
-    - name: Install Prometheus with dependencies
-      ansible.builtin.package:
-        name: "{{ _common }}"
-      vars:
-        _common: [bash, opennebula-prometheus]
-      register: package
-      until: package is success
-      retries: 12
-      delay: 5
-
 - ansible.builtin.include_role:
     name: opennebula/leader
   when: leader is undefined
 
-- ansible.builtin.import_tasks:
-    file: "{{ role_path }}/tasks/prometheus.yml"
+- delegate_to: "{{ leader }}"
+  run_once: true
+  block:
+    - name: Get Nodes
+      ansible.builtin.command:
+        cmd: onehost list --json
+      changed_when: false
+      register: command_onehost_list
 
-- ansible.builtin.import_tasks:
-    file: "{{ role_path }}/tasks/alertmanager.yml"
+- vars:
+    # NOTE: The `[] | flatten` operation is not necessary here really,
+    #       but we stay paranoid..
+    _node_list: >-
+      {{ [(command_onehost_list.stdout | from_json).HOST_POOL.HOST] | flatten | list }}
+    _nodes: >-
+      {{ _node_list | map(attribute='NAME')
+                    | zip(_node_list)
+                    | items2dict(key_name=0, value_name=1) }}
+
+    _components: >-
+      {{ oneprometheus_components | dict2items
+                                  | selectattr('value.condition', 'sameas', true)
+                                  | list }}
+    _components_local: >-
+      {{ _components | selectattr('value.targets', 'contains', inventory_hostname)
+                     | list }}
+
+    # NOTE: Grafana is handled in a dedicated sub-role and inventory group ('grafana').
+    _services: >-
+      {{ _components | rejectattr('key', 'search', '-exporter$')
+                     | rejectattr('key', 'in', ['grafana-server'])
+                     | list }}
+    _services_local: >-
+      {{ _services | selectattr('value.targets', 'contains', inventory_hostname)
+                   | list }}
+
+    _exporters: >-
+      {{ _components | selectattr('key', 'search', '-exporter$')
+                     | list }}
+    _exporters_local: >-
+      {{ _exporters | selectattr('value.targets', 'contains', inventory_hostname)
+                    | list }}
+
+    _peer_list: >-
+      {{ _components | selectattr('key', 'in', ['opennebula-alertmanager'])
+                     | map(attribute='value.targets')
+                     | flatten
+                     | reject('in', [inventory_hostname])
+                     | unique
+                     | list }}
+    _peers: >-
+      {{ _peer_list | map('extract', hostvars)
+                    | map(attribute='ansible_host', default=[])
+                    | zip(_peer_list)
+                    | map('reject', '==', [])
+                    | map('first')
+                    | map('regex_replace', '^(.*)$', ' --cluster.peer=\g<1>:9094 ')
+                    | join }}
+
+    _rules: >-
+      {{ oneprometheus_rules | dict2items }}
+  block:
+    - name: Install Prometheus components
+      ansible.builtin.package:
+        name: "{{ (_common + _packages) | unique }}"
+      vars:
+        _common: [bash]
+        _packages: >-
+          {{ (_services_local + _exporters_local) | selectattr('value.package', 'defined')
+                                                  | rejectattr('value.package', 'none')
+                                                  | map(attribute='value.package')
+                                                  | list }}
+      register: package
+      until: package is success
+      retries: 12
+      delay: 5
+      tags: [preinstall]
+
+    - block:
+        - name: Override systemd units (file)
+          ansible.builtin.file:
+            path: "/etc/systemd/system/{{ item.value.service }}.d/"
+            state: directory
+            owner: 0
+            group: 0
+            mode: u=rwx,go=rx
+          loop: "{{ _services_local + _exporters_local }}"
+          loop_control: { label: "{{ item.key }}" }
+
+        - name: Override systemd units (template)
+          ansible.builtin.template:
+            dest: "/etc/systemd/system/{{ item.value.service }}.d/override.conf"
+            src: "{{ role_path }}/../common/templates/{{ item.value.service }}.jinja"
+            owner: 0
+            group: 0
+            mode: u=rw,go=r
+          loop: "{{ _services_local + _exporters_local }}"
+          loop_control: { label: "{{ item.key }}" }
+          register: template_override_units
+
+    - block:
+        - name: Configure Prometheus datasources (file)
+          ansible.builtin.file:
+            path: /etc/one/prometheus/targets/
+            state: directory
+            owner: 9869
+            group: 9869
+            mode: u=rwx,go=rx
+
+        - name: Configure Prometheus datasources (template)
+          ansible.builtin.template:
+            dest: "/etc/one/prometheus/targets/{{ item.value.short }}.yml"
+            src: "{{ role_path }}/../common/templates/{{ item.key }}.targets.jinja"
+            owner: 9869
+            group: 9869
+            mode: u=rw,go=r
+          loop: "{{ _services + _exporters }}"
+          loop_control: { label: "{{ item.key }}" }
+          register: template_configure_datasources
+
+    - name: Enable / Start / Restart Prometheus exporters (NOW)
+      ansible.builtin.systemd_service:
+        name: "{{ item.value.service }}"
+        enabled: true
+        state: >-
+          {{ _changed | ternary('restarted', 'started') }}
+        daemon_reload: >-
+          {{ _changed }}
+      loop: "{{ _exporters_local }}"
+      loop_control: { label: "{{ item.key }}" }
+      vars:
+        _changed: >-
+          {{ [ template_override_units is changed
+             , template_configure_datasources is changed ] is any }}
+
+    - block:
+        - name: Configure Prometheus / Alertmanager rules (copy)
+          ansible.builtin.copy:
+            dest: "/etc/one/prometheus/{{ item.key }}"
+            owner: 9869
+            group: 9869
+            mode: u=rw,go=r
+            content: |
+              # managed by one-deploy
+              {{ item.value }}
+          loop: "{{ _rules | rejectattr('value', 'none') }}"
+          loop_control: { label: "{{ item.key }}" }
+          register: copy_configure_rules
+
+        - name: Configure Prometheus (copy)
+          ansible.builtin.copy:
+            dest: /etc/one/prometheus/prometheus.yml
+            owner: 9869
+            group: 9869
+            mode: u=rw,go=r
+            content: |
+              # managed by one-deploy
+              {{ oneprometheus_config.prometheus | d(oneprometheus_config_defaults.prometheus) }}
+          register: copy_configure_prometheus
+
+        - name: Configure Alertmanager (copy)
+          ansible.builtin.copy:
+            dest: /etc/one/prometheus/alertmanager.yml
+            owner: 9869
+            group: 9869
+            mode: u=rw,go=r
+            content: |
+              # managed by one-deploy
+              {{ oneprometheus_config.alertmanager | d(oneprometheus_config_defaults.alertmanager) }}
+          register: copy_configure_alertmanager
+
+    - name: Enable / Start / Restart Prometheus services (NOW)
+      ansible.builtin.systemd_service:
+        name: "{{ item.value.service }}"
+        enabled: true
+        state: >-
+          {{ _changed | ternary('restarted', 'started') }}
+        daemon_reload: >-
+          {{ _changed }}
+      loop: "{{ _services_local }}"
+      loop_control: { label: "{{ item.key }}" }
+      vars:
+        _changed: >-
+          {{ [ template_override_units is changed
+             , copy_configure_rules is changed
+             , copy_configure_prometheus is changed
+             , copy_configure_alertmanager is changed ] is any }}
