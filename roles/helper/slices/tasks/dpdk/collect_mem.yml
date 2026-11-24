@@ -6,7 +6,17 @@
                  | selectattr('other_config:dpdk-socket-mem', 'defined')
                  | map(attribute='other_config:dpdk-socket-mem')
                  | first
-                 | d('auto') }}
+                 | d('' if _dpdk_alloc_mem_configured else 'auto') }}
+
+    # An explicit dpdk-alloc-mem prevents automatic socket-memory estimation when dpdk-socket-mem is omitted.
+    _dpdk_alloc_mem_configured: >-
+      {{ ovs.set | d([])
+                 | selectattr('other_config:dpdk-alloc-mem', 'defined')
+                 | map(attribute='other_config:dpdk-alloc-mem')
+                 | reject('none')
+                 | reject('equalto', '')
+                 | list
+                 | count > 0 }}
 
     _per_port_memory: >-
       {{ ovs.set | d([])

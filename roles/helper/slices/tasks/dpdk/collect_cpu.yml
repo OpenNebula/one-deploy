@@ -71,14 +71,15 @@
       {%- endfor -%}
       {{- output | flatten -}}
 
+    # An empty CPU estimate leaves the PMD mask unset.
     _pmd_cpu_mask_estimated: >-
-      {{ _cpus_estimated | opennebula.deploy.implode_bitmask }}
+      {{ (_cpus_estimated | opennebula.deploy.implode_bitmask) if _cpus_estimated else '' }}
 
     _pmd_cpu_mask_decided: >-
       {{ _pmd_cpu_mask_estimated if (_pmd_cpu_mask == 'auto') else _pmd_cpu_mask }}
 
     _cpus_to_pin: >-
-      {{ _pmd_cpu_mask_decided | opennebula.deploy.explode_bitmask(split=true) }}
+      {{ (_pmd_cpu_mask_decided | opennebula.deploy.explode_bitmask(split=true)) if _pmd_cpu_mask_decided else [] }}
   block:
     - name: In-place update 'other_config:pmd-cpu-mask'
       ansible.builtin.set_fact:
@@ -92,8 +93,8 @@
             )
           }}
       vars:
-        _update:
-          - "other_config:pmd-cpu-mask": "{{ _pmd_cpu_mask_decided }}"
+        _update: >-
+          {{ [{"other_config:pmd-cpu-mask": _pmd_cpu_mask_decided}] if _pmd_cpu_mask_decided else [] }}
 
     - name: Collect DPDK CPU requirements
       ansible.builtin.set_fact:
