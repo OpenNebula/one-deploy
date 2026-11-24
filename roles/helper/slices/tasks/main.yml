@@ -3,6 +3,19 @@
   ansible.builtin.set_fact:
     slices_override: >-
       {{ (_defaults_with_name_dict | combine(_with_name_dict, recursive=true)).values() | list }}
+    # Provide defaults for the internal 'slices' structure.
+    slices:
+      cpus:
+        infra: []
+        dpdk: []
+        claimed: []
+        requested: 0
+      memory:
+        infra: {}
+        claimed: {}
+      pages:
+        infra: {}
+        claimed: {}
   vars:
     _defaults_with_name: >-
       {{ slices_override_defaults | selectattr('name', 'defined')
@@ -105,9 +118,11 @@
           {% endif -%}
 
           kernel_params:
+          {% if slices.cpus.requested | int > 0 %}
             - isolcpus: &claimed '{{ slices.cpus.claimed | opennebula.deploy.implode_ranges }}'
             - nohz_full: *claimed
             - rcu_nocbs: *claimed
+          {% endif %}
             - irqaffinity: &protected '{{ _protected_cpus | opennebula.deploy.implode_ranges }}'
             - kthread_cpus: *protected
             - systemd.cpu_affinity: *protected

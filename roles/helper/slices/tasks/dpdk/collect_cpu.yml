@@ -1,5 +1,6 @@
 ---
-- vars:
+- when: _pmd_cpu_mask != ''
+  vars:
     _pmd_cpu_mask: >-
       {{ ovs.set | d([])
                  | selectattr('other_config:pmd-cpu-mask', 'defined')
@@ -24,7 +25,7 @@
         {%- if k in _dpdk_ifaces_per_numa_node.keys() -%}
           {{-
             output.append([
-              k, _dpdk_ifaces_per_numa_node.get(k) | map('extract', _options_n_rxq) | sum
+              k, _dpdk_ifaces_per_numa_node.get(k) | map('extract', _options_n_rxq) | map('int') | sum
             ])
           -}}
         {%- else -%}
