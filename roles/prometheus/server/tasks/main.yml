@@ -32,7 +32,7 @@
 
     _components: >-
       {{ oneprometheus_components | dict2items
-                                  | selectattr('value.condition', 'sameas', true)
+                                  | selectattr('value.enabled', 'sameas', true)
                                   | list }}
     _components_local: >-
       {{ _components | selectattr('value.targets', 'contains', inventory_hostname)
@@ -67,6 +67,7 @@
                     | zip(_peer_list)
                     | map('reject', '==', [])
                     | map('first')
+                    | map('ansible.utils.ipwrap')
                     | map('regex_replace', '^(.*)$', ' --cluster.peer=\g<1>:9094 ')
                     | join }}
 

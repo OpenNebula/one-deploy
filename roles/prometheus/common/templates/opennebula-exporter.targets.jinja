@@ -2,8 +2,7 @@
 {% set c = oneprometheus_components['opennebula-exporter'] %}
 ---
 {% for t in c.targets | unique %}
-{% set h = hostvars[t].ansible_host | d(t) %}
-{% set h = (h is ansible.utils.ipv6_address) | ternary('[' ~ h ~ ']', h) %}
+{% set h = hostvars[t].ansible_host | d(t) | ansible.utils.ipwrap %}
 {% set l = hostvars[t].oneprometheus_labels | d({}) %}
 - labels:
     role: frontend

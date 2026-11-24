@@ -7,7 +7,7 @@ oneprometheus_config_defaults:
       evaluation_interval: 15s
 
     {% set c = _components | selectattr('key', '==', 'opennebula-alertmanager') | first %}
-    {% if c.value.condition is sameas(true) %}
+    {% if c.value.enabled is sameas(true) %}
     alerting:
       alertmanagers:
         - file_sd_configs:

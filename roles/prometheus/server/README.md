@@ -31,6 +31,10 @@ Example Inventory
 ```yaml
 all:
   vars:
+    oneprometheus_components:
+      opennebula-lvm-exporter: { enabled: true }
+      opennebula-ovs-exporter: { enabled: true }
+
     oneprometheus_rules:
       host-alerts.yml: !unsafe |
         groups:

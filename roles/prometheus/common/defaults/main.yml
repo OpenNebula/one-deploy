@@ -9,7 +9,7 @@ oneprometheus_components_defaults:
     job: null
     port: 3000
     targets: "{{ groups.get(grafana_group | d('grafana'), []) }}"
-    condition: "{{ true }}"
+    enabled: true
 
   opennebula-alertmanager:
     short: alertmanager
@@ -18,7 +18,7 @@ oneprometheus_components_defaults:
     job: null
     port: 9093
     targets: "{{ federation.groups.frontend }}"
-    condition: "{{ true }}"
+    enabled: true
 
   opennebula-prometheus:
     short: prometheus
@@ -27,7 +27,7 @@ oneprometheus_components_defaults:
     job: prometheus
     port: 9090
     targets: "{{ federation.groups.frontend | select('in', [inventory_hostname]) }}"
-    condition: "{{ true }}"
+    enabled: true
 
   opennebula-exporter:
     short: opennebula
@@ -36,7 +36,7 @@ oneprometheus_components_defaults:
     job: opennebula_exporter
     port: 9925
     targets: "{{ federation.groups.frontend | select('in', [inventory_hostname]) }}"
-    condition: "{{ true }}"
+    enabled: true
 
   opennebula-libvirt-exporter:
     short: libvirt
@@ -45,7 +45,7 @@ oneprometheus_components_defaults:
     job: libvirt_exporter
     port: 9926
     targets: "{{ federation.groups.node }}"
-    condition: "{{ true }}"
+    enabled: true
 
   opennebula-lvm-exporter:
     short: lvm
@@ -54,7 +54,7 @@ oneprometheus_components_defaults:
     job: lvm_exporter
     port: 9845
     targets: "{{ federation.groups.node }}"
-    condition: "{{ one_version is version('7.2.1', '>=') }}"
+    enabled: false
 
   opennebula-mysql-exporter:
     short: mysql
@@ -63,7 +63,7 @@ oneprometheus_components_defaults:
     job: mysql_exporter
     port: 9104
     targets: "{{ federation.groups.frontend }}"
-    condition: "{{ one_version is version('7.2.1', '>=') }}"
+    enabled: "{{ one_version is version('7.2.1', '>=') and db_backend | d('MariaDB') == 'MariaDB' }}"
 
   opennebula-node-exporter:
     short: node
@@ -72,7 +72,7 @@ oneprometheus_components_defaults:
     job: node_exporter
     port: 9100
     targets: "{{ federation.groups.frontend + federation.groups.node }}"
-    condition: "{{ true }}"
+    enabled: true
 
   opennebula-ovs-exporter:
     short: ovs
@@ -81,7 +81,7 @@ oneprometheus_components_defaults:
     job: ovs_exporter
     port: 9475
     targets: "{{ federation.groups.frontend + federation.groups.node }}"
-    condition: "{{ one_version is version('7.2.1', '>=') and ovs_enabled | d(false) }}"
+    enabled: false
 
   opennebula-smartctl-exporter:
     short: smartctl
@@ -90,7 +90,7 @@ oneprometheus_components_defaults:
     job: smartctl_exporter
     port: 9633
     targets: "{{ federation.groups.frontend + federation.groups.node }}"
-    condition: "{{ one_version is version('7.2.1', '>=') }}"
+    enabled: "{{ one_version is version('7.2.1', '>=') }}"
 
 oneprometheus_limits_defaults:
   grafana-server.service:

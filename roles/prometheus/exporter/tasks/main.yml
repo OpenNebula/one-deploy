@@ -10,7 +10,7 @@
 - vars:
     _components: >-
       {{ oneprometheus_components | dict2items
-                                  | selectattr('value.condition', 'sameas', true)
+                                  | selectattr('value.enabled', 'sameas', true)
                                   | list }}
     _exporters: >-
       {{ _components | selectattr('key', 'search', '-exporter$')

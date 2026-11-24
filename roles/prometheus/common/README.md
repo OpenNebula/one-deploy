@@ -16,7 +16,7 @@ N/A
 Dependencies
 ------------
 
-N/A
+- ansible.utils
 
 Example Playbook
 ----------------
