@@ -40,7 +40,7 @@ oneprometheus_components_defaults:
 
   opennebula-libvirt-exporter:
     short: libvirt
-    pakage: "opennebula-prometheus-{{ node_hypervisor }}"
+    package: "opennebula-prometheus-{{ node_hypervisor }}"
     service: opennebula-libvirt-exporter.service
     job: libvirt_exporter
     port: 9926

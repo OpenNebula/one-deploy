@@ -153,6 +153,7 @@
             owner: 9869
             group: 9869
             mode: u=rw,go=r
+            validate: promtool check rules %s
             content: |
               # managed by one-deploy
               {{ item.value }}
@@ -166,6 +167,7 @@
             owner: 9869
             group: 9869
             mode: u=rw,go=r
+            validate: promtool check config %s
             content: |
               # managed by one-deploy
               {{ oneprometheus_config.prometheus | d(oneprometheus_config_defaults.prometheus) }}
@@ -173,10 +175,11 @@
 
         - name: Configure Alertmanager (copy)
           ansible.builtin.copy:
-            dest: /etc/one/prometheus/alertmanager.yml
+            dest: /etc/one/alertmanager/alertmanager.yml
             owner: 9869
             group: 9869
             mode: u=rw,go=r
+            validate: amtool check-config %s
             content: |
               # managed by one-deploy
               {{ oneprometheus_config.alertmanager | d(oneprometheus_config_defaults.alertmanager) }}

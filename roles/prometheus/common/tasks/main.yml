@@ -10,3 +10,4 @@
     oneprometheus_rules: >-
       {{ [ oneprometheus_rules_defaults
          , oneprometheus_rules | d({}) ] | combine(recursive=true) }}
+  tags: [preinstall]

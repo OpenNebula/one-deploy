@@ -6,12 +6,14 @@ oneprometheus_config_defaults:
       scrape_interval: 15s
       evaluation_interval: 15s
 
-    alerting:
     {% set c = _components | selectattr('key', '==', 'opennebula-alertmanager') | first %}
+    {% if c.value.condition is sameas(true) %}
+    alerting:
       alertmanagers:
         - file_sd_configs:
             - files:
                 - /etc/one/prometheus/targets/{{ c.value.short }}.yml
+    {% endif %}
 
     rule_files:
     {% for r in _rules %}
