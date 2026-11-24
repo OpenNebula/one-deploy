@@ -89,7 +89,10 @@ oneprometheus_components_defaults:
     service: opennebula-smartctl-exporter.service
     job: smartctl_exporter
     port: 9633
-    targets: "{{ federation.groups.frontend + federation.groups.node }}"
+    targets: "{{ federation.groups.frontend | map('extract', hostvars)
+                                            | rejectattr('infra_hostname', 'defined')
+                                            | map(attribute='inventory_hostname')
+                                            | list + federation.groups.node }}"
     enabled: "{{ one_version is version('7.2.1', '>=') }}"
 
 oneprometheus_limits_defaults:
