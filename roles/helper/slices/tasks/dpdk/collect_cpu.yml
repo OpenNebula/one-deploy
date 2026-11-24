@@ -13,7 +13,11 @@
       {%- for k, v in _dpdk_iface.items() -%}
         {{-
           output.append([
-            k, v.set | d([]) | map(attribute='options:n_rxq', default=1) | last | d(1)
+            k, v.set | d([])
+                     | selectattr('options:n_rxq', 'defined')
+                     | map(attribute='options:n_rxq')
+                     | last
+                     | d(1)
           ])
         -}}
       {%- endfor -%}
