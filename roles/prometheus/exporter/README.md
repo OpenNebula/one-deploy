@@ -11,15 +11,17 @@ N/A
 Role Variables
 --------------
 
-| Name                   | Type   | Default             | Example       | Description                               |
-|------------------------|--------|---------------------|---------------|-------------------------------------------|
-| `node_hypervisor`      | `str`  | `kvm`               |               | Currently only `kvm` is supported.        |
-| `oneprometheus_limits` | `dict` | (check common role) | (check below) | Define resource limits for systemd units. |
+| Name                       | Type   | Default             | Example       | Description                                        |
+|----------------------------|--------|---------------------|---------------|----------------------------------------------------|
+| `node_hypervisor`          | `str`  | `kvm`               |               | Currently only `kvm` is supported.                 |
+| `oneprometheus_components` | `dict` | (check common role) | (check below) | OpenNebula Prometheus stack component definitions. |
+| `oneprometheus_limits`     | `dict` | (check common role) | (check below) | Define resource limits for systemd units.          |
 
 Dependencies
 ------------
 
-N/A
+- opennebula.deploy.prometheus.common
+- opennebula.deploy.repository
 
 Example Playbook
 ----------------
@@ -27,6 +29,10 @@ Example Playbook
 ```yaml
 - hosts: node
   vars:
+    oneprometheus_components:
+      opennebula-lvm-exporter: { enabled: true }
+      opennebula-ovs-exporter: { enabled: true }
+
     oneprometheus_limits:
       opennebula-libvirt-exporter.service:
         CPUQuota: 25%

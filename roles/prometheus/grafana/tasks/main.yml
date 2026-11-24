@@ -29,6 +29,7 @@
       until: package is success
       retries: 12
       delay: 5
+      tags: [preinstall]
 
     - block:
         - name: Override systemd unit (file)
