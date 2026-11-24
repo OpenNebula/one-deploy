@@ -30,6 +30,11 @@
                     | zip(_node_list)
                     | items2dict(key_name=0, value_name=1) }}
 
+    _prometheus_enabled: >-
+      {{ oneprometheus_components['opennebula-prometheus'].enabled is sameas(true) }}
+    _alertmanager_enabled: >-
+      {{ oneprometheus_components['opennebula-alertmanager'].enabled is sameas(true) }}
+
     _components: >-
       {{ oneprometheus_components | dict2items
                                   | selectattr('value.enabled', 'sameas', true)
@@ -120,6 +125,7 @@
             owner: 9869
             group: 9869
             mode: u=rwx,go=rx
+          when: _prometheus_enabled
 
         - name: Configure Prometheus datasources (template)
           ansible.builtin.template:
@@ -131,6 +137,7 @@
           loop: "{{ _services + _exporters }}"
           loop_control: { label: "{{ item.key }}" }
           register: template_configure_datasources
+          when: _prometheus_enabled
 
     - name: Enable / Start / Restart Prometheus exporters (NOW)
       ansible.builtin.systemd_service:
@@ -148,7 +155,7 @@
              , template_configure_datasources is changed ] is any }}
 
     - block:
-        - name: Configure Prometheus / Alertmanager rules (copy)
+        - name: Configure Prometheus rules (copy)
           ansible.builtin.copy:
             dest: "/etc/one/prometheus/{{ item.key }}"
             owner: 9869
@@ -161,6 +168,7 @@
           loop: "{{ _rules | rejectattr('value', 'none') }}"
           loop_control: { label: "{{ item.key }}" }
           register: copy_configure_rules
+          when: _prometheus_enabled
 
         - name: Configure Prometheus (copy)
           ansible.builtin.copy:
@@ -168,11 +176,12 @@
             owner: 9869
             group: 9869
             mode: u=rw,go=r
-            validate: promtool check config %s
+            validate: promtool check config --syntax-only %s
             content: |
               # managed by one-deploy
               {{ oneprometheus_config.prometheus | d(oneprometheus_config_defaults.prometheus) }}
           register: copy_configure_prometheus
+          when: _prometheus_enabled
 
         - name: Configure Alertmanager (copy)
           ansible.builtin.copy:
@@ -185,6 +194,7 @@
               # managed by one-deploy
               {{ oneprometheus_config.alertmanager | d(oneprometheus_config_defaults.alertmanager) }}
           register: copy_configure_alertmanager
+          when: _alertmanager_enabled
 
     - name: Enable / Start / Restart Prometheus services (NOW)
       ansible.builtin.systemd_service:

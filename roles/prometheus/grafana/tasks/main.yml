@@ -7,6 +7,15 @@
         repos_enabled_defaults: [grafana, opennebula]
       when: grafana_repo is undefined or opennebula_repo is undefined
 
+- ansible.builtin.include_role:
+    name: opennebula/leader
+  when: leader is undefined
+
+- when: _component.enabled is sameas(true) and inventory_hostname in _component.targets
+  vars:
+    _component: >-
+      {{ oneprometheus_components['grafana-server'] }}
+  block:
     - name: Install Grafana with dependencies
       ansible.builtin.package:
         name: "{{ _common + _specific[ansible_os_family] }}"
@@ -21,43 +30,23 @@
       retries: 12
       delay: 5
 
-- ansible.builtin.include_role:
-    name: opennebula/leader
-  when: leader is undefined
-
-- vars:
-    _components: >-
-      {{ oneprometheus_components | dict2items
-                                  | selectattr('value.condition', 'sameas', true)
-                                  | list }}
-    _services: >-
-      {{ _components | selectattr('key', 'in', ['grafana-server'])
-                     | list }}
-    _services_local: >-
-      {{ _services | selectattr('value.targets', 'contains', inventory_hostname)
-                   | list }}
-  block:
     - block:
-        - name: Override systemd units (file)
+        - name: Override systemd unit (file)
           ansible.builtin.file:
-            path: "/etc/systemd/system/{{ item.value.service }}.d/"
+            path: "/etc/systemd/system/{{ _component.service }}.d/"
             state: directory
             owner: 0
             group: 0
             mode: u=rwx,go=rx
-          loop: "{{ _services_local }}"
-          loop_control: { label: "{{ item.key }}" }
 
-        - name: Override systemd units (template)
+        - name: Override systemd unit (template)
           ansible.builtin.template:
-            dest: "/etc/systemd/system/{{ item.value.service }}.d/override.conf"
-            src: "{{ role_path }}/../common/templates/{{ item.value.service }}.jinja"
+            dest: "/etc/systemd/system/{{ _component.service }}.d/override.conf"
+            src: "{{ role_path }}/../common/templates/{{ _component.service }}.jinja"
             owner: 0
             group: 0
             mode: u=rw,go=r
-          loop: "{{ _services_local }}"
-          loop_control: { label: "{{ item.key }}" }
-          register: template_override_units
+          register: template_override_unit
 
     - name: Update Grafana provisioning
       ansible.builtin.copy:
@@ -89,17 +78,15 @@
                 options: { path: /usr/share/one/grafana/dashboards/ }
       register: copy_grafana_provisioning
 
-    - name: Enable / Start / Restart Grafana services (NOW)
+    - name: Enable / Start / Restart Grafana service (NOW)
       ansible.builtin.systemd_service:
-        name: "{{ item.value.service }}"
+        name: "{{ _component.service }}"
         enabled: true
         state: >-
           {{ _changed | ternary('restarted', 'started') }}
         daemon_reload: >-
           {{ _changed }}
-      loop: "{{ _services_local }}"
-      loop_control: { label: "{{ item.key }}" }
       vars:
         _changed: >-
-          {{ [ template_override_units is changed
+          {{ [ template_override_unit is changed
              , copy_grafana_provisioning is changed ] is any }}
