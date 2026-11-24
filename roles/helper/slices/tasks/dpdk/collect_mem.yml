@@ -1,11 +1,12 @@
 ---
-- vars:
+- when: _dpdk_socket_mem is string and _dpdk_socket_mem | length > 0
+  vars:
     _dpdk_socket_mem: >-
       {{ ovs.set | d([])
                  | selectattr('other_config:dpdk-socket-mem', 'defined')
                  | map(attribute='other_config:dpdk-socket-mem')
                  | first
-                 | d('') }}
+                 | d('auto') }}
 
     _per_port_memory: >-
       {{ ovs.set | d([])
