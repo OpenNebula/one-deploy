@@ -101,7 +101,8 @@ Example Playbook
       bond:
         bond0:
           ifaces: [dpdk-p0, dpdk-p1]
-          mode: active-backup
+          set:
+            - bond_mode: active-backup
       br:
         ovsbr1:
           ports: [bond0, dpdk-p2]
