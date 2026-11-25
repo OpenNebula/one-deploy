@@ -2,21 +2,30 @@
 - name: Validate input PCI Device configuration
   ansible.utils.validate:
     data: "{{ pci_devices | to_json }}"
-    criteria: "{{ lookup('ansible.builtin.file', role_path ~ '../../files/pci_devices.schema.json') | from_json }}"
+    criteria: "{{ lookup('ansible.builtin.file', _schema_file) | from_json }}"
     engine: ansible.utils.jsonschema
+  vars:
+    _schema_file: >-
+      {{ [role_path, '..', 'files', 'pci_devices.schema.json'] | path_join }}
   when: pci_devices is defined
 
 - name: Validate input Open vSwitch configuration
   ansible.utils.validate:
     data: "{{ ovs | to_json }}"
-    criteria: "{{ lookup('ansible.builtin.file', role_path ~ '../../files/ovs.schema.json') | from_json }}"
+    criteria: "{{ lookup('ansible.builtin.file', _schema_file) | from_json }}"
     engine: ansible.utils.jsonschema
+  vars:
+    _schema_file: >-
+      {{ [role_path, '..', 'files', 'ovs.schema.json'] | path_join }}
   when: ovs is defined
 
 - name: Validate input TProxy configuration
   ansible.utils.validate:
     data: "{{ gate_tproxy | to_json }}"
-    criteria: "{{ lookup('ansible.builtin.file', role_path ~ '../../files/gate_tproxy.schema.json') | from_json }}"
+    criteria: "{{ lookup('ansible.builtin.file', _schema_file) | from_json }}"
     engine: ansible.utils.jsonschema
+  vars:
+    _schema_file: >-
+      {{ [role_path, '..', 'files', 'gate_tproxy.schema.json'] | path_join }}
   when: gate_tproxy is defined
   run_once: true
