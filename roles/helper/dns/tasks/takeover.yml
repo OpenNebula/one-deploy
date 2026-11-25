@@ -76,6 +76,7 @@
     - name: Apply authselect changes
       ansible.builtin.command:
         cmd: authselect apply-changes
+      changed_when: true
       when:
         - _authselect_managed
         - replace_nsswitch_conf is changed
