@@ -1,0 +1,22 @@
+---
+- name: Validate input PCI Device configuration
+  ansible.utils.validate:
+    data: "{{ pci_devices | to_json }}"
+    criteria: "{{ lookup('ansible.builtin.file', role_path ~ '../../files/pci_devices.schema.json') | from_json }}"
+    engine: ansible.utils.jsonschema
+  when: pci_devices is defined
+
+- name: Validate input Open vSwitch configuration
+  ansible.utils.validate:
+    data: "{{ ovs | to_json }}"
+    criteria: "{{ lookup('ansible.builtin.file', role_path ~ '../../files/ovs.schema.json') | from_json }}"
+    engine: ansible.utils.jsonschema
+  when: ovs is defined
+
+- name: Validate input TProxy configuration
+  ansible.utils.validate:
+    data: "{{ gate_tproxy | to_json }}"
+    criteria: "{{ lookup('ansible.builtin.file', role_path ~ '../../files/gate_tproxy.schema.json') | from_json }}"
+    engine: ansible.utils.jsonschema
+  when: gate_tproxy is defined
+  run_once: true

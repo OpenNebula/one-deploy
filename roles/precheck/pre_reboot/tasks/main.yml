@@ -24,7 +24,7 @@
         file: "{{ role_path }}/tasks/features.yml"
 
     - ansible.builtin.include_tasks:
-        file: "{{ role_path }}/tasks/tproxy.yml"
+        file: "{{ role_path }}/tasks/schemas.yml"
 
     - ansible.builtin.include_tasks:
         file: "{{ role_path }}/tasks/consent.yml"

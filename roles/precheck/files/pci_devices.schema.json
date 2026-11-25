@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OneDeploy PCI device rules",
+  "description": "Validates the value of pci_devices for one inventory host. Rules are evaluated in list order. An empty list disables device configuration.",
+  "type": "array",
+  "default": [],
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "address": {
+        "$ref": "#/$defs/address"
+      },
+      "vendor": {
+        "$ref": "#/$defs/pciId",
+        "description": "PCI vendor ID or *. Ignored when address is supplied."
+      },
+      "device": {
+        "$ref": "#/$defs/pciId",
+        "description": "PCI device ID or *. Ignored when address is supplied."
+      },
+      "class": {
+        "type": "string",
+        "pattern": "^(?:[0-9A-Fa-fxX]{1,4}|\\*)(?![\\s\\S])",
+        "description": "PCI class selector. Use x for a wildcard digit or * for any class. Ignored when address is supplied."
+      },
+      "excluded": {
+        "type": "boolean",
+        "description": "Skip matching devices."
+      },
+      "unguarded": {
+        "type": "boolean",
+        "description": "Bypass the role's guard for matching devices."
+      },
+      "unlisted": {
+        "type": "boolean",
+        "description": "Keep matching devices out of OpenNebula's PCI inventory."
+      },
+      "virtual": {
+        "type": "boolean",
+        "description": "Allow matching SR-IOV virtual devices to be absent."
+      },
+      "set_counter": {
+        "description": "Reset the counter used by the {3} rename placeholder.",
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string",
+            "pattern": "^[+-]?[0-9]+(?![\\s\\S])"
+          }
+        ]
+      },
+      "set_driver": {
+        "$ref": "#/$defs/token",
+        "description": "Driver override, or omit to leave the driver alone."
+      },
+      "set_name": {
+        "$ref": "#/$defs/token",
+        "description": "Interface name or Python format string, or omit to leave the name alone."
+      },
+      "set_numvfs": {
+        "description": "Requested SR-IOV virtual function count, or max for the device's maximum.",
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": 0
+          },
+          {
+            "type": "string",
+            "pattern": "^[0-9]+(?![\\s\\S])"
+          },
+          {
+            "const": "max"
+          }
+        ]
+      },
+      "set_switchdev": {
+        "type": "boolean",
+        "description": "Select switchdev mode when true or legacy mode when false."
+      },
+      "set_unmanaged": {
+        "type": "boolean",
+        "description": "Mark matching interfaces unmanaged by Netplan or NetworkManager."
+      }
+    }
+  },
+  "$defs": {
+    "token": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "pattern": "\\s"
+      }
+    },
+    "pciId": {
+      "type": "string",
+      "pattern": "^(?:[0-9A-Fa-f]{1,4}|\\*)(?![\\s\\S])"
+    },
+    "address": {
+      "type": "string",
+      "description": "Fully qualified PCI slot selector (domain:bus:device.function) or a six-component colon-delimited MAC address or glob.",
+      "anyOf": [
+        {
+          "title": "PCI slot",
+          "pattern": "^(?:[0-9A-Fa-f]{1,4}|\\*):(?:[0-9A-Fa-f]{1,2}|\\*):(?:[01]?[0-9A-Fa-f]|\\*)\\.(?:[0-7]|\\*)(?![\\s\\S])"
+        },
+        {
+          "title": "MAC address or glob",
+          "pattern": "^(?:(?:[0-9A-Fa-f]{2}|(?=[^:]*[?*\\[])(?:[0-9A-Fa-f?*]|\\[!?[0-9A-Fa-f-]+\\])+):){5}(?:[0-9A-Fa-f]{2}|(?=[^:]*[?*\\[])(?:[0-9A-Fa-f?*]|\\[!?[0-9A-Fa-f-]+\\])+)(?![\\s\\S])"
+        }
+      ]
+    }
+  }
+}

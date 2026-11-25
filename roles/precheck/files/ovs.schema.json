@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OneDeploy Open vSwitch configuration",
+  "description": "The resolved ovs variable for one inventory host. OneDeploy merges omitted resource maps with its role defaults.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "set": { "$ref": "#/$defs/settings" },
+    "iface": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/resourceName" },
+      "additionalProperties": { "$ref": "#/$defs/interface" }
+    },
+    "bond": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/resourceName" },
+      "additionalProperties": { "$ref": "#/$defs/bond" }
+    },
+    "br": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/resourceName" },
+      "additionalProperties": { "$ref": "#/$defs/bridge" }
+    },
+    "port": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/resourceName" },
+      "additionalProperties": { "$ref": "#/$defs/port" }
+    }
+  },
+  "$defs": {
+    "resourceName": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "\\s" }
+    },
+    "resourceNames": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/resourceName" },
+      "uniqueItems": true
+    },
+    "settings": {
+      "type": "array",
+      "description": "Ordered list of maps of ovs-vsctl column or column:key assignments. Other OVS columns and their values are passed through.",
+      "items": {
+        "type": "object",
+        "propertyNames": { "$ref": "#/$defs/resourceName" },
+        "properties": {
+          "type": { "type": "string" },
+          "other_config:dpdk-init": {
+            "type": "string",
+            "description": "Use the string 'true' to enable the role's DPDK handling."
+          },
+          "other_config:pmd-cpu-mask": { "type": "string" }
+        }
+      }
+    },
+    "addresses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["cidr"],
+        "additionalProperties": false,
+        "properties": {
+          "cidr": {
+            "type": "string",
+            "description": "Interface address and prefix length, such as 192.0.2.10/24 or 2001:db8::10/64. ip addr checks full IPv6 address syntax.",
+            "anyOf": [
+              { "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])/(?:[0-9]|[12][0-9]|3[0-2])(?![\\s\\S])" },
+              { "pattern": "^(?=[0-9A-Fa-f.]*:)[0-9A-Fa-f:.]+/(?:[0-9]|[1-9][0-9]|1[01][0-9]|12[0-8])(?![\\s\\S])" }
+            ]
+          },
+          "metric": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "gateway": {
+      "type": "string",
+      "description": "IPv4 or IPv6 default gateway. Enable format checks to validate the IP literal.",
+      "minLength": 1,
+      "anyOf": [
+        { "format": "ipv4" },
+        { "format": "ipv6" }
+      ]
+    },
+    "interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "set": { "$ref": "#/$defs/settings" },
+        "driver": {
+          "$ref": "#/$defs/resourceName",
+          "description": "DPDK PCI driver, such as vfio-pci. Use omit to leave driver binding alone."
+        },
+        "addrs": { "$ref": "#/$defs/addresses" },
+        "gw": { "$ref": "#/$defs/gateway" }
+      }
+    },
+    "bond": {
+      "type": "object",
+      "required": ["ifaces"],
+      "additionalProperties": false,
+      "properties": {
+        "ifaces": {
+          "$ref": "#/$defs/resourceNames",
+          "minItems": 2
+        },
+        "set": { "$ref": "#/$defs/settings" }
+      }
+    },
+    "bridge": {
+      "type": "object",
+      "required": ["ports"],
+      "additionalProperties": false,
+      "properties": {
+        "ports": {
+          "$ref": "#/$defs/resourceNames",
+          "description": "Interface and bond names attached to this bridge. Use an empty list for a bridge with only its internal port."
+        },
+        "set": { "$ref": "#/$defs/settings" },
+        "addrs": { "$ref": "#/$defs/addresses" },
+        "gw": { "$ref": "#/$defs/gateway" }
+      }
+    },
+    "port": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "set": { "$ref": "#/$defs/settings" }
+      }
+    }
+  }
+}

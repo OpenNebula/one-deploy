@@ -13,6 +13,7 @@ installer = "uv"
 dependencies = [
   "ansible-core<2.17",
   "ansible-lint",
+  "jsonschema>=4.0",
   "netaddr",
   "xmltodict",
 ]
