@@ -217,7 +217,11 @@
       mon host = {{ _mon }}
   vars:
     _hosts: >-
-      {{ groups.get(mon_group | d('mon')) | map('extract', hostvars, ['ansible_host']) | list }}
+      {%- set output = [] -%}
+      {%- for host in groups.get(mon_group | d('mon')) -%}
+        {{- output.append(hostvars[host].ceph_addr | d(hostvars[host].ansible_host)) -}}
+      {%- endfor -%}
+      {{- output -}}
     _mon: >-
       {%- set output = [] -%}
       {%- for host in _hosts -%}

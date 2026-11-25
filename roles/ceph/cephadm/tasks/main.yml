@@ -110,7 +110,7 @@
                 tee "$TO_APPLY" <<<"$SPEC"
 
                 cephadm {{ "--image '%s'" | format(cephadm_image) if cephadm_image is truthy else '' }} \
-                        bootstrap --mon-ip '{{ ansible_host }}' \
+                        bootstrap --mon-ip '{{ ceph_addr | d(ansible_host) }}' \
                                   --allow-fqdn-hostname \
                                   --skip-monitoring-stack \
                                   --skip-dashboard \
