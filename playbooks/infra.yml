@@ -19,6 +19,10 @@
   tags: [infra]
   collections:
     - opennebula.deploy
+  pre_tasks:
+    - ansible.builtin.include_role:
+        name: precheck/pre_reboot
+        tasks_from: schemas
   roles:
     - role: helper/kernel # NOTE: it may reboot the machine!
       tags: [kernel]
@@ -56,7 +60,7 @@
 
     - role: helper/fstab
       tags: [fstab]
-  tasks:
+  post_tasks:
     - name: Install OpenNebula KVM package
       ansible.builtin.package:
         name: [opennebula-node-kvm]

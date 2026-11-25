@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OneDeploy TProxy configuration",
+  "description": "Validates the value of the gate_tproxy inventory variable.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [":service_port", ":remote_addr", ":remote_port"],
+    "additionalProperties": false,
+    "properties": {
+      ":service_port": { "$ref": "#/$defs/port" },
+      ":remote_addr": { "$ref": "#/$defs/remoteAddress" },
+      ":remote_port": { "$ref": "#/$defs/port" },
+      ":networks": {
+        "type": "array",
+        "description": "Virtual network IDs or names. Omit this property or use an empty list to select all virtual networks.",
+        "items": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "description": "OpenNebula virtual network ID."
+            },
+            {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Exact virtual network name or decimal ID written as a string."
+            }
+          ]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "remoteAddress": {
+      "type": "string",
+      "description": "IPv4 address or DNS hostname that resolves to IPv4.",
+      "anyOf": [
+        {
+          "format": "ipv4",
+          "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?![\\s\\S])"
+        },
+        {
+          "$comment": "Keep malformed IPv4 literals from matching the hostname branch.",
+          "pattern": "^(?=.{1,253}\\.?$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.?(?![\\s\\S])",
+          "not": { "pattern": "^[0-9.]+$" }
+        }
+      ]
+    }
+  }
+}
