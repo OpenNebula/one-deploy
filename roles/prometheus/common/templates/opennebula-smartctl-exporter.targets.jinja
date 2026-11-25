@@ -1,0 +1,27 @@
+# managed by one-deploy
+{% set c = oneprometheus_components['opennebula-smartctl-exporter'] %}
+---
+{% for t in c.targets | select('in', federation.groups.frontend) | unique %}
+{% set h = hostvars[t].ansible_host | d(t) | ansible.utils.ipwrap %}
+{% set l = hostvars[t].oneprometheus_labels | d({}) %}
+- labels:
+    role: frontend
+{% if l | count > 0 %}
+    {{ l | to_nice_yaml(indent=2) | trim | indent(4) }}
+{% endif %}
+  targets:
+    - '{{ h }}:{{ c.port }}'
+{% endfor %}
+
+{% for t in c.targets | select('in', federation.groups.node) | unique %}
+{% set h = hostvars[t].ansible_host | d(t) | ansible.utils.ipwrap %}
+{% set l = hostvars[t].oneprometheus_labels | d({}) %}
+- labels:
+    role: node
+    one_host_id: '{{ _nodes[hostvars[t].ansible_host | d(t)].ID }}'
+{% if l | count > 0 %}
+    {{ l | to_nice_yaml(indent=2) | trim | indent(4) }}
+{% endif %}
+  targets:
+    - '{{ h }}:{{ c.port }}'
+{% endfor %}

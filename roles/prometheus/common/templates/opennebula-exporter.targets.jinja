@@ -1,0 +1,14 @@
+# managed by one-deploy
+{% set c = oneprometheus_components['opennebula-exporter'] %}
+---
+{% for t in c.targets | unique %}
+{% set h = hostvars[t].ansible_host | d(t) | ansible.utils.ipwrap %}
+{% set l = hostvars[t].oneprometheus_labels | d({}) %}
+- labels:
+    role: frontend
+{% if l | count > 0 %}
+    {{ l | to_nice_yaml(indent=2) | trim | indent(4) }}
+{% endif %}
+  targets:
+    - '{{ h }}:{{ c.port }}'
+{% endfor %}

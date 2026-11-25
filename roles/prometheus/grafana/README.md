@@ -20,6 +20,8 @@ Role Variables
 Dependencies
 ------------
 
+- opennebula.deploy.prometheus.common
+- opennebula.deploy.repository
 - opennebula.deploy.opennebula.leader
 
 Example Playbook

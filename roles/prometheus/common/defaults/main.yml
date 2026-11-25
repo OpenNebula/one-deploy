@@ -1,6 +1,100 @@
 ---
 node_hypervisor: kvm # currently "kvm" only
 
+oneprometheus_components_defaults:
+  grafana-server:
+    short: grafana
+    package: grafana
+    service: grafana-server.service
+    job: null
+    port: 3000
+    targets: "{{ groups.get(grafana_group | d('grafana'), []) }}"
+    enabled: true
+
+  opennebula-alertmanager:
+    short: alertmanager
+    package: opennebula-prometheus
+    service: opennebula-alertmanager.service
+    job: null
+    port: 9093
+    targets: "{{ federation.groups.frontend }}"
+    enabled: true
+
+  opennebula-prometheus:
+    short: prometheus
+    package: opennebula-prometheus
+    service: opennebula-prometheus.service
+    job: prometheus
+    port: 9090
+    targets: "{{ federation.groups.frontend | select('in', [inventory_hostname]) }}"
+    enabled: true
+
+  opennebula-exporter:
+    short: opennebula
+    package: "opennebula-prometheus-{{ node_hypervisor }}"
+    service: opennebula-exporter.service
+    job: opennebula_exporter
+    port: 9925
+    targets: "{{ federation.groups.frontend | select('in', [inventory_hostname]) }}"
+    enabled: true
+
+  opennebula-libvirt-exporter:
+    short: libvirt
+    package: "opennebula-prometheus-{{ node_hypervisor }}"
+    service: opennebula-libvirt-exporter.service
+    job: libvirt_exporter
+    port: 9926
+    targets: "{{ federation.groups.node }}"
+    enabled: true
+
+  opennebula-lvm-exporter:
+    short: lvm
+    package: opennebula-prometheus-lvm
+    service: opennebula-lvm-exporter.service
+    job: lvm_exporter
+    port: 9845
+    targets: "{{ federation.groups.node }}"
+    enabled: false
+
+  opennebula-mysql-exporter:
+    short: mysql
+    package: opennebula-prometheus-mysql
+    service: opennebula-mysql-exporter.service
+    job: mysql_exporter
+    port: 9104
+    targets: "{{ federation.groups.frontend }}"
+    enabled: "{{ one_version is version('7.2.1', '>=') and db_backend | d('MariaDB') == 'MariaDB' }}"
+
+  opennebula-node-exporter:
+    short: node
+    package: "opennebula-prometheus-{{ node_hypervisor }}"
+    service: opennebula-node-exporter.service
+    job: node_exporter
+    port: 9100
+    targets: "{{ federation.groups.frontend + federation.groups.node }}"
+    enabled: true
+
+  opennebula-ovs-exporter:
+    short: ovs
+    package: opennebula-prometheus-ovs
+    service: opennebula-ovs-exporter.service
+    job: ovs_exporter
+    port: 9475
+    targets: "{{ federation.groups.frontend + federation.groups.node }}"
+    enabled: false
+
+  opennebula-smartctl-exporter:
+    short: smartctl
+    package: opennebula-prometheus-smartctl
+    service: opennebula-smartctl-exporter.service
+    job: smartctl_exporter
+    port: 9633
+    targets: "{{ federation.groups.frontend | map('extract', hostvars)
+                                            | rejectattr('infra_hostname', 'defined')
+                                            | map(attribute='inventory_hostname')
+                                            | list + federation.groups.node }}"
+    enabled: false
+
 oneprometheus_limits_defaults:
   grafana-server.service:
     CPUQuota: 100%
@@ -10,6 +104,7 @@ oneprometheus_limits_defaults:
     IOWeight: null
     IOReadBandwidthMax: null
     IOWriteBandwidthMax: null
+
   opennebula-alertmanager.service:
     CPUQuota: 25%
     CPUWeight: 150
@@ -18,54 +113,7 @@ oneprometheus_limits_defaults:
     IOWeight: null
     IOReadBandwidthMax: null
     IOWriteBandwidthMax: null
-  opennebula-exporter.service:
-    CPUQuota: 25%
-    CPUWeight: 25
-    MemoryHigh: 128M
-    MemoryMax: 256M
-    IOWeight: null
-    IOReadBandwidthMax: null
-    IOWriteBandwidthMax: null
-  opennebula-libvirt-exporter.service:
-    CPUQuota: 25%
-    CPUWeight: 25
-    MemoryHigh: 128M
-    MemoryMax: 256M
-    IOWeight: null
-    IOReadBandwidthMax: null
-    IOWriteBandwidthMax: null
-  opennebula-lvm-exporter.service:
-    CPUQuota: 25%
-    CPUWeight: 25
-    MemoryHigh: 128M
-    MemoryMax: 256M
-    IOWeight: null
-    IOReadBandwidthMax: null
-    IOWriteBandwidthMax: null
-  opennebula-mysql-exporter.service:
-    CPUQuota: 25%
-    CPUWeight: 25
-    MemoryHigh: 128M
-    MemoryMax: 256M
-    IOWeight: null
-    IOReadBandwidthMax: null
-    IOWriteBandwidthMax: null
-  opennebula-node-exporter.service:
-    CPUQuota: 25%
-    CPUWeight: 25
-    MemoryHigh: 64M
-    MemoryMax: 128M
-    IOWeight: null
-    IOReadBandwidthMax: null
-    IOWriteBandwidthMax: null
-  opennebula-ovs-exporter.service:
-    CPUQuota: 50%
-    CPUWeight: 25
-    MemoryHigh: 256M
-    MemoryMax: 512M
-    IOWeight: null
-    IOReadBandwidthMax: null
-    IOWriteBandwidthMax: null
+
   opennebula-prometheus.service:
     CPUQuota: 100%
     CPUWeight: 100
@@ -76,6 +124,61 @@ oneprometheus_limits_defaults:
     IOWriteBandwidthMax: /var/lib/prometheus 25M
     storage.tsdb.retention.size: null
     storage.tsdb.retention.time: null
+
+  opennebula-exporter.service:
+    CPUQuota: 25%
+    CPUWeight: 25
+    MemoryHigh: 128M
+    MemoryMax: 256M
+    IOWeight: null
+    IOReadBandwidthMax: null
+    IOWriteBandwidthMax: null
+
+  opennebula-libvirt-exporter.service:
+    CPUQuota: 25%
+    CPUWeight: 25
+    MemoryHigh: 128M
+    MemoryMax: 256M
+    IOWeight: null
+    IOReadBandwidthMax: null
+    IOWriteBandwidthMax: null
+
+  opennebula-lvm-exporter.service:
+    CPUQuota: 25%
+    CPUWeight: 25
+    MemoryHigh: 128M
+    MemoryMax: 256M
+    IOWeight: null
+    IOReadBandwidthMax: null
+    IOWriteBandwidthMax: null
+
+  opennebula-mysql-exporter.service:
+    CPUQuota: 25%
+    CPUWeight: 25
+    MemoryHigh: 128M
+    MemoryMax: 256M
+    IOWeight: null
+    IOReadBandwidthMax: null
+    IOWriteBandwidthMax: null
+
+  opennebula-node-exporter.service:
+    CPUQuota: 25%
+    CPUWeight: 25
+    MemoryHigh: 64M
+    MemoryMax: 128M
+    IOWeight: null
+    IOReadBandwidthMax: null
+    IOWriteBandwidthMax: null
+
+  opennebula-ovs-exporter.service:
+    CPUQuota: 50%
+    CPUWeight: 25
+    MemoryHigh: 256M
+    MemoryMax: 512M
+    IOWeight: null
+    IOReadBandwidthMax: null
+    IOWriteBandwidthMax: null
+
   opennebula-smartctl-exporter.service:
     CPUQuota: 25%
     CPUWeight: 25
@@ -84,3 +187,6 @@ oneprometheus_limits_defaults:
     IOWeight: null
     IOReadBandwidthMax: null
     IOWriteBandwidthMax: null
+
+oneprometheus_rules_defaults:
+  rules.yml: null # null = no content
