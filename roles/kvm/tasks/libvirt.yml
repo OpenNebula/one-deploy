@@ -250,3 +250,30 @@
         name: "{{ libvirt_service }}"
         state: restarted
       when: lineinfile_qemu is changed or lineinfile_qemu_revert is changed
+
+# --- SELinux ---
+
+# QEMU (svirt_t) is not allowed to open images stored on NFS (nfs_t) unless the virt_use_nfs
+# boolean is on
+- name: Enable/Persist virt_use_nfs (NFS mounts)
+  ansible.builtin.shell:
+    cmd: |
+      set -o errexit
+      findmnt -ft nfs,nfs4 >/dev/null || exit 0
+      BEFORE="$(getsebool virt_use_nfs)"
+      setsebool -P virt_use_nfs on
+      AFTER="$(getsebool virt_use_nfs)"
+      if [[ "$AFTER" == "$BEFORE" ]]; then
+        exit 0
+      else
+        exit 78 # EREMCHG
+      fi
+    executable: /bin/bash
+  register: shell_virt_use_nfs
+  changed_when:
+    - shell_virt_use_nfs.rc in [78]
+  failed_when:
+    - shell_virt_use_nfs.rc not in [0, 78]
+  when:
+    - ansible_facts.selinux.status is defined
+    - ansible_facts.selinux.status in ['enabled']
