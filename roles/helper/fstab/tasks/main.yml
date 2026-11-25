@@ -63,12 +63,12 @@
 
     # NOTE: All intermediate subdirectories will be created if they do not exist.
     #       Since Ansible 1.7 they will be created with the supplied permissions.
-    - name: Ensure mountpoints with desired permissions exist
+    - name: Ensure mountpoints exist (BEFORE)
       ansible.builtin.file:
         path: "{{ item.path }}"
-        owner: "{{ item.owner | default(omit, true) }}"
-        group: "{{ item.group | default(omit, true) }}"
-        mode: "{{ item.mode | default(omit, true) }}"
+        owner: "{{ item.owner | d(omit, true) }}"
+        group: "{{ item.group | d(omit, true) }}"
+        mode: "{{ item.mode | d(omit, true) }}"
         state: directory
       loop: "{{ _fstab }}"
 
@@ -79,4 +79,18 @@
         fstype: "{{ item.fstype }}"
         opts: "{{ item.opts }}"
         state: mounted
+      loop: "{{ _fstab }}"
+
+    - name: Ensure desired permissions for mountpoints (AFTER)
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: "{{ item.owner | d(omit, true) }}"
+        group: "{{ item.group | d(omit, true) }}"
+        mode: "{{ item.mode | d(omit, true) }}"
+        state: directory
+      when: (item.owner is not sameas(none))
+            or
+            (item.group is not sameas(none))
+            or
+            (item.mode is not sameas(none))
       loop: "{{ _fstab }}"
