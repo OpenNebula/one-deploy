@@ -45,7 +45,8 @@ Example Playbook
 - hosts: frontend:node
   vars:
     # NOTE: The `/srv` directory is automatically included in AppArmor configs
-    #       by the `kvm` role.
+    #       by the `kvm` role. On SELinux-enabled nodes the `kvm` role turns
+    #       the `virt_use_nfs` boolean on when an NFS filesystem is mounted.
     fstab:
       - src: server:/srv/shared
         path: /srv/shared
