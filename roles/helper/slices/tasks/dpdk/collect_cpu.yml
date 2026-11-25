@@ -1,18 +1,23 @@
 ---
-- vars:
+- when: _pmd_cpu_mask is string and _pmd_cpu_mask | length > 0
+  vars:
     _pmd_cpu_mask: >-
       {{ ovs.set | d([])
                  | selectattr('other_config:pmd-cpu-mask', 'defined')
                  | map(attribute='other_config:pmd-cpu-mask')
                  | first
-                 | d('') }}
+                 | d('auto') }}
 
     _options_n_rxq: >-
       {%- set output = [] -%}
       {%- for k, v in _dpdk_iface.items() -%}
         {{-
           output.append([
-            k, v.set | d([]) | map(attribute='options:n_rxq', default=1) | last | d(1)
+            k, v.set | d([])
+                     | selectattr('options:n_rxq', 'defined')
+                     | map(attribute='options:n_rxq')
+                     | last
+                     | d(1)
           ])
         -}}
       {%- endfor -%}
@@ -24,7 +29,7 @@
         {%- if k in _dpdk_ifaces_per_numa_node.keys() -%}
           {{-
             output.append([
-              k, _dpdk_ifaces_per_numa_node.get(k) | map('extract', _options_n_rxq) | sum
+              k, _dpdk_ifaces_per_numa_node.get(k) | map('extract', _options_n_rxq) | map('int') | sum
             ])
           -}}
         {%- else -%}
@@ -70,14 +75,15 @@
       {%- endfor -%}
       {{- output | flatten -}}
 
+    # An empty CPU estimate leaves the PMD mask unset.
     _pmd_cpu_mask_estimated: >-
-      {{ _cpus_estimated | opennebula.deploy.implode_bitmask }}
+      {{ (_cpus_estimated | opennebula.deploy.implode_bitmask) if _cpus_estimated else '' }}
 
     _pmd_cpu_mask_decided: >-
       {{ _pmd_cpu_mask_estimated if (_pmd_cpu_mask == 'auto') else _pmd_cpu_mask }}
 
     _cpus_to_pin: >-
-      {{ _pmd_cpu_mask_decided | opennebula.deploy.explode_bitmask(split=true) }}
+      {{ (_pmd_cpu_mask_decided | opennebula.deploy.explode_bitmask(split=true)) if _pmd_cpu_mask_decided else [] }}
   block:
     - name: In-place update 'other_config:pmd-cpu-mask'
       ansible.builtin.set_fact:
@@ -91,8 +97,8 @@
             )
           }}
       vars:
-        _update:
-          - "other_config:pmd-cpu-mask": "{{ _pmd_cpu_mask_decided }}"
+        _update: >-
+          {{ [{"other_config:pmd-cpu-mask": _pmd_cpu_mask_decided}] if _pmd_cpu_mask_decided else [] }}
 
     - name: Collect DPDK CPU requirements
       ansible.builtin.set_fact:
