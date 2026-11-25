@@ -15,10 +15,13 @@ ceph_defaults:
   # Optional erasure coded data pool (EC_POOL_NAME), the replicated pool keeps the metadata.
   ec_pool: null
   ec_profile: { k: 2, m: 1 }
+  # NOTE: Ceph mons are reached on `ceph_addr` when it's defined (dedicated Ceph network), `ansible_host` otherwise.
   host: >-
-    {{ groups[mon_group | d('mon')] | map('extract', hostvars, ['ansible_host']) | join(' ')
-       if groups[mon_group | d('mon')] is defined else
-       [] }}
+    {%- set output = [] -%}
+    {%- for host in groups.get(mon_group | d('mon'), []) -%}
+      {{- output.append(hostvars[host].ceph_addr | d(hostvars[host].ansible_host)) -}}
+    {%- endfor -%}
+    {{- output | join(' ') if groups[mon_group | d('mon')] is defined else [] -}}
   uuid: null
   repo: community
   release: tentacle

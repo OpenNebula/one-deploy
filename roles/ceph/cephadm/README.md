@@ -16,6 +16,7 @@ Role Variables
 | `mon_group`                            | `str`  | `mon`                 | Custom name of the MON group in the inventory.                         |
 | `mgr_group`                            | `str`  | `mgr`                 | Custom name of the MGR group in the inventory.                         |
 | `osd_group`                            | `str`  | `osd`                 | Custom name of the OSD group in the inventory.                         |
+| `ceph_addr`                            | `str`  | `ansible_host`        | (host var) IP of the host in the Ceph public network (MON IP, host `addr`). |
 | `cephadm_conf`                         | `dict` | `{}`                  | A dictionary of key/value pairs to set/rm in Ceph.                     |
 | `cephadm_extra_labels`                 | `list` | `[]`                  | A list of labels to additionally apply to hosts in Ceph.               |
 | `cephadm_image`                        | `str`  | (check role defaults) | Ceph container image used to bootstrap the cluster (pinned to the host's Ceph version by default). |
@@ -75,6 +76,32 @@ osd:
       ansible_host: 10.3.12.50
       cephadm_conf:
         osd_memory_target: null
+```
+
+Ceph on a dedicated network (`ansible_host` stays on the management network, Ceph daemons use `ceph_addr`):
+
+```yaml
+ceph:
+  children:
+    ? mon
+    ? mgr
+    ? osd
+  vars:
+    cephadm_conf:
+      public_network: 10.3.13.0/24
+
+mon:
+  hosts:
+    u2q10: { ansible_host: 10.3.12.10, ceph_addr: 10.3.13.10 }
+
+mgr:
+  hosts:
+    u2q10: { ansible_host: 10.3.12.10, ceph_addr: 10.3.13.10 }
+
+osd:
+  hosts:
+    u2q40: { ansible_host: 10.3.12.40, ceph_addr: 10.3.13.40 }
+    u2q50: { ansible_host: 10.3.12.50, ceph_addr: 10.3.13.50 }
 ```
 
 Example Playbook
