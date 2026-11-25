@@ -93,7 +93,7 @@ oneprometheus_components_defaults:
                                             | rejectattr('infra_hostname', 'defined')
                                             | map(attribute='inventory_hostname')
                                             | list + federation.groups.node }}"
-    enabled: "{{ one_version is version('7.2.1', '>=') }}"
+    enabled: false
 
 oneprometheus_limits_defaults:
   grafana-server.service:
