@@ -5,7 +5,7 @@ description = "OpenNebula Ansible Playbooks"
 authors = ["OpenNebula <contact@opennebula.io>"]
 license = "Apache-2.0"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 
 [tool.hatch.envs.default]
 skip-install = true
