@@ -11,6 +11,10 @@ cephadm_expected_labels:
 
 cephadm_bootstrap_spec: |
   {{ cephadm_bootstrap_spec_host_defaults }}
+  ---
+  service_type: crash
+  placement:
+    host_pattern: '*'
 
 cephadm_bootstrap_spec_host_defaults: |
   {% set _mon = groups[mon_group | d('mon')] %}
