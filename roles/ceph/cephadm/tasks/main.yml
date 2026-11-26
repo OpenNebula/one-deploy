@@ -94,27 +94,23 @@
             cephadm_host_version: >-
               {{ command_ceph_version.stdout | regex_search('^ceph version ([0-9]+[.][0-9]+[.][0-9]+)', '\1') | first }}
 
-        - name: Apply bootstrap spec
+        - name: Bootstrap Ceph
           ansible.builtin.command:
             cmd: bash -s
             stdin: "{{ _stdin.cmd }}"
             creates: /etc/ceph/ceph.conf
-          environment:
-            SPEC: "{{ cephadm_bootstrap_spec }}"
           vars:
             _stdin:
               cmd: |
                 set -o errexit -o nounset
-
-                TO_APPLY="$(mktemp)"; trap "rm -f $TO_APPLY" ERR EXIT
-                tee "$TO_APPLY" <<<"$SPEC"
 
                 cephadm {{ "--image '%s'" | format(cephadm_image) if cephadm_image is truthy else '' }} \
                         bootstrap --mon-ip '{{ ceph_addr | d(ansible_host) }}' \
                                   --allow-fqdn-hostname \
                                   --skip-monitoring-stack \
                                   --skip-dashboard \
-                                  --apply-spec "$TO_APPLY"
+                                  --skip-ssh
+          register: command_bootstrap_ceph
 
         - name: Obtain pubkey
           ansible.builtin.command:
@@ -124,6 +120,7 @@
             _stdin:
               cmd: |
                 set -o errexit
+                ceph cephadm generate-key >&2
                 ceph cephadm get-pub-key
           register: command_cephadm_pubkey
           changed_when: false
@@ -135,6 +132,38 @@
 
     - when: inventory_hostname == _mon.0
       block:
+        - name: Apply bootstrap spec
+          ansible.builtin.command:
+            cmd: cephadm shell --env SPEC -- bash -s
+            stdin: "{{ _stdin.cmd }}"
+          environment:
+            SPEC: "{{ cephadm_bootstrap_spec }}"
+          when: command_bootstrap_ceph is changed
+          vars:
+            _stdin:
+              cmd: |
+                set -o errexit -o nounset -o pipefail
+
+                TO_APPLY="$(mktemp)"; trap "rm -f $TO_APPLY" ERR EXIT
+                tee "$TO_APPLY" <<<"$SPEC"
+
+                BEFORE="$( { ceph orch host ls --format yaml;
+                             ceph orch ls --export; } | cksum)"
+
+                ceph orch apply --in-file "$TO_APPLY"
+
+                AFTER="$( { ceph orch host ls --format yaml;
+                            ceph orch ls --export; } | cksum)"
+
+                if [[ "$AFTER" != "$BEFORE" ]]; then
+                  exit 78 # EREMCHG
+                fi
+          register: command_bootstrap_spec
+          changed_when:
+            - command_bootstrap_spec.rc in [78]
+          failed_when:
+            - command_bootstrap_spec.rc not in [0, 78]
+
         - name: Apply config (inventory group level)
           ansible.builtin.command:
             cmd: cephadm shell -- bash -s
@@ -181,9 +210,7 @@
 
                 AFTER="$(ceph config dump | cksum)"
 
-                if [[ "$AFTER" == "$BEFORE" ]]; then
-                  exit 0
-                else
+                if [[ "$AFTER" != "$BEFORE" ]]; then
                   exit 78 # EREMCHG
                 fi
             _when: >-
@@ -215,9 +242,7 @@
 
                 AFTER="$(ceph mgr module ls | cksum)"
 
-                if [[ "$AFTER" == "$BEFORE" ]]; then
-                  exit 0
-                else
+                if [[ "$AFTER" != "$BEFORE" ]]; then
                   exit 78 # EREMCHG
                 fi
             _to_enable: >-
@@ -254,9 +279,7 @@
                 AFTER="$({ ceph orch host ls --format yaml; \
                            ceph orch ls --export; } | cksum)"
 
-                if [[ "$AFTER" == "$BEFORE" ]]; then
-                  exit 0
-                else
+                if [[ "$AFTER" != "$BEFORE" ]]; then
                   exit 78 # EREMCHG
                 fi
           register: command_orch_apply
@@ -309,9 +332,7 @@
 
                 AFTER="$(ceph config dump | cksum)"
 
-                if [[ "$AFTER" == "$BEFORE" ]]; then
-                  exit 0
-                else
+                if [[ "$AFTER" != "$BEFORE" ]]; then
                   exit 78 # EREMCHG
                 fi
             _when: >-
