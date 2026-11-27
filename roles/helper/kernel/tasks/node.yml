@@ -1,0 +1,38 @@
+---
+# NOTE: Security Groups on OpenNebula nodes need the ip_set kernel module (ipset), every VM NIC goes through them.
+#       On RHEL/AlmaLinux 10 the module is packaged in kernel-modules-extra, and the repositories provide it for the
+#       latest kernel only. Installing it, directly or later as a dependency of opennebula-node-kvm, then brings in
+#       a new kernel that the host does not run yet, so ipset fails and every VM ends in BOOT_FAILURE until a reboot.
+#       Install it here, before any OpenNebula package, so the reboot (with consent) happens early.
+- name: Install extra kernel modules (ip_set)
+  ansible.builtin.package:
+    name: kernel-modules-extra
+  register: package
+  until: package is success
+  retries: 12
+  delay: 5
+  when:
+    - ansible_os_family == 'RedHat'
+    - ansible_distribution_major_version is version('10', '>=')
+
+- name: Check if the running kernel can load ip_set
+  ansible.builtin.command:
+    cmd: modprobe --dry-run ip_set
+  register: command_modprobe_ip_set
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Indicate if reboot is required
+  ansible.builtin.set_fact:
+    kernel_need_to_reboot: >-
+      {{ (kernel_need_to_reboot | bool) or (command_modprobe_ip_set.rc != 0) }}
+
+- name: Fail if the running kernel cannot load ip_set and rebooting is not allowed
+  ansible.builtin.fail:
+    msg: >-
+      The running kernel {{ ansible_kernel }} cannot load the ip_set module required by Security Groups
+      (VMs would end in BOOT_FAILURE). Reboot into the newly installed kernel or set kernel_ok_to_reboot to true.
+  when:
+    - command_modprobe_ip_set.rc != 0
+    - kernel_ok_to_reboot | bool is false

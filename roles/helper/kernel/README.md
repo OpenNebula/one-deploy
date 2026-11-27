@@ -3,6 +3,10 @@ Role: opennebula.deploy.helper.kernel
 
 A role that updates Linux kernel's cmdline (+ reboot).
 
+On OpenNebula nodes it also makes sure the running kernel can load `ip_set` (required by Security Groups).
+On RHEL/AlmaLinux 10 it installs `kernel-modules-extra`, which may bring in a newer kernel. If the running kernel
+cannot load `ip_set`, the role reboots the node when `kernel_ok_to_reboot` is `true`, and fails otherwise.
+
 Requirements
 ------------
 
