@@ -57,6 +57,9 @@ Package Hub extension are registered by default (`sle-module-desktop-application
 The Web and Scripting Module provides `nodejs24` required by FireEdge (SLES 15 SP7 with
 maintenance updates applied).
 
+In Rocky Linux (9 and 10) the AlmaLinux OpenNebula repository is used (there is no dedicated Rocky Linux
+repository) and the `epel-release` package is installed from the distro's `extras` repository.
+
 In SLES 16 only the SUSE Package Hub extension is registered by default (`PackageHub/16.0/<arch>`).
 The optional `python313-pyone` bindings additionally require `python313-grpcio`, which is only
 available in the SUSE HA Extension (`sle-ha/16.0/<arch>`, extra registration code). If you need
