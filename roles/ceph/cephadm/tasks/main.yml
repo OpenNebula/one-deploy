@@ -94,6 +94,9 @@
             cephadm_host_version: >-
               {{ command_ceph_version.stdout | regex_search('^ceph version ([0-9]+[.][0-9]+[.][0-9]+)', '\1') | first }}
 
+        # NOTE: Cephadm normally tries SSH to --mon-ip before applying the host spec.
+        #       This fails when the monitor uses a dedicated Ceph IP and SSH is only
+        #       reachable on ansible_host.
         - name: Bootstrap Ceph
           ansible.builtin.command:
             cmd: bash -s
