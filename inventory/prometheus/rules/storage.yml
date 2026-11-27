@@ -1,0 +1,100 @@
+groups:
+  - name: local-storage
+    rules:
+      - alert: OpenNebulaHostDiskHealthError
+        expr: |
+          max by (instance, device) (smartctl_device_smartctl_exit_status != 0)
+          or
+          max by (instance, device) (smartctl_device_error_log_count{error_log_type="summary"} > 0)
+          or
+          max by (instance, device) (
+            smartctl_device_attribute{
+              attribute_value_type="raw",
+              attribute_name=~"Reallocated_Sector_Ct|Current_Pending_Sector|Offline_Uncorrectable|Reported_Uncorrect"
+            } > 0
+          )
+          or
+          max by (instance, device) (
+            smartctl_device_attribute{
+              attribute_value_type="raw",
+              attribute_name=~"UDMA_CRC_Error_Count|CRC_Error_Count"
+            } > 0
+          )
+          or
+          max by (instance, device) (smartctl_device_smart_status == 0)
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "Physical disk health error detected on {{ $labels.instance }} ({{ $labels.device }})"
+          user_action: "On host {{ $labels.instance }}, inspect the SMART status and error counters for disk {{ $labels.device }}, replace the failing disk, and verify the storage path recovers cleanly."
+
+      - alert: OpenNebulaHostRootFilesystemUsageHigh
+        expr: |
+          (
+            1 - (
+              node_filesystem_avail_bytes{
+                mountpoint=~"/|/sysroot",
+                device!~"rootfs",
+                fstype!~"tmpfs|overlay|squashfs|nsfs"
+              }
+              /
+              node_filesystem_size_bytes{
+                mountpoint=~"/|/sysroot",
+                device!~"rootfs",
+                fstype!~"tmpfs|overlay|squashfs|nsfs"
+              }
+            )
+          ) > 0.65
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          description: "Root filesystem used space above defined threshold (65%) on {{ $labels.instance }}"
+          user_action: "On host {{ $labels.instance }}, free space or extend the root filesystem capacity so usage drops below the 65% warning threshold."
+
+      - alert: OpenNebulaHostRootFilesystemReadOnly
+        expr: |
+          max by (instance) (
+            node_filesystem_readonly{
+              mountpoint=~"/|/sysroot",
+              device!~"rootfs",
+              fstype!~"tmpfs|overlay|squashfs|nsfs"
+            }
+          ) == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "Root filesystem switched to read-only mode on {{ $labels.instance }}"
+          user_action: "On host {{ $labels.instance }}, check filesystem errors and underlying storage health, repair the root filesystem, and remount it in read-write mode."
+
+  - name: external-storage
+    rules:
+      - alert: OpenNebulaLVMVolumeGroupUsageHigh
+        expr: |
+          (
+            1 - (
+              lvm_vg_free_bytes{vg_name=~".*one.*"}
+              /
+              lvm_vg_size_bytes{vg_name=~".*one.*"}
+            )
+          ) > 0.65
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          description: "LVM volume group used space above defined threshold (65%) on {{ $labels.instance }} ({{ $labels.vg_name }})"
+          user_action: "On host {{ $labels.instance }}, for VG {{ $labels.vg_name }}, free space or extend the LVM volume group capacity before the datastore fills."
+
+      - alert: OpenNebulaLVMVolumeGroupDegraded
+        expr: |
+          max by (instance, vg_name) (lvm_vg_missing_pv_count{vg_name=~".*one.*"} > 0)
+          or
+          max by (instance, vg_name) (lvm_vg_partial{vg_name=~".*one.*"} == 1)
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "LVM volume group degraded or missing physical volume on {{ $labels.instance }} ({{ $labels.vg_name }})"
+          user_action: "On host {{ $labels.instance }}, for VG {{ $labels.vg_name }}, inspect the degraded or missing PVs, restore the missing physical volumes, and recover the LVM group to a healthy state."

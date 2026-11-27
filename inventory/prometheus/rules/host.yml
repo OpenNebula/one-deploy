@@ -1,0 +1,51 @@
+groups:
+  - name: host_availability_and_capacity
+    rules:
+      - alert: OpenNebulaHostDown
+        expr: |
+          (up{job="node_exporter", one_host_id!=""} == 0)
+          and on (one_host_id)
+          (
+            (opennebula_host_state == 3)
+            or
+            (opennebula_host_state == 5)
+          )
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "Physical host {{ $labels.instance }} is down or unresponsive"
+          user_action: "On host {{ $labels.instance }}, verify power state and Redfish/iLO status, then check physical connectivity and switch reachability before recovery."
+
+      - alert: OpenNebulaHostMonitoringError
+        expr: |
+          (up{job="node_exporter", one_host_id!=""} == 1)
+          and on (one_host_id)
+          (opennebula_host_state == 3)
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          description: "OpenNebula reports an error for Host {{ $labels.one_host_id }} while the Node Exporter at {{ $labels.instance }} is reachable"
+          user_action: "Check the Host monitoring error in OpenNebula and inspect the Front-end logs and connectivity to the Host."
+
+      - alert: OpenNebulaHostCPUUsageHigh
+        expr: >
+          100 - (avg without (cpu, mode)
+          (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 90
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          description: "Host CPU utilization is above 90% on {{ $labels.instance }}"
+          user_action: "On host {{ $labels.instance }}, review VM placement and CPU allocation, then migrate or rebalance high-usage VMs to other hosts if needed."
+
+      - alert: OpenNebulaHostMemoryUsageHigh
+        expr: >
+          100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 90
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          description: "Host memory utilization is above 90% on {{ $labels.instance }}"
+          user_action: "On host {{ $labels.instance }}, review VM placement and memory allocation, then migrate or reduce memory-heavy VMs to free capacity."

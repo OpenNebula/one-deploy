@@ -1,0 +1,26 @@
+groups:
+- name: OpenNebulaCapacity
+  rules:
+  - alert: OpenNebulaDatastoreUsageHigh
+    expr: |
+      (
+        opennebula_datastore_used_bytes
+        /
+        opennebula_datastore_total_bytes
+      ) > 0.90
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      description: "Datastore {{ $labels.one_datastore_id }} used space above defined threshold (90%)"
+      user_action: "For datastore {{ $labels.one_datastore_id }}, free space or extend capacity to keep usage below the 90% alert threshold."
+
+  - alert: OpenNebulaVNetLeaseExhaustion
+    expr: |
+      opennebula_vnet_free_lease_ratio < 0.05
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      description: "Address Range {{ $labels.ar_id }} in Virtual network {{ $labels.vnet_id }} IP lease exhaustion detected"
+      user_action: "For VNet {{ $labels.vnet_id }} (AR {{ $labels.ar_id }}), extend the address range or release unused IP leases to restore address availability."

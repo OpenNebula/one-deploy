@@ -1,0 +1,53 @@
+---
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: observability
+
+alerting:
+  alertmanagers:
+    - file_sd_configs:
+        - files: [/etc/one/prometheus/targets/alertmanager.yml]
+
+# Keep this list in sync with oneprometheus_rules in observability.yml.
+rule_files:
+  - /etc/one/prometheus/rules.yml
+  - /etc/one/prometheus/backup.yml
+  - /etc/one/prometheus/exporters.yml
+  - /etc/one/prometheus/ha.yml
+  - /etc/one/prometheus/host.yml
+  - /etc/one/prometheus/libvirt.yml
+  - /etc/one/prometheus/mysql.yml
+  - /etc/one/prometheus/network.yml
+  - /etc/one/prometheus/one_capacity.yml
+  - /etc/one/prometheus/one_services.yml
+  - /etc/one/prometheus/storage.yml
+  - /etc/one/prometheus/vm.yml
+
+# Keep these jobs in sync with the exporters enabled in observability.yml.
+scrape_configs:
+  - job_name: prometheus
+    file_sd_configs:
+      - files: [/etc/one/prometheus/targets/prometheus.yml]
+  - job_name: opennebula_exporter
+    file_sd_configs:
+      - files: [/etc/one/prometheus/targets/opennebula.yml]
+  - job_name: node_exporter
+    file_sd_configs:
+      - files: [/etc/one/prometheus/targets/node.yml]
+  - job_name: libvirt_exporter
+    file_sd_configs:
+      - files: [/etc/one/prometheus/targets/libvirt.yml]
+  - job_name: mysql_exporter
+    file_sd_configs:
+      - files: [/etc/one/prometheus/targets/mysql.yml]
+  - job_name: lvm_exporter
+    file_sd_configs:
+      - files: [/etc/one/prometheus/targets/lvm.yml]
+  - job_name: ovs_exporter
+    file_sd_configs:
+      - files: [/etc/one/prometheus/targets/ovs.yml]
+  - job_name: smartctl_exporter
+    file_sd_configs:
+      - files: [/etc/one/prometheus/targets/smartctl.yml]

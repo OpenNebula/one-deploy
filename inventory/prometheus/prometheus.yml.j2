@@ -1,0 +1,25 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: "{{ env_name }}"
+{% if oneprometheus_components['opennebula-alertmanager'].enabled %}
+alerting:
+  alertmanagers:
+    - file_sd_configs:
+        - files:
+            - /etc/one/prometheus/targets/alertmanager.yml
+{% endif %}
+rule_files:
+{% for filename in oneprometheus_rules.keys() %}
+  - /etc/one/prometheus/{{ filename }}
+{% endfor %}
+scrape_configs:
+{% for component in oneprometheus_components.values() %}
+{% if component.enabled and component.job is not none %}
+  - job_name: {{ component.job }}
+    file_sd_configs:
+      - files:
+          - /etc/one/prometheus/targets/{{ component.short }}.yml
+{% endif %}
+{% endfor %}

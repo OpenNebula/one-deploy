@@ -1,0 +1,79 @@
+groups:
+- name: network
+  rules:
+  - alert: OpenNebulaHostNetworkInterfaceDown
+    expr: |
+      (node_network_up{device!~"lo|veth.*|vnet.*|virbr.*|docker.*|br.*|one.*"} == 0)
+      * on(instance, device) group_left(ifalias)
+      node_network_info
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      description: "Network interface down on {{ $labels.instance }} - Device: {{ $labels.device }}"
+      user_action: "On host {{ $labels.instance }}, check device {{ $labels.device }} physical link status, cabling, NIC state, and switch port configuration to restore connectivity."
+
+
+# Bond membership is identified through interface external_ids:
+# - one-deploy-bond=<bond_name> (OneDeploy-managed bonds)
+# - ovs-bond=<bond_name>        (manually configured bonds)
+#
+# For manually configured bonds, assign the external_id to each member:
+# ovs-vsctl set Interface eth0 external_ids:ovs-bond=bond0
+# ovs-vsctl set Interface eth1 external_ids:ovs-bond=bond0
+#
+# Interfaces without a matching external_id key are ignored by this alert.
+  - alert: OpenNebulaOVSBondDegraded
+    expr: |
+      (
+        sum by (system_id, value) (
+          (ovs_interface_link_state == bool 1)
+          * on(system_id, uuid) group_left(value)
+            (ovs_interface_external_ids{
+              key=~"one-deploy-bond|ovs-bond"
+            } == 1)
+        )
+        <
+        count by (system_id, value) (
+          ovs_interface_external_ids{
+            key=~"one-deploy-bond|ovs-bond"
+          } == 1
+        )
+      )
+      and on(system_id, value)
+      (
+        sum by (system_id, value) (
+          (ovs_interface_link_state == bool 1)
+          * on(system_id, uuid) group_left(value)
+            (ovs_interface_external_ids{
+              key=~"one-deploy-bond|ovs-bond"
+            } == 1)
+        ) > 0
+      )
+      and on(system_id, value)
+      (
+        count by (system_id, value) (
+          ovs_interface_external_ids{
+            key=~"one-deploy-bond|ovs-bond"
+          } == 1
+        ) > 1
+      )
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      message: "OVS bond {{ $labels.value }} is degraded on system {{ $labels.system_id }}: One or more bond members are down, but at least one remains active."
+      user_action: "Check the failed member interfaces of OVS bond {{ $labels.value }}, verify physical links and switch ports, and restore full bond redundancy."
+
+  - alert: OpenNebulaVMNetworkErrors
+    expr: |
+      sum by (instance, domain, one_vm_id) (
+        clamp_min(delta(opennebula_libvirt_net_tx_errors[5m]), 0)
+        + clamp_min(delta(opennebula_libvirt_net_rx_errors[5m]), 0)
+        ) > 0
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      description: "Virtual machine {{ $labels.one_vm_id }} network transmit/receive errors detected"
+      user_action: "For VM {{ $labels.domain }} on host {{ $labels.instance }}, inspect NIC error counters and host networking to restore normal traffic."

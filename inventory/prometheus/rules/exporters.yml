@@ -1,0 +1,65 @@
+groups:
+  - name: exporter_availability
+    rules:
+      - alert: OpenNebulaExporterDown
+        expr: up{job="opennebula_exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "OpenNebula exporter is down on {{ $labels.instance }}"
+          user_action: "On host {{ $labels.instance }}, inspect the OpenNebula exporter service for job {{ $labels.job }}, restart it if needed, and confirm it is healthy again."
+
+      - alert: OpenNebulaNodeExporterDown
+        expr: up{job="node_exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "Node exporter is down on {{ $labels.instance }}"
+          user_action: "On host {{ $labels.instance }}, inspect the node exporter service for job {{ $labels.job }}, restart it if needed, and confirm metrics are flowing again."
+
+      - alert: OpenNebulaLibvirtExporterDown
+        expr: up{job="libvirt_exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "Libvirt exporter is down on {{ $labels.instance }}"
+          user_action: "On host {{ $labels.instance }}, inspect the libvirt exporter service for job {{ $labels.job }}, restart it if needed, and confirm hypervisor metrics recover."
+
+      - alert: OpenNebulaSmartctlExporterDown
+        expr: up{job="smartctl_exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "Smartctl exporter is down on {{ $labels.instance }}"
+          user_action: "On host {{ $labels.instance }}, inspect the smartctl exporter service for job {{ $labels.job }}, restart it if needed, and confirm disk health metrics are available again."
+
+      - alert: OpenNebulaOVSExporterDown
+        expr: up{job="ovs_exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "OVS exporter is down on {{ $labels.instance }}"
+          user_action: "On host {{ $labels.instance }}, inspect the OVS exporter service for job {{ $labels.job }}, restart it if needed, and confirm OVS metrics are available again."
+
+      - alert: OpenNebulaLVMExporterDown
+        expr: up{job="lvm_exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "LVM exporter is down on {{ $labels.instance }}"
+          user_action: "On host {{ $labels.instance }}, inspect the LVM exporter service for job {{ $labels.job }}, restart it if needed, and confirm LVM metrics are available again."
+
+      - alert: OpenNebulaMySQLExporterDown
+        expr: up{job="mysql_exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "Prometheus cannot scrape the MySQL exporter at {{ $labels.instance }}"
+          user_action: "Check the MySQL exporter service and network connectivity from Prometheus."

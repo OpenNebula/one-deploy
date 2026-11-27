@@ -1,0 +1,25 @@
+groups:
+  - name: mysql
+    rules:
+      - alert: OpenNebulaMySQLConnectionFailed
+        expr: mysql_up{job="mysql_exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "The MySQL exporter at {{ $labels.instance }} cannot connect to the database"
+          user_action: "Check database availability, the configured socket or address, and the exporter credentials."
+
+      - alert: OpenNebulaMySQLConnectionsHigh
+        expr: |
+          (
+            mysql_global_status_threads_connected{job="mysql_exporter"}
+            /
+            mysql_global_variables_max_connections{job="mysql_exporter"}
+          ) > 0.80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          description: "Database connections reported by {{ $labels.instance }} exceed 80% of max_connections"
+          user_action: "Review connection pools and long-lived sessions, and check available capacity before changing the connection limit."

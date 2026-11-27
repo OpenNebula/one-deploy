@@ -1,0 +1,112 @@
+---
+# Observability with Prometheus and Grafana for an OpenNebula HA deployment.
+all:
+  vars:
+    ansible_user: root
+    env_name: observability
+    one_version: '7.4.2'
+    # Set your repository credentials as one_token for an Enterprise deployment.
+    features:
+      prometheus: true
+
+    one_vip: 10.11.12.69
+    one_vip_cidr: 24
+    one_vip_if: eth0
+
+    ds:
+      mode: ssh
+
+    # Select Hosts that provide Open vSwitch, SMART-capable disks, or LVM volumes.
+    oneprometheus_components:
+      opennebula-ovs-exporter:
+        enabled: true
+        targets: [n1, n2]
+      opennebula-smartctl-exporter:
+        enabled: true
+        targets: [n1, n2]
+      opennebula-lvm-exporter:
+        enabled: true
+        targets: [n1, n2]
+
+    oneprometheus_limits:
+      opennebula-prometheus.service:
+        CPUQuota: 200%
+        MemoryHigh: 2048M
+        MemoryMax: 3072M
+        storage.tsdb.retention.time: 30d
+        storage.tsdb.retention.size: 50GB
+      opennebula-alertmanager.service:
+        MemoryHigh: 128M
+        MemoryMax: 256M
+      grafana-server.service:
+        MemoryHigh: 1024M
+        MemoryMax: 2048M
+
+    oneprometheus_config:
+      prometheus: "{{ lookup('ansible.builtin.file', inventory_dir ~ '/prometheus/prometheus.yml') }}"
+      # To generate rule_files and scrape jobs from the inventory, use this instead:
+      # prometheus: "{{ lookup('ansible.builtin.template', inventory_dir ~ '/prometheus/prometheus.yml.j2') }}"
+
+      # Add a real integration to the receivers before using this for notifications.
+      alertmanager: |
+        global:
+          resolve_timeout: 5m
+        route:
+          receiver: default
+          group_by: [alertname, role]
+          group_wait: 30s
+          group_interval: 5m
+          repeat_interval: 4h
+          routes:
+            - receiver: critical
+              matchers:
+                - severity="critical"
+              repeat_interval: 1h
+        receivers:
+          - name: default
+          - name: critical
+        inhibit_rules:
+          - source_matchers:
+              - severity="critical"
+            target_matchers:
+              - severity="warning"
+            equal: [alertname, instance]
+
+    # Keep alerts grouped by subsystem. The package-provided rules.yml also loads.
+    oneprometheus_rules:
+      backup.yml: "{{ lookup('ansible.builtin.file', inventory_dir ~ '/prometheus/rules/backup.yml') }}"
+      exporters.yml: "{{ lookup('ansible.builtin.file', inventory_dir ~ '/prometheus/rules/exporters.yml') }}"
+      ha.yml: "{{ lookup('ansible.builtin.file', inventory_dir ~ '/prometheus/rules/ha.yml') }}"
+      host.yml: "{{ lookup('ansible.builtin.file', inventory_dir ~ '/prometheus/rules/host.yml') }}"
+      libvirt.yml: "{{ lookup('ansible.builtin.file', inventory_dir ~ '/prometheus/rules/libvirt.yml') }}"
+      mysql.yml: "{{ lookup('ansible.builtin.file', inventory_dir ~ '/prometheus/rules/mysql.yml') }}"
+      network.yml: "{{ lookup('ansible.builtin.file', inventory_dir ~ '/prometheus/rules/network.yml') }}"
+      one_capacity.yml: "{{ lookup('ansible.builtin.file', inventory_dir ~ '/prometheus/rules/one_capacity.yml') }}"
+      one_services.yml: "{{ lookup('ansible.builtin.file', inventory_dir ~ '/prometheus/rules/one_services.yml') }}"
+      storage.yml: "{{ lookup('ansible.builtin.file', inventory_dir ~ '/prometheus/rules/storage.yml') }}"
+      vm.yml: "{{ lookup('ansible.builtin.file', inventory_dir ~ '/prometheus/rules/vm.yml') }}"
+
+frontend:
+  vars:
+    oneprometheus_labels:
+      site: example
+  hosts:
+    f1: { ansible_host: 10.11.12.10 }
+    f2: { ansible_host: 10.11.12.20 }
+    f3: { ansible_host: 10.11.12.30 }
+
+node:
+  vars:
+    # Use an isolated OVS bridge for this example. Set a bridge and uplinks for your network.
+    ovs:
+      br:
+        br-monitor: {}
+    oneprometheus_labels:
+      site: example
+  hosts:
+    n1: { ansible_host: 10.11.12.40 }
+    n2: { ansible_host: 10.11.12.50 }
+
+grafana:
+  children:
+    frontend: {}
