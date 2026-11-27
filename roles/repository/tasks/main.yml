@@ -41,3 +41,32 @@
           {{ _repos_enabled | map('regex_replace', '^(.*)$', '\g<1>_repo')
                             | map('extract', hostvars[inventory_hostname], ['changed'])
                             | map('default', false) }}
+
+# NOTE: EL9 default Ruby is 3.0, newer OpenNebula packages are built against
+#       a Ruby available only as a module stream (e.g. ruby:3.3). The stream has
+#       to be enabled before the packages are installed or upgraded, detect it
+#       from the dependencies of the bundled Ruby gems in the configured repos.
+- when:
+    - ansible_os_family == 'RedHat'
+    - ansible_distribution_major_version == '9'
+  block:
+    - name: Detect Ruby required by OpenNebula packages
+      ansible.builtin.command:
+        cmd: dnf -q --refresh repoquery --latest-limit 1 --requires opennebula-rubygems
+      changed_when: false
+      register: repoquery_rubygems
+      until: repoquery_rubygems is success
+      retries: 12
+      delay: 5
+
+    - name: Enable Ruby module stream
+      ansible.builtin.command:
+        cmd: dnf module enable -y ruby:{{ _ruby_stream }}
+      when:
+        - _ruby_stream is truthy
+        - _ruby_stream is version('3.0', '>')
+      vars:
+        _ruby_stream: >-
+          {{ repoquery_rubygems.stdout | regex_search('libruby\.so\.(\d+\.\d+)', '\1') | d([], true) | first | d('') }}
+      register: module_enable_ruby
+      changed_when: "'Nothing to do.' not in module_enable_ruby.stdout"
