@@ -1,0 +1,11 @@
+groups:
+- name: libvirt
+  rules:
+  - alert: OpenNebulaLibvirtDaemonDown
+    expr: opennebula_libvirt_daemon_up == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      description: "Libvirt service not running on {{ $labels.instance }}"
+      user_action: "On host {{ $labels.instance }}, restart libvirt and verify the hypervisor and VM management stack are healthy again."

@@ -1,0 +1,33 @@
+groups:
+  - name: virtual_machines
+    rules:
+      - alert: OpenNebulaVMFailureState
+        expr: |
+          (opennebula_vm_lcm_state >= 36 and opennebula_vm_lcm_state <= 42)
+          or opennebula_vm_lcm_state == 44
+          or (opennebula_vm_lcm_state >= 46 and opennebula_vm_lcm_state <= 50)
+          or opennebula_vm_lcm_state == 61
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          description: "Virtual machine {{ $labels.one_vm_id }} entered failure state"
+          user_action: "For VM {{ $labels.one_vm_id }}, inspect the failure state, recover the VM, and verify the guest and host are healthy before returning it to service."
+
+      - alert: OpenNebulaVMPending
+        expr: opennebula_vm_state == 1
+        for: 300s
+        labels:
+          severity: warning
+        annotations:
+          description: "Virtual machine {{ $labels.one_vm_id }} has been pending for at least 5 minutes"
+          user_action: "For VM {{ $labels.one_vm_id }}, review scheduler placement and resource allocation, then resolve any pending constraints or quota issues."
+
+      - alert: OpenNebulaVMUnknownState
+        expr: opennebula_vm_lcm_state == 16
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          description: "Virtual machine {{ $labels.one_vm_id }} is in LCM UNKNOWN state"
+          user_action: "For VM {{ $labels.one_vm_id }}, inspect the LCM state and recovery path, then restore the VM to a healthy lifecycle state."

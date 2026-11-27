@@ -1,0 +1,19 @@
+groups:
+  - name: backups
+    rules:
+      - alert: OpenNebulaVMBackupFailed
+        expr: opennebula_vm_backup_last_status == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          description: 'Backup job execution failed for VM {{ $labels.one_vm_id }} ({{ $labels.one_vm_name }}) at {{ with query (printf "opennebula_vm_backup_last_timestamp{one_vm_id=\"%s\"}" $labels.one_vm_id) }}{{ . | first | value | humanizeTimestamp }}{{ end }}'
+          user_action: "For VM {{ $labels.one_vm_id }} ({{ $labels.one_vm_name }}), review the backup logs, confirm the failure cause, and rerun the backup job if the issue is transient."
+      - alert: OpenNebulaVMRestoreFailed
+        expr: opennebula_vm_restore_last_status == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          description: 'Backup restore job execution failed for VM {{ $labels.one_vm_id }} ({{ $labels.one_vm_name }}) at {{ with query (printf "opennebula_vm_restore_last_timestamp{one_vm_id=\"%s\"}" $labels.one_vm_id) }}{{ . | first | value | humanizeTimestamp }}{{ end }}'
+          user_action: "For VM {{ $labels.one_vm_id }} ({{ $labels.one_vm_name }}), investigate the restore failure, verify backup integrity, and rerun the restore once the root cause is fixed."

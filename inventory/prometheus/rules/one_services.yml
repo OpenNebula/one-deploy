@@ -1,0 +1,56 @@
+groups:
+- name: OpenNebulaControlPlane
+  rules:
+  - alert: OpenNebulaOnedDown
+    expr: opennebula_oned_state == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      description: "OpenNebula core service (oned) is not running on {{ $labels.one_server_fqdn }}"
+      user_action: "Restart the oned service on the OpenNebula control plane, review the service logs, and confirm the core process returns to a healthy state."
+
+  - alert: OpenNebulaFireEdgeDown
+    expr: opennebula_fireedge_state == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      description: "FireEdge service is not running on {{ $labels.one_server_fqdn }}"
+      user_action: "Restart the FireEdge service, review the service logs, and verify the web interface and API stack are available again."
+
+  - alert: OpenNebulaHookManagerDown
+    expr: |
+      (opennebula_hem_state == 0)
+      unless on (instance)
+      (opennebula_ha_is_leader == 0)
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      description: "HookManager service is not running on {{ $labels.one_server_fqdn }}"
+      user_action: "Restart the HookManager service, review the hook manager logs, and confirm the automation path is functioning normally."
+
+  - alert: OpenNebulaGateDown
+    expr: |
+      (opennebula_gate_state == 0)
+      unless on (instance)
+      (opennebula_ha_is_leader == 0)
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      description: "OneGate service is not running on {{ $labels.one_server_fqdn }}"
+      user_action: "Restart the OneGate service, review the service logs, and verify the public access path is available again."
+
+  - alert: OpenNebulaFlowDown
+    expr: |
+      (opennebula_flow_state == 0)
+      unless on (instance)
+      (opennebula_ha_is_leader == 0)
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      description: "OneFlow service is not running on {{ $labels.one_server_fqdn }}"
+      user_action: "Restart the OneFlow service, review the service logs, and verify that service orchestration is functioning normally."

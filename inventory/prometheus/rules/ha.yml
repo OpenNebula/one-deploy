@@ -1,0 +1,38 @@
+groups:
+- name: OpenNebulaHA
+  rules:
+  - alert: OpenNebulaRAFTLeaderSwitched
+    expr: |
+      (opennebula_ha_is_leader == 1 )
+      and
+      (changes(opennebula_ha_is_leader[1m]) > 0)
+    labels:
+      severity: warning
+    annotations:
+      description: "OpenNebula RAFT leader switched"
+      user_action: "Verify the HA frontend state, confirm that a new RAFT leader has been elected, and check that the control-plane VIP has transitioned correctly."
+
+  - alert: OpenNebulaRAFTClusterDegraded
+    expr: |
+      opennebula_ha_members > 0
+      and
+      opennebula_ha_error_members > 0
+      and
+      (
+        opennebula_ha_members - opennebula_ha_error_members
+      ) > (opennebula_ha_members / 2)
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      description: "OpenNebula RAFT cluster is in a degraded state"
+      user_action: "Identify the failed or unexpected RAFT member, review the OpenNebula service and RAFT logs on the affected frontend, and restore the member before additional failures cause quorum loss."
+
+  - alert: OpenNebulaRAFTQuorumLost
+    expr: opennebula_ha_members == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      description: "OpenNebula RAFT quorum is lost"
+      user_action: "Check the availability and connectivity of the OpenNebula frontend nodes, review RAFT and oned logs, and restore enough members to re-establish quorum."
