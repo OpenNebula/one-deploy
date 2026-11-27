@@ -13,6 +13,11 @@
     - kernel_modules is sequence
     - kernel_modules | count > 0
 
+- ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/node.yml"
+  when:
+    - inventory_hostname in groups[node_group | d('node')] | d([])
+
 - when:
     - kernel_ok_to_reboot | bool is true
     - kernel_need_to_reboot | bool is true
