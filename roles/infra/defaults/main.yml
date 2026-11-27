@@ -87,9 +87,12 @@ infra_xml_numatune:
     </domain>
 
 infra_xml_memoryBacking:
+  # NOTE: Shared memory (required by virtiofs) without an explicit source makes libvirt back the guest RAM with a file
+  #       in memory_backing_dir (/var/lib/libvirt/qemu/ram), i.e. on the disk of the infra host. memfd keeps it in RAM.
   default: |
     <domain type='kvm'>
       <memoryBacking>
+        <source type='memfd'/>
         <access mode='shared'/>
       </memoryBacking>
     </domain>
