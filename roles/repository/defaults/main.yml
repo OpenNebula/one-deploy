@@ -161,11 +161,13 @@ opennebula_repo_url_defaults:
     {%- else -%}
       https://downloads.opennebula.io/repo/{{ one_version }}/openSUSE
     {%- endif -%}
+  # NOTE: There is no dedicated Rocky Linux repo, AlmaLinux packages are used instead.
   RedHat: >-
+    {%- set _distribution = 'AlmaLinux' if ansible_distribution == 'Rocky' else ansible_distribution -%}
     {%- if one_edition in ['Enterprise'] -%}
-      https://enterprise.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
+      https://enterprise.opennebula.io/repo/{{ one_version }}/{{ _distribution }}
     {%- else -%}
-      https://downloads.opennebula.io/repo/{{ one_version }}/{{ ansible_distribution }}
+      https://downloads.opennebula.io/repo/{{ one_version }}/{{ _distribution }}
     {%- endif -%}
   Suse: >-
     {%- if one_edition in ['Enterprise'] -%}
@@ -231,6 +233,19 @@ opennebula_repo_pre_enable_defaults:
       '8': [https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm]
       '9': [https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm]
       '10': [https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm]
+  Rocky:
+    subscription_manager:
+      '9': []
+      '10': []
+    config_manager:
+      '9': [epel, crb, highavailability]
+      '10': [epel, crb, highavailability]
+    extra_repos:
+      '9': []
+      '10': []
+    extra_rpms:
+      '9': [epel-release]
+      '10': [epel-release]
   SLES:
     # NOTE: On SLES 15 the Web and Scripting Module provides nodejs24 (FireEdge),
     #       it is available only as a SP7 maintenance update.

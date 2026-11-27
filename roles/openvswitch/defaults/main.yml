@@ -21,6 +21,11 @@ ovs_packages:
     - iproute
     - iputils
     - openvswitch3.6
+  Rocky:
+    - ethtool
+    - iproute
+    - iputils
+    - openvswitch3.5
   Suse:
     - ethtool
     - iproute2
@@ -45,6 +50,12 @@ ovs_packages_dpdk:
     - iproute
     - iputils
     - openvswitch3.6
+  Rocky:
+    - dpdk-tools
+    - ethtool
+    - iproute
+    - iputils
+    - openvswitch3.5
   Suse:
     - dpdk-tools
     - ethtool
