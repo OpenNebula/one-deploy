@@ -43,13 +43,21 @@
               cmd: |
                 set -o errexit
 
-                if ceph osd pool get '{{ ceph.pool }}' all; then
-                  exit 0
+                CHANGED=0
+
+                if ! ceph osd pool get '{{ ceph.pool }}' all; then
+                  ceph osd pool create '{{ ceph.pool }}' 128
+                  CHANGED=1
                 fi
 
-                ceph osd pool create '{{ ceph.pool }}' 128
+                # NOTE: Without an application Ceph reports POOL_APP_NOT_ENABLED as soon as the pool holds data,
+                #       this also fixes pools created by previous runs.
+                if ! ceph osd pool application get '{{ ceph.pool }}' rbd; then
+                  ceph osd pool application enable '{{ ceph.pool }}' rbd
+                  CHANGED=1
+                fi
 
-                exit 78 # EREMCHG
+                [[ "$CHANGED" == 0 ]] || exit 78 # EREMCHG
           register: command_ensure_pool
           changed_when:
             - command_ensure_pool.rc in [78]
@@ -217,7 +225,11 @@
       mon host = {{ _mon }}
   vars:
     _hosts: >-
-      {{ groups.get(mon_group | d('mon')) | map('extract', hostvars, ['ansible_host']) | list }}
+      {%- set output = [] -%}
+      {%- for host in groups.get(mon_group | d('mon')) -%}
+        {{- output.append(hostvars[host].ceph_addr | d(hostvars[host].ansible_host)) -}}
+      {%- endfor -%}
+      {{- output -}}
     _mon: >-
       {%- set output = [] -%}
       {%- for host in _hosts -%}

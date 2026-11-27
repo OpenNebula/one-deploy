@@ -19,6 +19,7 @@ Role Variables
 | `ceph.ec_profile` | `dict` | `{ k: 2, m: 1 }` |                                        | Erasure code profile settings used to create `ceph.ec_pool`.                                              |
 | `ceph.uuid`       | `str`  | `null`           | `fd083b60-82ce-518b-a1a7-fc7bda472338` | UUID of the secret that is to keep Ceph key in Libvirt.                                                   |
 | `mon_group`       | `str`  | `mon`            |                                        | Name of the inventory group keeping all Ceph mons.                                                        |
+| `ceph_addr`       | `str`  | `ansible_host`   | `10.11.13.10`                          | (host var of mons) Address of the mon in the Ceph public network, used for `mon host` in `ceph.conf`.     |
 
 Dependencies
 ------------
